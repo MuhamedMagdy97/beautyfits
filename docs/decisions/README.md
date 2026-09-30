@@ -17,5 +17,6 @@
 | [ADR-0010](ADR-0010-ids-transactions-integration-tests.md) | UUIDv7 ids, transaction helper, integration tests | TASK-003 |
 | [ADR-0011](ADR-0011-money-and-time.md) | Money and time helpers | TASK-005 |
 | [ADR-0012](ADR-0012-formatting-and-ci.md) | Formatting (Prettier) and CI (GitHub Actions) | TASK-006 |
+| [ADR-0013](ADR-0013-customer-auth-sessions-throttling.md) | Customer auth: tokens, transport, CSRF, throttling and client IP (amends ADR-0008) | TASK-007 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

@@ -38,7 +38,7 @@ Rules:
 - **Route handlers stay thin.** They are wrapped with `withApi`, validate input with zod, call one module service, and return `ok(...)`. They contain no business rules.
 - **Modules own their data.** A module never touches another module's tables directly; it calls that module's exported service functions (Architecture §4).
 - **Framework independence.** `src/server/modules/**` and the shared kernel must not import from `next/*` or React. That keeps a later extraction into `apps/api` mechanical if scale ever requires it.
-- **Graceful shutdown.** Rely on `next start`, which on `SIGTERM`/`SIGINT` stops accepting connections and drains in-flight requests (Next.js self-hosting guide). The deployment platform must allow a 10–30 s drain period. No custom signal handlers: in the App Router they are not supported, and PostgreSQL releases closed connections.
+- **Graceful shutdown.** Amended by ADR-0013: production runs `server.mjs` (`npm start`), which stops accepting connections on `SIGTERM`/`SIGINT` and drains in-flight requests (30 s limit). Originally: rely on `next start`, which on `SIGTERM`/`SIGINT` stops accepting connections and drains in-flight requests (Next.js self-hosting guide). The deployment platform must allow a 10–30 s drain period. No custom signal handlers: in the App Router they are not supported, and PostgreSQL releases closed connections.
 - **Background workers** (Architecture §11) are a separate entry point that reuses `src/server/**`. The queue technology is chosen by the first task that needs it (TASK-031/TASK-045).
 
 ## Consequences

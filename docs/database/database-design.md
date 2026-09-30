@@ -57,12 +57,12 @@ Key fields:
 - `email`
 - `email_verified_at`
 - `password_hash`
-- `status` = `ACTIVE` | `SUSPENDED` | `DEACTIVATED`
+- `status` = `PENDING_VERIFICATION` | `ACTIVE` | `SUSPENDED` | `DEACTIVATED` (`PENDING_VERIFICATION` added in TASK-007, Business Spec R25)
 - `last_login_at`
 - `created_at`, `updated_at`
 
 Constraints:
-- normalized email is unique **per `account_type`** (the same email may hold one CUSTOMER and one EMPLOYEE account; Business Spec R15)
+- normalized email is unique **per `account_type`** (the same email may hold one CUSTOMER and one EMPLOYEE account; Business Spec R15), **among verified emails only** (partial unique index; unverified pending registrations never reserve an email — Business Spec R25, TASK-007)
 - password hashes only; never plaintext passwords
 - customers log in with email + password (Business Spec R13); `deactivated_at` and `anonymized_at` support Q154 (v1.2 amendments)
 
@@ -71,7 +71,8 @@ Constraints:
 Key fields:
 - `id`
 - `account_id` nullable for guest-only historical customers if needed
-- `phone` (normalized E.164, required, unique among active customer identities; primary business identifier, not the login — Business Spec R13)
+- `phone` (Egyptian mobile number normalized to E.164 — Business Spec R27; required; unique among **verified** phones only — R25; primary business identifier, not the login — Business Spec R13)
+- `phone_verified_at` nullable (WhatsApp OTP, R25; TASK-007)
 - `preferred_locale` = `ar` | `en` (Business Spec R14)
 - `full_name`
 - `date_of_birth` nullable
@@ -1041,8 +1042,8 @@ Employee 1─N AuditLogs
 ## 22. Critical Constraints & Indexes
 
 ### Uniqueness
-- normalized account email
-- customer phone
+- normalized account email per account type, once verified (R15, R25)
+- customer phone, once verified (R25)
 - product SKU
 - variant SKU
 - product slug
@@ -1312,6 +1313,8 @@ Added by TASK-002A (`docs/tasks/TASK-002A-docs-closure.md`). Technical entities 
 
 Customer lifetime 30 days (Q162). Staff lifetime and password-reset behaviour: `[BUSINESS DECISION REQUIRED]` (TASK-002A open decisions 1–2).
 
+**Superseded by "v1.2 TASK-007 Amendments":** the token columns moved to `auth_session_tokens`; customer password-reset behaviour is R23. Staff lifetime remains open for TASK-011.
+
 #### `otp_challenges`
 - `id`
 - `account_id` nullable (null before registration completes)
@@ -1325,7 +1328,7 @@ Customer lifetime 30 days (Q162). Staff lifetime and password-reset behaviour: `
 - `ip_address`, `device_id` nullable (Q161)
 - `created_at`
 
-Channel for `PHONE_CHANGE` and `GUEST_ORDER_CLAIM`: `[BUSINESS DECISION REQUIRED]` (SMS is a future channel, R10).
+Channel for `PHONE_CHANGE` and `GUEST_ORDER_CLAIM`: **WhatsApp** (Business Spec R25, TASK-007). SMS remains a future channel (R10). Purpose `PHONE_VERIFICATION` added in TASK-007 (see "v1.2 TASK-007 Amendments").
 
 #### `employee_invitations` (Q64)
 - `id`, `email`, `employee_level`, `role_ids_json`
@@ -1419,6 +1422,48 @@ Customer-facing text is stored as `_ar` / `_en` column pairs (two fixed language
 | `products.sku`, `selling_price`, `latest_purchase_cost`, `weighted_average_cost`, `low_stock_threshold` | variant level (C6) |
 | `products.main_media_id` | `product_media.is_main` |
 | `discounts.active` | `discounts.status` |
+
+## v1.2 TASK-007 Amendments
+
+Added by TASK-007 (`docs/tasks/TASK-007-customer-auth-core.md`, ADR-0013, Business Spec R23–R27). Migrated in `prisma/migrations/*_customer_auth_core`.
+
+### `accounts` (§3.1)
+- `status` adds `PENDING_VERIFICATION` (default at registration). A customer account becomes `ACTIVE` only after both email and phone are verified (R25; activation is TASK-008).
+- `password_changed_at` (set at registration and on every password change/reset).
+- A pending account expires **24 hours** after `created_at` (R25). It is treated as non-existent afterwards.
+- Unique `(account_type, email) WHERE email_verified_at IS NOT NULL` (`accounts_verified_email_key`), plus a plain index on `(account_type, email)` for lookups.
+- Replacement (R25): a new registration deletes pending accounts with the same email or phone whose email and phone are both unverified, and any expired pending account, together with their sessions. This is the only hard delete in the identity model and is allowed because a pending account cannot hold any business history (ADR-0013 §7).
+
+### `customers` (§3.2)
+- `phone`: E.164 Egyptian mobile (R27).
+- `phone_verified_at` nullable.
+- Unique `phone WHERE phone_verified_at IS NOT NULL` (`customers_verified_phone_key`), plus a plain index on `phone`. Several pending accounts may hold the same unverified phone; the first to verify it keeps it.
+- `preferred_locale` defaults to `ar`. `date_of_birth`, `status` and `anonymized_at` are deferred to TASK-009.
+
+### `auth_sessions` (replaces the v1.2 TASK-002A definition)
+One login on one device (a refresh-token family).
+- `id`, `account_id`, `domain` = `CUSTOMER` | `EMPLOYEE`
+- `created_at`, `last_used_at` (written at most once a minute), `expires_at` (absolute: customers 30 days after login — Q162, R23)
+- `revoked_at` nullable, `revoke_reason` nullable = `LOGOUT` | `LOGOUT_ALL` | `PASSWORD_CHANGE` | `PASSWORD_RESET` | `DEACTIVATED` | `REUSE_DETECTED`
+- `ip_address`, `user_agent` (coarse metadata; user agent truncated to 512 characters)
+- Index `(account_id, revoked_at)`.
+
+### `auth_session_tokens`
+One issued access/refresh pair. Only SHA-256 hashes are stored.
+- `id`, `session_id` (cascade delete with the session)
+- `access_token_hash` unique, `refresh_token_hash` unique
+- `access_expires_at` (15 minutes, never after the session expiry)
+- `created_at`, `rotated_at` nullable (set when the refresh token is used; a superseded refresh token presented again revokes the session — ADR-0013)
+
+### `rate_limit_buckets`
+Throttling counters shared by all app instances (ADR-0013 §4).
+- `key` primary key (e.g. `login:account:<sha256(email)>`, `login:ip:<ip>`, `register:ip:<ip>`)
+- `count`, `window_started_at`, `blocked_until` nullable, `updated_at` (indexed, for cleanup)
+
+### `otp_challenges` (design only; migrated in TASK-008)
+- `purpose` adds `PHONE_VERIFICATION` (registration, R25).
+- `channel`: `EMAIL` for `EMAIL_VERIFICATION`, `PASSWORD_RESET`, `EMAIL_CHANGE`; `WHATSAPP` for `PHONE_VERIFICATION`, `PHONE_CHANGE`, `GUEST_ORDER_CLAIM` (R25); employee login per TASK-011.
+- Limits (Q158–Q161) reuse `rate_limit_buckets`.
 
 ## TASK-001 Reconciliation
 
