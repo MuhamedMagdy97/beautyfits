@@ -8,8 +8,9 @@
 // - tables use snake_case names via @@map / @map
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
 }
 
 datasource db {
@@ -77,4 +78,149 @@ model OutboxEvent {
 
   @@index([status, availableAt])
   @@map("outbox_events")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & customer authentication (DB design v1.2 §3 + "v1.2 TASK-007
+// Amendments"; TASK-007, ADR-0013)
+// ---------------------------------------------------------------------------
+
+enum AccountType {
+  CUSTOMER
+  EMPLOYEE
+
+  @@map("account_type")
+}
+
+enum AccountStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+
+  @@map("account_status")
+}
+
+enum Locale {
+  ar
+  en
+
+  @@map("locale")
+}
+
+enum AuthDomain {
+  CUSTOMER
+  EMPLOYEE
+
+  @@map("auth_domain")
+}
+
+enum SessionRevokeReason {
+  LOGOUT
+  LOGOUT_ALL
+  PASSWORD_CHANGE
+  PASSWORD_RESET
+  DEACTIVATED
+  REUSE_DETECTED
+
+  @@map("session_revoke_reason")
+}
+
+/// Authentication identity (DB design §3.1). A normalized email is unique per
+/// account type only once verified (Business Spec R15, TASK-007 owner decision):
+/// unverified PENDING_VERIFICATION accounts never reserve an email.
+model Account {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  accountType       AccountType   @map("account_type")
+  /// Trimmed and lowercased.
+  email             String
+  emailVerifiedAt   DateTime?     @map("email_verified_at") @db.Timestamptz(3)
+  /// scrypt hash with its parameters (ADR-0013); never the password.
+  passwordHash      String        @map("password_hash")
+  passwordChangedAt DateTime      @default(now()) @map("password_changed_at") @db.Timestamptz(3)
+  status            AccountStatus @default(PENDING_VERIFICATION)
+  lastLoginAt       DateTime?     @map("last_login_at") @db.Timestamptz(3)
+  deactivatedAt     DateTime?     @map("deactivated_at") @db.Timestamptz(3)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customer Customer?
+  sessions AuthSession[]
+
+  @@unique([accountType, email], map: "accounts_verified_email_key", where: raw("email_verified_at IS NOT NULL"))
+  @@index([accountType, email])
+  @@map("accounts")
+}
+
+/// Customer profile (DB design §3.2). The phone is an Egyptian mobile number in
+/// E.164 (Business Spec R27), unique only once verified.
+model Customer {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  accountId       String?   @unique @map("account_id") @db.Uuid
+  /// E.164, e.g. +201012345678.
+  phone           String
+  phoneVerifiedAt DateTime? @map("phone_verified_at") @db.Timestamptz(3)
+  fullName        String    @map("full_name")
+  preferredLocale Locale    @default(ar) @map("preferred_locale")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  account Account? @relation(fields: [accountId], references: [id])
+
+  @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
+  @@index([phone])
+  @@map("customers")
+}
+
+/// One login on one device: a refresh-token family (ADR-0008, ADR-0013).
+/// Revoking the session invalidates every token issued for it.
+model AuthSession {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  accountId    String               @map("account_id") @db.Uuid
+  domain       AuthDomain
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt   DateTime             @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  /// Absolute end of the session (customers: 30 days after login, Q162).
+  expiresAt    DateTime             @map("expires_at") @db.Timestamptz(3)
+  revokedAt    DateTime?            @map("revoked_at") @db.Timestamptz(3)
+  revokeReason SessionRevokeReason? @map("revoke_reason")
+  ipAddress    String?              @map("ip_address")
+  userAgent    String?              @map("user_agent")
+
+  account Account            @relation(fields: [accountId], references: [id])
+  tokens  AuthSessionToken[]
+
+  @@index([accountId, revokedAt])
+  @@map("auth_sessions")
+}
+
+/// One issued access/refresh token pair. Only SHA-256 hashes are stored.
+/// A pair is superseded (`rotated_at`) when its refresh token is used;
+/// presenting a superseded refresh token again is reuse (ADR-0013).
+model AuthSessionToken {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  sessionId        String    @map("session_id") @db.Uuid
+  accessTokenHash  String    @unique @map("access_token_hash")
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  accessExpiresAt  DateTime  @map("access_expires_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  rotatedAt        DateTime? @map("rotated_at") @db.Timestamptz(3)
+
+  session AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("auth_session_tokens")
+}
+
+/// Throttling counter shared by all app instances (ADR-0013). Keys are
+/// namespaced, e.g. "login:account:<sha256(email)>", "login:ip:<ip>".
+model RateLimitBucket {
+  key             String    @id
+  count           Int
+  windowStartedAt DateTime  @map("window_started_at") @db.Timestamptz(3)
+  blockedUntil    DateTime? @map("blocked_until") @db.Timestamptz(3)
+  updatedAt       DateTime  @map("updated_at") @db.Timestamptz(3)
+
+  @@index([updatedAt])
+  @@map("rate_limit_buckets")
 }
