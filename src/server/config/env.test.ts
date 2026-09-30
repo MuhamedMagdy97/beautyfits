@@ -6,7 +6,13 @@ const VALID_URL = "postgresql://user:s3cret-value@localhost:5432/db";
 describe("parseEnv", () => {
   it("parses a valid environment and applies defaults", () => {
     const env = parseEnv({ DATABASE_URL: VALID_URL });
-    expect(env).toEqual({ NODE_ENV: "development", DATABASE_URL: VALID_URL, LOG_LEVEL: "info" });
+    expect(env).toEqual({
+      NODE_ENV: "development",
+      DATABASE_URL: VALID_URL,
+      LOG_LEVEL: "info",
+      TRUSTED_PROXIES: [],
+      AUTH_ALLOWED_ORIGINS: [],
+    });
   });
 
   it("accepts explicit values", () => {
@@ -31,6 +37,32 @@ describe("parseEnv", () => {
       // Values (which may be secrets) never appear in the error.
       expect(message).not.toContain("hunter2");
       expect(message).not.toContain("mysql://");
+    }
+  });
+
+  it("parses trusted proxies and allowed origins as lists", () => {
+    const env = parseEnv({
+      DATABASE_URL: VALID_URL,
+      TRUSTED_PROXIES: " 10.0.0.1, 172.16.0.0/12 ,fd00::/8,",
+      AUTH_ALLOWED_ORIGINS: "https://beautyfits.example, http://localhost:3000",
+    });
+    expect(env.TRUSTED_PROXIES).toEqual(["10.0.0.1", "172.16.0.0/12", "fd00::/8"]);
+    expect(env.AUTH_ALLOWED_ORIGINS).toEqual([
+      "https://beautyfits.example",
+      "http://localhost:3000",
+    ]);
+  });
+
+  it("rejects invalid proxies and origins", () => {
+    for (const TRUSTED_PROXIES of ["10.0.0.300", "10.0.0.0/33", "proxy.local", "10.0.0.0/8/1"]) {
+      expect(() => parseEnv({ DATABASE_URL: VALID_URL, TRUSTED_PROXIES })).toThrow(
+        EnvValidationError,
+      );
+    }
+    for (const AUTH_ALLOWED_ORIGINS of ["beautyfits.example", "https://beautyfits.example/path"]) {
+      expect(() => parseEnv({ DATABASE_URL: VALID_URL, AUTH_ALLOWED_ORIGINS })).toThrow(
+        EnvValidationError,
+      );
     }
   });
 });

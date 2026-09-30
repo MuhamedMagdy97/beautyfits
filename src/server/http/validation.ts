@@ -13,10 +13,21 @@ export interface ValidationIssue {
   message: string;
 }
 
+/**
+ * A custom issue may carry a more specific stable code in `params.code`
+ * (e.g. `password_common`), which replaces zod's generic `custom`.
+ */
+function issueCode(issue: z.core.$ZodIssue): string {
+  if (issue.code === "custom" && typeof issue.params?.code === "string") {
+    return issue.params.code;
+  }
+  return issue.code;
+}
+
 export function toValidationError(error: z.ZodError): AppError {
   const issues: ValidationIssue[] = error.issues.map((issue) => ({
     path: issue.path.map(String).join("."),
-    code: issue.code,
+    code: issueCode(issue),
     message: issue.message,
   }));
   return new AppError("VALIDATION_ERROR", "Request validation failed.", {
@@ -39,6 +50,29 @@ export async function parseJsonBody<S extends z.ZodType>(
   let body: unknown;
   try {
     body = await request.json();
+  } catch {
+    throw new AppError("VALIDATION_ERROR", "Request body must be valid JSON.", {
+      details: { issues: [{ path: "", code: "invalid_json", message: "Malformed JSON body" }] },
+    });
+  }
+  return parseWith(schema, body);
+}
+
+/**
+ * Like `parseJsonBody`, but an empty body is validated as `{}` (for endpoints
+ * whose fields are all optional, e.g. a cookie-based refresh).
+ */
+export async function parseOptionalJsonBody<S extends z.ZodType>(
+  request: Request,
+  schema: S,
+): Promise<z.output<S>> {
+  const text = await request.text();
+  if (text.trim() === "") {
+    return parseWith(schema, {});
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
   } catch {
     throw new AppError("VALIDATION_ERROR", "Request body must be valid JSON.", {
       details: { issues: [{ path: "", code: "invalid_json", message: "Malformed JSON body" }] },

@@ -42,8 +42,8 @@ Migrations live in `prisma/migrations/` and are committed to Git ([ADR-0003](doc
 
 | Script | Purpose |
 |---|---|
-| `npm run dev` | Development server |
-| `npm run build` / `npm start` | Production build / server (drains in-flight requests on SIGTERM) |
+| `npm run dev` | Development server (`server.mjs --dev`) |
+| `npm run build` / `npm start` | Production build / server (`server.mjs`: a thin custom server that passes the client IP to the backend and drains in-flight requests on SIGTERM, [ADR-0013](docs/decisions/ADR-0013-customer-auth-sessions-throttling.md)). Do not use `next start` in production. |
 | `npm run lint` | ESLint |
 | `npm run format` / `npm run format:check` | Prettier: format the code / check formatting (CI) |
 | `npm run typecheck` | Next.js route type generation + TypeScript (`tsc --noEmit`) |
