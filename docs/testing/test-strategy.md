@@ -15,7 +15,8 @@ This document defines what must be tested and when. It introduces no business ru
   - `npm run typecheck` (`next typegen && tsc --noEmit`; plain `npx tsc --noEmit` fails on a clean checkout until Next.js route types are generated)
   - `npm test`
   - `npm run build` when application code changed
-- Unit tests must not require a database. PostgreSQL integration tests arrive with TASK-003/TASK-006.
+- Unit tests must not require a database.
+- TASK-003 added PostgreSQL integration tests (`*.int.test.ts`, `npm run test:integration`, ADR-0010). Run them whenever database code, schema or migrations change.
 
 ## 2. Principles
 
@@ -107,8 +108,9 @@ Decided in TASK-002 (ADR-0009):
 - Unit test framework: Vitest (`npm test`, `npm run test:watch`)
 - `package.json` scripts `test`, `test:watch`, `typecheck`, `lint`
 
-Deferred to TASK-003 / TASK-006:
-- Integration test setup against real PostgreSQL
-- Test database provisioning and reset strategy
+Decided in TASK-003 (ADR-0010):
+- Integration tests against real PostgreSQL: `npm run test:integration`, separate config, test database named `*_test` recreated from migrations on every run, tables truncated between tests.
+
+Deferred to TASK-006:
 - Formatter choice
-- CI provider/workflow
+- CI provider/workflow and CI database provisioning
