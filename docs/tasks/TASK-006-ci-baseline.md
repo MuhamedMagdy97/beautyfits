@@ -110,6 +110,6 @@ None. No business decision is involved.
 ## Status
 - [x] Planned
 - [x] In Progress
-- [ ] Tests Passing
+- [x] Tests Passing
 - [ ] Reviewed
 - [ ] Done
