@@ -1,6 +1,6 @@
-# BeautyFits — Database Design v1.1
+# BeautyFits — Database Design v1.2
 
-**Status:** Proposed / Ready for Review\
+**Status:** Approved v1.2 — owner review completed in TASK-002A (2026-09-30). Items marked `[BUSINESS DECISION REQUIRED]` remain open and must be answered before their owning task. The review checklist below is verified by the tests of each implementing task.\
 **Depends on:** Business Specification v1.1 + User Flows / State Machines v1.1 + System Architecture v1.1\
 **Purpose:** Define the PostgreSQL transactional model before API implementation or migrations.
 
@@ -23,14 +23,14 @@
 
 | Domain | Core Tables |
 |---|---|
-| Identity & Customers | accounts, customers, customer_addresses, customer_marketing_preferences |
-| Employees & RBAC | employees, roles, permissions, role_permissions, employee_roles |
+| Identity & Customers | accounts, customers, customer_addresses, marketing_consents, auth_sessions, otp_challenges |
+| Employees & RBAC | employees, roles, permissions, role_permissions, employee_roles, employee_invitations, approval_requests |
 | Catalog | products, product_variants, categories, brands, product_categories, product_media |
 | Cart & Checkout | carts, cart_items, checkout_attempts |
-| Orders | orders, order_items, order_status_history |
-| Shipping | shipping_companies, shipping_rules, shipments, shipment_events |
+| Orders | orders, order_items, order_status_history, order_revisions, cod_confirmation_tokens |
+| Shipping | shipping_companies, shipping_rules, shipments, shipment_events, customer_contact_tasks |
 | Inventory | inventory_balances, inventory_movements, inventory_reservations |
-| Purchasing | suppliers, purchase_orders, purchase_items, goods_receipts, goods_receipt_items, supplier_returns, supplier_return_items |
+| Purchasing | suppliers, purchase_orders, purchase_items, goods_receipts, goods_receipt_items, purchase_invoices, supplier_returns, supplier_return_items, supplier_ledger_entries, supplier_payments |
 | Returns | returns, return_items, return_inspections, return_evidence |
 | Wallet | wallets, wallet_transactions, wallet_reservations |
 | Discounts | discounts, discount_usages |
@@ -41,6 +41,7 @@
 | Analytics | analytics_events |
 | Audit & Settings | audit_logs, settings, setting_history |
 | Media | media_assets |
+| Reliability (shared kernel) | idempotency_keys, outbox_events |
 
 ---
 
@@ -61,15 +62,17 @@ Key fields:
 - `created_at`, `updated_at`
 
 Constraints:
-- normalized email uniqueness
+- normalized email is unique **per `account_type`** (the same email may hold one CUSTOMER and one EMPLOYEE account; Business Spec R15)
 - password hashes only; never plaintext passwords
+- customers log in with email + password (Business Spec R13); `deactivated_at` and `anonymized_at` support Q154 (v1.2 amendments)
 
 ### 3.2 `customers`
 
 Key fields:
 - `id`
 - `account_id` nullable for guest-only historical customers if needed
-- `phone` (normalized, unique among active customer identities)
+- `phone` (normalized E.164, required, unique among active customer identities; primary business identifier, not the login — Business Spec R13)
+- `preferred_locale` = `ar` | `en` (Business Spec R14)
 - `full_name`
 - `date_of_birth` nullable
 - `status`
@@ -102,20 +105,9 @@ Rules:
 - at most one default address per customer
 - editing an address never mutates an existing order's snapshot
 
-### 3.4 `customer_marketing_preferences`
+### 3.4 Marketing consent
 
-Separate consent from transactional communication.
-
-Fields:
-- `customer_id`
-- `email_marketing_opt_in`
-- `email_marketing_opt_in_at`
-- `email_marketing_opt_out_at`
-- `whatsapp_marketing_opt_in`
-- `whatsapp_marketing_opt_in_at`
-- `whatsapp_marketing_opt_out_at`
-- `consent_source`
-- `updated_at`
+**Superseded in v1.2 (TASK-002A):** `customer_marketing_preferences` is removed. Marketing consent is stored only in `marketing_consents` (see "v1.2 TASK-002A Amendments"), which keeps the full opt-in/opt-out history per channel; the current state is the latest row per customer and channel.
 
 Never infer marketing consent from simply having an email/phone number.
 
@@ -192,18 +184,16 @@ Rules:
 
 Core fields:
 - `id`
-- `sku`
-- `name`
-- `slug`
-- `description`
+- `name_ar`, `name_en`
+- `slug` (unique, Latin characters)
+- `description_ar`, `description_en`
 - `brand_id`
 - `status` = `DRAFT` | `PUBLISHED` | `ARCHIVED` | `DISABLED`
-- `main_media_id` nullable
-- `low_stock_threshold`
-- `latest_purchase_cost`
-- `weighted_average_cost`
-- `selling_price` for simple products when no variant-level price is required
 - `created_at`, `updated_at`, `archived_at`
+
+v1.2 (TASK-002A): SKU, selling price, costs and stock thresholds are **not** product fields; they live on `product_variants` (C6). The main image is identified only by `product_media.is_main` (no `main_media_id`).
+
+Low-stock threshold level: `[BUSINESS DECISION REQUIRED]` — Q21 says per product, C6 puts stock at variant level. Until decided, the threshold is modelled on the variant with an optional product-level default.
 
 Rules:
 - hard delete prohibited
@@ -217,8 +207,9 @@ Used for shades, sizes, volumes, pack types, etc.
 Fields:
 - `id`
 - `product_id`
-- `sku`
-- `variant_name`
+- `sku` (unique)
+- `is_default` (exactly one default variant per product; C6)
+- `variant_name_ar`, `variant_name_en`
 - `attributes_json`
 - `status`
 - `selling_price`
@@ -226,22 +217,22 @@ Fields:
 - `weighted_average_cost`
 - `low_stock_threshold`
 
-A product should have one or more variants when variant-level inventory/pricing is required; otherwise a single default variant can be used consistently.
+Every product has at least one variant; a product without visible options has exactly one Default Variant (C6).
 
 ### `brands`
 
 Fields:
 - `id`
-- `name`
+- `name_ar`, `name_en`
 - `slug`
-- `description`
+- `description_ar`, `description_en`
 - `status`
 
 ### `categories`
 
 Fields:
 - `id`
-- `name`
+- `name_ar`, `name_en`
 - `slug`
 - `parent_id` nullable
 - `status`
@@ -260,12 +251,12 @@ Fields:
 - `variant_id` nullable
 - `media_asset_id`
 - `sort_order`
-- `is_main`
-- `alt_text`
+- `is_main` (at most one per product)
+- `alt_text_ar`, `alt_text_en`
 - `created_at`
 
 Rules:
-- main image required for publishable product
+- main image required for publishable product (Q178). Whether a Draft may exist without one: `[BUSINESS DECISION REQUIRED]` (User Flows §4.1 says "every product")
 - media management requires explicit permission
 
 ---
@@ -429,6 +420,8 @@ Fields:
 
 The final free-shipping rule is evaluated against the final order total after applicable product discounts.
 
+Governorate/area representation (free text vs a managed location list shared by addresses and shipping rules): `[BUSINESS DECISION REQUIRED]`.
+
 ### `shipments`
 
 Fields:
@@ -490,6 +483,8 @@ Fields:
 - `released_at`
 
 Unique/locking strategy must prevent two concurrent checkouts from reserving the same last units.
+
+`[BUSINESS DECISION REQUIRED]`: the order point at which a reservation is consumed (`CONVERTED`, e.g. at `SHIPPED`) and whether reserving/releasing writes `inventory_movements` rows in addition to reservation rows (AGENTS.md requires a movement for every inventory change).
 
 ### `inventory_movements`
 
@@ -741,8 +736,7 @@ Fields:
 - `ends_at`
 - `usage_limit_total` nullable
 - `usage_limit_per_customer` nullable
-- `status`
-- `active`
+- `status` (v1.2: the duplicate `active` flag is removed)
 - `created_by_employee_id`
 
 v1 rule: one discount per order. Customer selects the eligible discount when multiple are available.
@@ -839,9 +833,13 @@ Rules:
 
 ### `notifications`
 
+In-app notification centre for customers and employees (v1.2). Guests have no in-app centre; their transactional messages exist only as `notification_deliveries` (see v1.2 amendments).
+
 Fields:
 - `id`
-- `customer_id`
+- `recipient_type` = `CUSTOMER` | `EMPLOYEE`
+- `customer_id` nullable
+- `employee_id` nullable
 - `type` = `TRANSACTIONAL` | `MARKETING` | `RESTOCK`
 - `title`
 - `body`
@@ -875,7 +873,7 @@ Fields:
 - `id`
 - `name`
 - `type` = `WHATSAPP` | `EMAIL`
-- `status` = `DRAFT` | `PENDING_APPROVAL` | `APPROVED` | `SENDING` | `COMPLETED` | `CANCELLED`
+- `status` = `DRAFT` | `PENDING_APPROVAL` | `APPROVED` | `SENDING` | `COMPLETED` | `FAILED` | `CANCELLED`
 - `subject` nullable
 - `content`
 - `created_by_employee_id`
@@ -1182,83 +1180,9 @@ After this document is approved:
 No production migration should be generated before the Database Design and API Contract are reviewed together.
 
 
-## v1.1 Closure Decisions (Post-Audit)
+## v1.1 Closure Decisions and Audit Corrections
 
-These decisions supersede earlier ambiguous or conflicting interpretations and are frozen for implementation planning.
-
-### C1 — Tax / Order Receipt
-- Customer-facing prices are treated as tax-inclusive for v1 where applicable.
-- Store tax amount and tax metadata on the order/item financial snapshot so future tax-invoice support can be added without redesigning historical orders.
-- No full tax engine or jurisdiction calculation module is required in v1 unless separately approved.
-
-### C2 — Return Pickup Shipping
-- Customer-caused returns / change-of-mind returns: customer pays the return pickup shipping directly to the carrier.
-- BeautyFits / wrong-item / carrier-damage returns: BeautyFits bears the return pickup cost.
-- Return shipping responsibility is based on final assessed responsibility, not the customer's initial description alone.
-
-### C3 — Original Delivery Fee on Return
-- Customer-fault / change-of-mind: product refund only; the original outbound delivery fee is not refunded.
-- BeautyFits fault / wrong item / carrier damage: refund the eligible product amount plus the original outbound delivery fee.
-- Future alternative refund methods remain permission-controlled.
-
-### C4 — Wallet-Fully-Covers-Order
-- If Wallet covers the entire final order total, COD amount is zero and no COD confirmation is required.
-- Wallet funds are captured from their reservation when the order is finalized according to the order outcome.
-
-### C5 — Order Modification
-- Customer may modify an order only before `Preparing`.
-- Any modification that changes quantity, price, discount, shipping fee, shipping address, wallet usage, or COD amount triggers full recalculation and a new customer confirmation step before the revised order is operationally confirmed.
-- Non-financial, non-fulfillment notes may be editable without re-confirmation when permitted.
-- Each material revision is auditable; the historical order is not silently rewritten.
-
-### C6 — Product / Variant Canonical Model
-- Every sellable SKU is represented by a `Product Variant`.
-- Products without visible variants receive a single `Default Variant`.
-- Price, cost, stock, SKU, and inventory live at variant level.
-- Reviews are displayed at Product level, while the qualifying purchase references the purchased Variant via `Order Item`.
-
-## v1.1 Pre-Implementation Audit Corrections
-
-1. **Order vs Shipment state separation**
-   - Order lifecycle: `Pending Confirmation → New → Confirmed → Preparing → Ready for Shipment → Shipped → Delivered`, plus `Cancelled` and `Expired`.
-   - Shipment lifecycle: `Created/Ready → Picked Up/Shipped → Out for Delivery → Delivery Failed → Return to Sender → Returned`.
-   - `Return` is a separate lifecycle from both Order and Shipment.
-
-2. **Pending Confirmation → New is automatic**
-   - Customer confirmation moves the order to `New` automatically.
-   - Human staff then perform `New → Confirmed`.
-
-3. **Ready for Shipment is a real transition**
-   - `Preparing → Ready for Shipment` uses a dedicated permission before carrier handoff.
-   - `Ready for Shipment → Shipped` confirms actual carrier pickup/handoff.
-
-4. **Order modification requires re-confirmation when commercially material**
-   - Material changes create a revision/revalidation flow rather than silently mutating the confirmed commercial state.
-
-5. **Wallet reservation is not a refund**
-   - A cancelled/expired pre-payment order releases reserved wallet funds.
-   - Refunds create a wallet credit transaction only when funds were actually captured and became refundable.
-
-6. **Supplier financial traceability**
-   - Purchase invoices remain immutable.
-   - Goods receipts represent quantity discrepancies.
-   - Supplier payment/credit/refund activity is represented in a supplier ledger.
-
-7. **Approval requests are first-class**
-   - Manager/pending approvals are represented by a persistent `approval_requests` concept rather than only an API endpoint.
-
-8. **Wishlist reminders are explicit background work**
-   - Keep reminder count and last-sent state.
-   - Respect marketing consent for marketing-style purchase reminders.
-   - Restock `Notify Me` remains a separate explicit subscription.
-
-9. **Marketing fallback respects consent**
-   - Email fallback is permitted only when Email Marketing consent exists.
-   - WhatsApp/Email delivery attempts remain independently logged.
-
-10. **Security-sensitive account changes**
-   - Email/phone changes require re-authentication plus verification of the new destination.
-   - Owner/Admin accounts require MFA.
+The canonical text of closure decisions C1–C6 and of the Pre-Implementation Audit Corrections 1–10 lives only in `docs/product/business-spec.md`. The copies that used to be repeated here were removed in TASK-002A to prevent the documents drifting apart.
 
 ## v1.1 Database Amendments
 
@@ -1369,6 +1293,132 @@ Store separately:
 
 ### Wallet full-coverage order
 If wallet reservation equals the final order total, the order has `cod_amount = 0`; no COD confirmation is required.
+
+## v1.2 TASK-002A Amendments
+
+Added by TASK-002A (`docs/tasks/TASK-002A-docs-closure.md`). Technical entities required by ADR-0008, the API contract and the business rules but missing from v1.1. Business decisions still open are marked `[BUSINESS DECISION REQUIRED]`.
+
+### Authentication (ADR-0008, Business Spec R13, R15)
+
+#### `auth_sessions`
+- `id`
+- `account_id`
+- `domain` = `CUSTOMER` | `EMPLOYEE` (a session never crosses domains)
+- `token_hash` unique (SHA-256 of the opaque token; the token itself is never stored)
+- `refresh_token_hash` nullable, unique (rotation details: TASK-007/TASK-011)
+- `created_at`, `last_used_at`, `expires_at`
+- `revoked_at` nullable, `revoke_reason` nullable (`LOGOUT` | `LOGOUT_ALL` | `PASSWORD_RESET` | `DEACTIVATED` | `ROTATED` | `REUSE_DETECTED`)
+- `ip_address`, `user_agent` (coarse metadata)
+
+Customer lifetime 30 days (Q162). Staff lifetime and password-reset behaviour: `[BUSINESS DECISION REQUIRED]` (TASK-002A open decisions 1–2).
+
+#### `otp_challenges`
+- `id`
+- `account_id` nullable (null before registration completes)
+- `purpose` = `EMAIL_VERIFICATION` | `PASSWORD_RESET` | `EMPLOYEE_LOGIN` | `EMAIL_CHANGE` | `PHONE_CHANGE` | `GUEST_ORDER_CLAIM`
+- `channel` = `EMAIL` | `WHATSAPP`
+- `destination` (normalized email or phone)
+- `code_hash`
+- `attempt_count`, `max_attempts` (5, Q158)
+- `expires_at` (5 minutes, Q159), `last_sent_at` (60 s resend cooldown, Q160)
+- `consumed_at` nullable, `locked_until` nullable
+- `ip_address`, `device_id` nullable (Q161)
+- `created_at`
+
+Channel for `PHONE_CHANGE` and `GUEST_ORDER_CLAIM`: `[BUSINESS DECISION REQUIRED]` (SMS is a future channel, R10).
+
+#### `employee_invitations` (Q64)
+- `id`, `email`, `employee_level`, `role_ids_json`
+- `invited_by_employee_id`
+- `token_hash` unique, `expires_at`, `accepted_at` nullable, `revoked_at` nullable
+- `created_at`
+
+#### Account lifecycle (Q154)
+- `accounts.deactivated_at` nullable
+- `customers.anonymized_at` nullable — personal fields are replaced by placeholders; order snapshots required for legal/audit history are retained.
+
+### Reliability
+
+#### `idempotency_keys` (Architecture §10, API §9)
+- `id`
+- `scope` (actor type + actor id, or guest cart token)
+- `operation` (e.g. `WALLET_ADJUSTMENT`, `RETURN_COMPLETE`, `MANUAL_REFUND`, `WEBHOOK:<provider>`)
+- `key`
+- `request_fingerprint`
+- `status` = `IN_PROGRESS` | `COMPLETED` | `FAILED`
+- `response_status`, `response_body_json` nullable
+- `resource_type`, `resource_id` nullable
+- `created_at`, `expires_at`
+
+Unique: `scope + operation + key`. Same key with a different fingerprint → `IDEMPOTENCY_CONFLICT`. Checkout keeps `checkout_attempts` (§7), which follows the same pattern.
+
+#### `outbox_events`
+Written in the **same transaction** as the business change, then delivered by a worker, so "external side effects after commit" cannot be lost if the process stops between commit and enqueue.
+- `id`
+- `event_type` (API §31 events, e.g. `ORDER_CREATED`)
+- `aggregate_type`, `aggregate_id`
+- `payload_json`
+- `status` = `PENDING` | `PROCESSING` | `DONE` | `FAILED`
+- `attempt_count`, `available_at`, `last_error` nullable
+- `created_at`, `processed_at` nullable
+
+Queue technology remains deferred (Architecture §27); the outbox works with any of them.
+
+### Orders & COD
+
+#### `cod_confirmation_tokens` (R10, R16)
+- `id`
+- `order_id`
+- `order_revision_id` nullable (re-confirmation of a material revision, C5)
+- `token_hash` unique
+- `channel` = `WHATSAPP`
+- `expires_at` (never later than the COD confirmation deadline, max 3 days — Q25)
+- `used_at` nullable
+- `created_at`
+
+The link only confirms; it never exposes order tracking or cancellation (R16).
+
+#### Order financial fields (completes §8 and the v1.1 amendments)
+`orders` additionally stores:
+- `cod_amount` (0 when the wallet covers the whole total, C4)
+- `wallet_amount_captured` (0 until captured)
+- `tax_included`, `tax_amount`, `tax_rate` nullable (C1; rate value: `[BUSINESS DECISION REQUIRED]`)
+- `applied_discount_id` nullable + `discount_snapshot_json` (code, percentage, cap at order time)
+- `shipping_company_id` nullable + `shipping_rule_snapshot_json`
+- `locale` (`ar` | `en`) used for customer messages
+
+`order_number`: generated from a PostgreSQL sequence and formatted as a readable string (exact format fixed in TASK-030). It never authorizes access (API §4).
+
+### Shipping follow-up
+
+#### `customer_contact_tasks` (Q19, Q129)
+- `id`
+- `order_id`, `shipment_id`
+- `reason` = `DELIVERY_FAILED_THRESHOLD` | `OTHER`
+- `status` = `OPEN` | `IN_PROGRESS` | `RESOLVED` | `CANCELLED`
+- `assigned_employee_id` nullable
+- `outcome_notes` nullable
+- `created_at`, `resolved_at` nullable, `resolved_by_employee_id` nullable
+
+The failure threshold that creates a task is a setting.
+
+### Notifications for guests and staff (DB-6)
+- `notifications` has `recipient_type` = `CUSTOMER` | `EMPLOYEE` (§17). Staff notifications (e.g. low stock, Q110) use `EMPLOYEE`.
+- `notification_deliveries.notification_id` becomes nullable and gains `order_id` nullable, `template_key`, `locale`, so transactional WhatsApp/email messages to **guests** (order received, COD confirmation request) are logged without an in-app notification.
+
+### Marketing consent
+`marketing_consents` (v1.1 amendment) is the only consent store; `customer_marketing_preferences` is removed (§3.4). Consent captured from guests at checkout (Q155, User Flows §16.2): `[BUSINESS DECISION REQUIRED]` — if allowed, rows reference `guest_phone`/`guest_email` instead of `customer_id`.
+
+### Bilingual content (Business Spec R14)
+Customer-facing text is stored as `_ar` / `_en` column pairs (two fixed languages; no translation tables in v1): products, product variants, brands, categories, product media alt text. Order snapshots store the names in both languages. `customers.preferred_locale` and `orders.locale` choose the language of messages.
+
+### Removed / replaced in v1.2
+| v1.1 element | v1.2 |
+|---|---|
+| `customer_marketing_preferences` | `marketing_consents` |
+| `products.sku`, `selling_price`, `latest_purchase_cost`, `weighted_average_cost`, `low_stock_threshold` | variant level (C6) |
+| `products.main_media_id` | `product_media.is_main` |
+| `discounts.active` | `discounts.status` |
 
 ## TASK-001 Reconciliation
 

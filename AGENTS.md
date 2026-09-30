@@ -24,6 +24,7 @@ Read these in order before implementing or changing behavior:
 
 Cross-cutting requirements that apply to every task:
 - `docs/security/security-requirements.md`
+- `docs/security/permission-catalog.md` (canonical permission codes and default roles)
 - `docs/testing/test-strategy.md`
 
 `docs/decisions/business-rules-ledger.xlsx` is the decision history/ledger, not the primary implementation source.

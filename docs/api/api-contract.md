@@ -1,6 +1,6 @@
-# BeautyFits — API Contract v1.1
+# BeautyFits — API Contract v1.2
 
-**Status:** Proposed / Ready for Implementation Planning\
+**Status:** Approved v1.2 — owner review completed in TASK-002A (2026-09-30). Items marked `[BUSINESS DECISION REQUIRED]` remain open and must be answered before their owning task. The review checklist below is verified by the tests of each implementing task.\
 **Depends on:** Business Specification v1.1 + User Flows & State Machines v1.1 + System Architecture v1.1 + Database Design v1.1
 
 ## 1. Purpose
@@ -41,11 +41,11 @@ Breaking contract changes require a new major version.
 
 ### Customer
 
-Email OTP is used for verification/recovery. Phone is the primary customer identifier for business operations. Customers can log out from all devices.
+Customers log in with **email + password** (Business Spec R13). Email OTP is used for verification/recovery. Phone is required and remains the primary customer identifier for business operations (COD confirmation, guest-order linking). Customers can log out from all devices.
 
 ### Guest
 
-Guests can browse, manage a guest cart, and complete COD checkout. Guest order access must use a secure non-guessable mechanism; order number alone is never sufficient for authorization.
+Guests can browse, manage a guest cart, and complete COD checkout. Guests have **no online order tracking or cancellation** (Business Spec R16); they contact support or create an account and claim their orders (§12). The only guest-facing order action is the confirm-only COD link (§15), authorized by a secure non-guessable token; an order number alone never authorizes anything.
 
 ### Employee
 
@@ -63,7 +63,11 @@ Content-Type: application/json
 Accept: application/json
 X-Request-Id: <request-id>
 Idempotency-Key: <key>
+Accept-Language: ar | en
+X-Guest-Cart-Token: <token>
 ```
+
+`Accept-Language` selects the language of localized public responses and messages (Business Spec R14; default `ar`). Admin endpoints return both languages (`nameAr`, `nameEn`, …). `X-Guest-Cart-Token` identifies a guest cart (§14).
 
 `Idempotency-Key` is required for checkout/order creation and other retry-sensitive writes.
 
@@ -123,12 +127,19 @@ Clients should branch on stable error `code` values, not message text.
 | HTTP | Codes |
 |---|---|
 | 400 | `VALIDATION_ERROR` |
-| 401 | `AUTH_INVALID_CREDENTIALS`, `AUTH_OTP_INVALID`, `AUTH_OTP_EXPIRED` |
+| 401 | `UNAUTHENTICATED`, `AUTH_INVALID_CREDENTIALS`, `AUTH_OTP_INVALID`, `AUTH_OTP_EXPIRED` |
 | 403 | `FORBIDDEN`, `PERMISSION_DENIED` |
 | 404 | `NOT_FOUND` |
 | 409 | `CONFLICT`, `IDEMPOTENCY_CONFLICT`, `DUPLICATE_OPERATION`, `STOCK_CHANGED`, `PRICE_CHANGED`, `ORDER_STATE_INVALID`, `RETURN_STATE_INVALID`, `WALLET_RESERVATION_CONFLICT`, `RECONFIRMATION_REQUIRED` |
 | 422 | `OUT_OF_STOCK`, `DISCOUNT_INVALID`, `DISCOUNT_EXPIRED`, `SHIPPING_UNAVAILABLE`, `ORDER_CANCELLATION_NOT_ALLOWED`, `RETURN_WINDOW_EXPIRED`, `WALLET_INSUFFICIENT_FUNDS`, `APPROVAL_REQUIRED` |
-| 429 | `AUTH_RATE_LIMITED` |
+| 429 | `AUTH_RATE_LIMITED`, `RATE_LIMITED` |
+
+Authentication/authorization semantics (TASK-002A):
+- `UNAUTHENTICATED` (401): no token, or the token is invalid, expired or revoked. Clients sign in again (or refresh).
+- `FORBIDDEN` (403): authenticated in the wrong domain (a customer token on an employee endpoint or the reverse), or an account that is deactivated.
+- `PERMISSION_DENIED` (403): an employee lacks the required permission from `docs/security/permission-catalog.md`.
+- A resource the caller does not own (for example another customer's order) returns `NOT_FOUND`, so its existence is not revealed.
+- `RATE_LIMITED` (429) is used by non-authentication endpoints (checkout, analytics, review/report); `AUTH_RATE_LIMITED` stays for login/OTP.
 | 500 | `INTERNAL_ERROR` |
 | 502 | `PROVIDER_ERROR` |
 
@@ -181,8 +192,8 @@ Stock validation and reservation occur inside a transaction with concurrency-saf
 |---|---|---|---|
 | POST | `/auth/register` | Create customer account | Public |
 | POST | `/auth/verify-email-otp` | Verify email | Public |
-| POST | `/auth/login` | Customer login | Public |
-| POST | `/auth/refresh` | Refresh session | Authenticated |
+| POST | `/auth/login` | Customer login with email + password (R13) | Public |
+| POST | `/auth/refresh` | Refresh session | Refresh token |
 | POST | `/auth/logout` | Logout current session | Authenticated |
 | POST | `/auth/logout-all` | Revoke all customer sessions | Authenticated |
 | POST | `/auth/forgot-password` | Start recovery | Public |
@@ -196,8 +207,13 @@ Stock validation and reservation occur inside a transaction with concurrency-saf
 |---|---|---|---|
 | POST | `/employee-auth/login` | Employee login | Public |
 | POST | `/employee-auth/verify-otp` | Complete employee MFA | Challenge |
-| POST | `/employee-auth/refresh` | Refresh employee session | Employee |
+| POST | `/employee-auth/refresh` | Refresh employee session | Refresh token |
 | POST | `/employee-auth/logout` | Logout employee | Employee |
+| POST | `/employee-auth/logout-all` | Revoke all own employee sessions | Employee |
+| POST | `/employee-auth/resend-otp` | Resend login OTP | Challenge |
+| POST | `/employee-auth/forgot-password` | Start employee password recovery | Public |
+| POST | `/employee-auth/reset-password` | Set new password after recovery OTP | Recovery flow |
+| POST | `/employee-auth/accept-invitation` | Accept an invitation and set a password (Q64) | Invitation token |
 
 OTP rules are enforced server-side: expiration, retry count, resend cooldown, and abuse rate limits.
 
@@ -208,7 +224,8 @@ OTP rules are enforced server-side: expiration, retry count, resend cooldown, an
 | GET | `/me` | Get current customer profile | Customer |
 | PATCH | `/me` | Update editable profile fields | Customer |
 | POST | `/me/change-email` | Change email with re-authentication + new-email OTP | Customer |
-| POST | `/me/change-phone` | Change phone with re-authentication + new-phone OTP | Customer |
+| POST | `/me/change-phone` | Change phone with re-authentication + new-phone OTP (channel: `[BUSINESS DECISION REQUIRED]`) | Customer |
+| POST | `/me/deactivate` | Deactivate/anonymize own account, keeping required order/audit records (Q154) | Customer (re-authentication) |
 | GET | `/me/addresses` | List addresses | Customer |
 | POST | `/me/addresses` | Create address | Customer |
 | PATCH | `/me/addresses/{addressId}` | Update address | Customer |
@@ -217,8 +234,10 @@ OTP rules are enforced server-side: expiration, retry count, resend cooldown, an
 | GET | `/me/notifications` | List notifications | Customer |
 | POST | `/me/notifications/{notificationId}/read` | Mark one as read | Customer |
 | POST | `/me/notifications/read-all` | Mark all as read | Customer |
-| GET | `/me/preferences` | View allowed notification/marketing preferences | Customer |
-| PATCH | `/me/preferences` | Update preferences | Customer |
+| GET | `/me/preferences` | View language and non-marketing notification preferences (restock channels) | Customer |
+| PATCH | `/me/preferences` | Update those preferences | Customer |
+
+Marketing consent is managed only through `/me/marketing-consents` (v1.1 amendments); `/me/preferences` never changes marketing consent.
 
 Customer profile updates never rewrite historical order snapshots.
 
@@ -229,7 +248,7 @@ Customer profile updates never rewrite historical order snapshots.
 | POST | `/guest/orders/claim` | Start claim process | Authenticated customer |
 | POST | `/guest/orders/claim/verify` | Verify OTP and link eligible guest orders | Authenticated customer |
 
-A matching phone number alone is not sufficient proof of control.
+A matching phone number alone is not sufficient proof of control. OTP channel for the claim: `[BUSINESS DECISION REQUIRED]`.
 
 # 13. Catalog
 
@@ -253,12 +272,23 @@ Public product responses expose current sellable information, not cost price or 
 | GET | `/admin/products/{productId}` | Product detail | `PRODUCT_VIEW` |
 | PATCH | `/admin/products/{productId}` | Edit product | `PRODUCT_EDIT` |
 | POST | `/admin/products/{productId}/archive` | Archive | `PRODUCT_ARCHIVE` |
+| POST | `/admin/products/{productId}/disable` | Disable | `PRODUCT_ARCHIVE` |
 | POST | `/admin/products/{productId}/publish` | Publish | `PRODUCT_PUBLISH` |
-| POST | `/admin/products/{productId}/media` | Upload product media | `MANAGE_PRODUCT_MEDIA` |
+| POST | `/admin/products/{productId}/unpublish` | Back to Draft | `PRODUCT_PUBLISH` |
+| GET | `/admin/products/{productId}/variants` | List variants | `PRODUCT_VIEW` |
+| POST | `/admin/products/{productId}/variants` | Create variant | `PRODUCT_CREATE` |
+| PATCH | `/admin/variants/{variantId}` | Edit variant content (not price/cost) | `PRODUCT_EDIT` |
+| POST | `/admin/variants/{variantId}/archive` | Archive variant | `PRODUCT_ARCHIVE` |
+| PATCH | `/admin/variants/{variantId}/cost` | Edit cost values where allowed | `EDIT_COST_PRICE` |
+| POST | `/admin/products/{productId}/media` | Attach an uploaded file (`mediaAssetId` from §28) as product/variant media | `MANAGE_PRODUCT_MEDIA` |
 | DELETE | `/admin/products/{productId}/media/{mediaId}` | Remove media | `MANAGE_PRODUCT_MEDIA` |
-| POST | `/admin/products/{productId}/price-review` | Create/review price change | `EDIT_PRODUCT_PRICE` |
+| POST | `/admin/products/{productId}/price-review` | Create/review price change (per variant) | `EDIT_PRODUCT_PRICE` |
+| GET/POST | `/admin/categories` | List / create categories | `PRODUCT_VIEW` / `TAXONOMY_MANAGE` |
+| PATCH | `/admin/categories/{id}` | Edit / deactivate category | `TAXONOMY_MANAGE` |
+| GET/POST | `/admin/brands` | List / create brands | `PRODUCT_VIEW` / `TAXONOMY_MANAGE` |
+| PATCH | `/admin/brands/{id}` | Edit / deactivate brand | `TAXONOMY_MANAGE` |
 
-Cost fields are visible only to authorized staff.
+Cost fields are returned only to callers with `VIEW_COST_PRICE`.
 
 # 14. Cart
 
@@ -269,8 +299,11 @@ Cost fields are visible only to authorized staff.
 | PATCH | `/cart/items/{cartItemId}` | Update quantity/variant | Guest/Customer |
 | DELETE | `/cart/items/{cartItemId}` | Remove item | Guest/Customer |
 | POST | `/cart/reprice` | Revalidate prices/stock/discounts | Guest/Customer |
+| POST | `/cart/merge` | Merge a guest cart into the customer cart after login | Customer |
 
 Cart values are informational. Checkout revalidates all authoritative values.
+
+Guest carts: the first cart write returns a random `guestCartToken`; guests send it back in `X-Guest-Cart-Token`. After login the client calls `POST /cart/merge` with that token. Merge rule for items present in both carts: `[BUSINESS DECISION REQUIRED]` (recommended: add quantities, capped by availability).
 
 # 15. Checkout & Orders
 
@@ -291,7 +324,8 @@ Cart values are informational. Checkout revalidates all authoritative values.
 | GET | `/orders/{orderId}` | Get own order | Customer |
 | POST | `/orders/{orderId}/modify` | Material order modification before `Preparing`; revalidates all commercial conditions; may return `RECONFIRMATION_REQUIRED` | Customer |
 | POST | `/orders/{orderId}/cancel` | Cancel (before carrier pickup) or, after pickup, request shipping cancellation recorded on the Shipment | Customer |
-| POST | `/orders/{orderId}/confirm-cod` | Confirm COD via WhatsApp secure link; System then moves `Pending Confirmation → New` | Customer/Guest secure link |
+| POST | `/orders/{orderId}/confirm-cod` | Confirm COD via WhatsApp secure link (body: `token`); System then moves `Pending Confirmation → New`. Returns only a confirmation summary — no tracking or cancellation for guests (R16) | Secure COD token |
+| POST | `/orders/{orderId}/revisions/{revisionId}/confirm` | Customer confirms a material order revision (C5) | Customer or secure COD token |
 
 ## Admin Orders
 
@@ -304,9 +338,8 @@ Cart values are informational. Checkout revalidates all authoritative values.
 | POST | `/admin/orders/{orderId}/start-preparing` | Confirmed → Preparing | `START_PREPARING` |
 | POST | `/admin/orders/{orderId}/mark-ready-for-shipment` | Preparing → Ready for Shipment | `MARK_READY_FOR_SHIPMENT` |
 | POST | `/admin/orders/{orderId}/mark-shipped` | Ready for Shipment → Shipped (actual carrier handoff) | `MARK_AS_SHIPPED` |
-| POST | `/admin/orders/{orderId}/mark-delivered` | Delivery confirmation | `MARK_AS_DELIVERED` |
 | POST | `/admin/orders/{orderId}/cancel` | Administrative cancellation (same window as customer cancellation; reason required) | `CANCEL_ORDER` |
-| POST | `/admin/orders/{orderId}/approve-status-change` | Approve pending status request | `APPROVE_ORDER_STATUS_CHANGE` |
+| POST | `/admin/orders/{orderId}/approve-status-change` | Approve pending status request — **not used in v1** (Business Spec R19) | `APPROVE_ORDER_STATUS_CHANGE` |
 | POST | `/admin/orders/{orderId}/request-shipping-cancellation` | Contact carrier to stop/return; recorded on the Shipment, Order stays `Shipped` | `REQUEST_SHIPPING_CANCELLATION` |
 
 ## Order Rules
@@ -338,6 +371,11 @@ No `SECURE_LINK` confirmation source exists in the MVP; the secure link is part 
 | PATCH | `/admin/shipping/rules/{id}` | Edit shipping rule | `SHIPPING_MANAGE` |
 | POST | `/admin/orders/{orderId}/assign-shipping` | Assign contracted carrier | `ASSIGN_SHIPPING` |
 | POST | `/admin/shipments/{shipmentId}/tracking` | Add/update tracking | `MANAGE_SHIPMENT` |
+| POST | `/admin/shipments/{shipmentId}/status` | Manual shipment status update (MVP): `OUT_FOR_DELIVERY`, `DELIVERY_FAILED` (records an attempt), `RETURN_TO_SENDER`, `RETURNED`, `DELIVERED`. `DELIVERED` also moves the order `SHIPPED → DELIVERED` in the same transaction | `MANAGE_SHIPMENT`; `DELIVERED` requires `MARK_AS_DELIVERED` |
+| GET | `/admin/contact-tasks` | Customer-contact tasks after failed deliveries (Q129) | `CONTACT_TASK_MANAGE` |
+| PATCH | `/admin/contact-tasks/{taskId}` | Assign / record outcome / resolve | `CONTACT_TASK_MANAGE` |
+
+v1.2: delivery is recorded on the Shipment; the former `/admin/orders/{orderId}/mark-delivered` endpoint is replaced by the shipment status endpoint above.
 
 Rules can consider contracted company, governorate/area, and final order total.
 
@@ -359,7 +397,8 @@ Webhook processing is idempotent, signature-verified, persisted, then mapped to 
 | GET | `/me/returns` | List own returns | Customer |
 | GET | `/returns/{returnId}` | Return detail | Customer |
 | POST | `/returns/{returnId}/evidence` | Upload evidence | Customer |
-| POST | `/returns/{returnId}/resubmit` | Submit a new request after rejection | Customer |
+| POST | `/returns/{returnId}/resubmit` | Submit a new request after rejection (creates a new return; the rejected one is unchanged, Q92) | Customer |
+| POST | `/returns/{returnId}/cancel` | Withdraw a request while `PENDING_APPROVAL` | Customer |
 
 Return requests are limited to 14 days from actual delivery. Evidence is mandatory for configured damage/wrong-item cases.
 
@@ -375,7 +414,8 @@ Return requests are limited to 14 days from actual delivery. Evidence is mandato
 | POST | `/admin/returns/{returnId}/receive` | Mark received | `RECEIVE_RETURN` |
 | POST | `/admin/returns/{returnId}/start-inspection` | Start inspection | `INSPECT_RETURN` |
 | POST | `/admin/return-items/{returnItemId}/inspection` | Inspect item | `INSPECT_RETURN` |
-| POST | `/admin/returns/{returnId}/complete` | Complete + eligible refund | `COMPLETE_RETURN` |
+| POST | `/admin/return-items/{returnItemId}/resolution` | Choose the customer-caused outcome (R7): return to customer with no refund, or keep + configured partial wallet refund | `RESOLVE_CUSTOMER_CAUSED_RETURN` |
+| POST | `/admin/returns/{returnId}/complete` | Complete the return; the eligible wallet refund is created automatically in the same transaction (Q97). Requires `Idempotency-Key` | `COMPLETE_RETURN` |
 
 Inspection is item-level and supports `RESTOCK`, `DAMAGED`, or `REJECTED`, plus notes/evidence. Customer-caused opened/used items may result in return-to-customer/no-refund or a configured partial wallet refund, and the decision must be auditable.
 
@@ -386,9 +426,10 @@ Inspection is item-level and supports `RESTOCK`, `DAMAGED`, or `REJECTED`, plus 
 | GET | `/me/wallet` | Wallet summary | Customer |
 | GET | `/me/wallet/transactions` | Wallet ledger | Customer |
 | GET | `/admin/customers/{customerId}/wallet` | View customer wallet | `VIEW_WALLET_BALANCE` |
-| POST | `/admin/customers/{customerId}/wallet/adjust` | Manual adjustment | Owner/Admin / `ADJUST_WALLET` |
-| POST | `/admin/returns/{returnId}/refund` | Wallet refund | Refund permission |
-| POST | `/admin/returns/{returnId}/manual-refund` | Alternative future/manual refund | `MANAGE_MANUAL_REFUNDS` |
+| POST | `/admin/customers/{customerId}/wallet/adjust` | Manual adjustment (reason required; `Idempotency-Key` required) | `ADJUST_WALLET` (Owner/Admin only) |
+| POST | `/admin/returns/{returnId}/manual-refund` | Alternative future/manual refund (`Idempotency-Key` required) | `MANAGE_MANUAL_REFUNDS` |
+
+v1.2: the separate `/admin/returns/{returnId}/refund` endpoint is removed; the wallet refund is part of `complete` (§17).
 
 Wallet uses an append-only ledger plus reservations. Wallet credit used in a pending order is reserved so it cannot be spent twice.
 
@@ -426,9 +467,13 @@ Reviews require a qualifying purchase. In v1 they publish immediately after auto
 | GET | `/admin/purchases` | Purchase list | `PURCHASE_VIEW` |
 | POST | `/admin/purchases` | Create purchase draft | `PURCHASE_CREATE` |
 | POST | `/admin/purchases/{id}/submit` | Submit for approval | `PURCHASE_CREATE` |
-| POST | `/admin/purchases/{id}/approve` | Approve purchase | Owner/Admin approval |
-| POST | `/admin/purchases/{id}/receive` | Goods receipt | `RECEIVE_PURCHASE` |
+| POST | `/admin/purchases/{id}/approve` | Approve purchase | `PURCHASE_APPROVE` |
+| POST | `/admin/purchases/{id}/send` | Approved → Sent to supplier | `PURCHASE_CREATE` |
+| POST | `/admin/purchases/{id}/cancel` | Cancel before receiving | `PURCHASE_CREATE` (after approval: `PURCHASE_APPROVE`) |
+| POST | `/admin/purchases/{id}/receive` | Goods receipt with inspection results; over-delivered extras create an approval request (Q116) | `RECEIVE_PURCHASE` |
 | POST | `/admin/purchases/{id}/supplier-return` | Supplier return | `SUPPLIER_RETURN_MANAGE` |
+| POST | `/admin/supplier-returns/{id}/submit` | Submit for Owner review (Q105) | `SUPPLIER_RETURN_MANAGE` |
+| POST | `/admin/supplier-returns/{id}/settle` | Record refund/credit settlement (Q107, Q120) | `SUPPLIER_PAYMENT_MANAGE` |
 
 Purchase invoices remain immutable. Quantity discrepancies are represented through receiving records.
 
@@ -439,8 +484,10 @@ Purchase invoices remain immutable. Quantity discrepancies are represented throu
 | GET | `/admin/inventory` | Inventory overview | `INVENTORY_VIEW` |
 | GET | `/admin/inventory/{variantId}` | Inventory details/history | `INVENTORY_VIEW` |
 | POST | `/admin/inventory/{variantId}/adjust` | Manual stock adjustment | `ADJUST_INVENTORY` |
-| POST | `/admin/inventory/{variantId}/receive` | Receive accepted stock | `RECEIVE_PURCHASE` |
 | GET | `/admin/inventory/{variantId}/movements` | Movement history | `INVENTORY_VIEW` |
+| GET | `/admin/inventory/low-stock` | Variants at or below their low-stock threshold (Q21, Q110) | `INVENTORY_VIEW` |
+
+v1.2: stock enters only through goods receipts (`/admin/purchases/{id}/receive`, Q101, Q104) or approved return inspections; the former `/admin/inventory/{variantId}/receive` is removed.
 
 Manual adjustments require a reason and audit log. Available, reserved, and damaged quantities are not interchangeable.
 
@@ -464,7 +511,7 @@ MVP discount type is percentage. One discount is applied per order; if several a
 | POST | `/admin/campaigns` | Create campaign draft | `MARKETING_CREATE` |
 | PATCH | `/admin/campaigns/{id}` | Edit draft | `MARKETING_EDIT` |
 | POST | `/admin/campaigns/{id}/submit` | Submit for approval | `MARKETING_CREATE` |
-| POST | `/admin/campaigns/{id}/approve` | Final approval | Owner/Admin |
+| POST | `/admin/campaigns/{id}/approve` | Final approval | `MARKETING_APPROVE` (Owner/Admin only) |
 | POST | `/admin/campaigns/{id}/send` | Send campaign | `MARKETING_SEND` + approval |
 | GET | `/admin/campaigns/{id}/delivery` | Delivery/failure stats | `MARKETING_VIEW` |
 
@@ -474,18 +521,19 @@ Marketing recipients require explicit marketing consent. Frequency limits are en
 
 | Method | Endpoint | Purpose | Permission |
 |---|---|---|---|
-| GET | `/admin/employees` | Employee list | Employee management |
-| POST | `/admin/employees` | Invite/create employee | Authorized scope |
-| PATCH | `/admin/employees/{id}` | Edit employee | Authorized scope |
-| POST | `/admin/employees/{id}/deactivate` | Remove access without deleting history | Employee management |
+| GET | `/admin/employees` | Employee list | `EMPLOYEE_VIEW` |
+| POST | `/admin/employees` | Invite employee by work email (Q64) | `EMPLOYEE_MANAGE` + hierarchy limits (Q65) |
+| PATCH | `/admin/employees/{id}` | Edit employee / roles | `EMPLOYEE_MANAGE` + hierarchy limits |
+| POST | `/admin/employees/{id}/deactivate` | Remove access without deleting history; revokes sessions | `EMPLOYEE_MANAGE` |
+| POST | `/admin/employees/invitations/{id}/revoke` | Revoke a pending invitation | `EMPLOYEE_MANAGE` |
 | GET | `/admin/roles` | Role list | `ROLE_VIEW` |
-| POST | `/admin/roles` | Create custom role | Owner/Admin |
-| PATCH | `/admin/roles/{id}` | Edit role | Owner/Admin |
-| GET | `/admin/permissions` | Permission catalog | Owner/Admin |
-| GET | `/admin/approval-requests` | List approval requests | Owner/Admin |
-| GET | `/admin/approval-requests/{id}` | Approval request detail | Owner/Admin |
-| POST | `/admin/approval-requests/{id}/approve` | Approve pending action | Owner/Admin |
-| POST | `/admin/approval-requests/{id}/reject` | Reject pending action | Owner/Admin |
+| POST | `/admin/roles` | Create custom role | `ROLE_MANAGE` (Owner/Admin only) |
+| PATCH | `/admin/roles/{id}` | Edit role | `ROLE_MANAGE` (Owner/Admin only) |
+| GET | `/admin/permissions` | Permission catalog | `ROLE_VIEW` |
+| GET | `/admin/approval-requests` | List approval requests | `APPROVAL_RESOLVE` |
+| GET | `/admin/approval-requests/{id}` | Approval request detail | `APPROVAL_RESOLVE` |
+| POST | `/admin/approval-requests/{id}/approve` | Approve pending action | `APPROVAL_RESOLVE` (Owner/Admin only) |
+| POST | `/admin/approval-requests/{id}/reject` | Reject pending action | `APPROVAL_RESOLVE` (Owner/Admin only) |
 
 Managers may create employees but cannot create Managers, modify the permission model, or escalate permissions beyond their allowed scope.
 
@@ -493,10 +541,10 @@ Managers may create employees but cannot create Managers, modify the permission 
 
 | Method | Endpoint | Purpose | Permission |
 |---|---|---|---|
-| GET | `/admin/audit-logs` | Search audit logs | Owner/Admin |
-| GET | `/admin/settings` | Read settings | Owner/Admin |
-| PATCH | `/admin/settings/{key}` | Change/propose setting | Owner/Admin |
-| GET | `/admin/settings/history` | Setting history | Owner/Admin |
+| GET | `/admin/audit-logs` | Search audit logs | `VIEW_AUDIT_LOGS` (Owner/Admin only) |
+| GET | `/admin/settings` | Read settings | `SETTINGS_VIEW` |
+| PATCH | `/admin/settings/{key}` | Change/propose setting | `SETTINGS_MANAGE` (Owner/Admin only) |
+| GET | `/admin/settings/history` | Setting history | `SETTINGS_VIEW` |
 
 Critical settings changes require the defined approval workflow and always record old value, new value, actor, and timestamp.
 
@@ -516,7 +564,7 @@ Critical settings changes require the defined approval workflow and always recor
 | GET | `/admin/analytics/funnel` | Views → Cart → Checkout → Orders | `ANALYTICS_VIEW` |
 | GET | `/admin/analytics/products` | Product engagement/sales | `ANALYTICS_VIEW` |
 | GET | `/admin/analytics/inventory` | Low stock/movement metrics | `ANALYTICS_VIEW` |
-| GET | `/admin/analytics/profit` | Estimated gross profit | `ANALYTICS_VIEW_PROFIT` |
+| GET | `/admin/analytics/profit` | Estimated gross profit | `VIEW_PROFIT` |
 
 Analytics is never authoritative for orders, inventory, or wallet.
 
@@ -538,13 +586,17 @@ backend validates/associates file
 
 Validation includes file type, size, dimensions where relevant, and security/malware scanning before publication.
 
+v1.2: this is the **only** upload flow. `POST /files/complete` returns a `mediaAssetId`, which feature endpoints attach (product media §13, return evidence §17, supplier invoices §21). Uploading requires the permission of the feature the file is for (for example `MANAGE_PRODUCT_MEDIA`), or customer ownership of the return.
+
 # 29. Stable Error Codes
 
 ```text
+UNAUTHENTICATED
 AUTH_INVALID_CREDENTIALS
 AUTH_OTP_INVALID
 AUTH_OTP_EXPIRED
 AUTH_RATE_LIMITED
+RATE_LIMITED
 FORBIDDEN
 NOT_FOUND
 VALIDATION_ERROR
@@ -654,83 +706,9 @@ Workers handle email, WhatsApp, in-app notifications, reminders, analytics enric
 No production feature coding should begin until the relevant endpoint contract and acceptance criteria are frozen.
 
 
-## v1.1 Closure Decisions (Post-Audit)
+## v1.1 Closure Decisions and Audit Corrections
 
-These decisions supersede earlier ambiguous or conflicting interpretations and are frozen for implementation planning.
-
-### C1 — Tax / Order Receipt
-- Customer-facing prices are treated as tax-inclusive for v1 where applicable.
-- Store tax amount and tax metadata on the order/item financial snapshot so future tax-invoice support can be added without redesigning historical orders.
-- No full tax engine or jurisdiction calculation module is required in v1 unless separately approved.
-
-### C2 — Return Pickup Shipping
-- Customer-caused returns / change-of-mind returns: customer pays the return pickup shipping directly to the carrier.
-- BeautyFits / wrong-item / carrier-damage returns: BeautyFits bears the return pickup cost.
-- Return shipping responsibility is based on final assessed responsibility, not the customer's initial description alone.
-
-### C3 — Original Delivery Fee on Return
-- Customer-fault / change-of-mind: product refund only; the original outbound delivery fee is not refunded.
-- BeautyFits fault / wrong item / carrier damage: refund the eligible product amount plus the original outbound delivery fee.
-- Future alternative refund methods remain permission-controlled.
-
-### C4 — Wallet-Fully-Covers-Order
-- If Wallet covers the entire final order total, COD amount is zero and no COD confirmation is required.
-- Wallet funds are captured from their reservation when the order is finalized according to the order outcome.
-
-### C5 — Order Modification
-- Customer may modify an order only before `Preparing`.
-- Any modification that changes quantity, price, discount, shipping fee, shipping address, wallet usage, or COD amount triggers full recalculation and a new customer confirmation step before the revised order is operationally confirmed.
-- Non-financial, non-fulfillment notes may be editable without re-confirmation when permitted.
-- Each material revision is auditable; the historical order is not silently rewritten.
-
-### C6 — Product / Variant Canonical Model
-- Every sellable SKU is represented by a `Product Variant`.
-- Products without visible variants receive a single `Default Variant`.
-- Price, cost, stock, SKU, and inventory live at variant level.
-- Reviews are displayed at Product level, while the qualifying purchase references the purchased Variant via `Order Item`.
-
-## v1.1 Pre-Implementation Audit Corrections
-
-1. **Order vs Shipment state separation**
-   - Order lifecycle: `Pending Confirmation → New → Confirmed → Preparing → Ready for Shipment → Shipped → Delivered`, plus `Cancelled` and `Expired`.
-   - Shipment lifecycle: `Created/Ready → Picked Up/Shipped → Out for Delivery → Delivery Failed → Return to Sender → Returned`.
-   - `Return` is a separate lifecycle from both Order and Shipment.
-
-2. **Pending Confirmation → New is automatic**
-   - Customer confirmation moves the order to `New` automatically.
-   - Human staff then perform `New → Confirmed`.
-
-3. **Ready for Shipment is a real transition**
-   - `Preparing → Ready for Shipment` uses a dedicated permission before carrier handoff.
-   - `Ready for Shipment → Shipped` confirms actual carrier pickup/handoff.
-
-4. **Order modification requires re-confirmation when commercially material**
-   - Material changes create a revision/revalidation flow rather than silently mutating the confirmed commercial state.
-
-5. **Wallet reservation is not a refund**
-   - A cancelled/expired pre-payment order releases reserved wallet funds.
-   - Refunds create a wallet credit transaction only when funds were actually captured and became refundable.
-
-6. **Supplier financial traceability**
-   - Purchase invoices remain immutable.
-   - Goods receipts represent quantity discrepancies.
-   - Supplier payment/credit/refund activity is represented in a supplier ledger.
-
-7. **Approval requests are first-class**
-   - Manager/pending approvals are represented by a persistent `approval_requests` concept rather than only an API endpoint.
-
-8. **Wishlist reminders are explicit background work**
-   - Keep reminder count and last-sent state.
-   - Respect marketing consent for marketing-style purchase reminders.
-   - Restock `Notify Me` remains a separate explicit subscription.
-
-9. **Marketing fallback respects consent**
-   - Email fallback is permitted only when Email Marketing consent exists.
-   - WhatsApp/Email delivery attempts remain independently logged.
-
-10. **Security-sensitive account changes**
-   - Email/phone changes require re-authentication plus verification of the new destination.
-   - Owner/Admin accounts require MFA.
+The canonical text of closure decisions C1–C6 and of the Pre-Implementation Audit Corrections 1–10 lives only in `docs/product/business-spec.md`. The copies that used to be repeated here were removed in TASK-002A to prevent the documents drifting apart.
 
 ## v1.1 API Amendments
 
@@ -752,10 +730,7 @@ Email fallback for marketing is only allowed when Email Marketing consent exists
 
 ### Wishlist reminders
 
-- `GET /me/wishlist/reminder-settings`
-- `PATCH /me/wishlist/reminder-settings`
-
-Wishlist purchase reminders must respect marketing consent. Restock `Notify Me` remains an explicit independent subscription.
+v1.2: the `reminder-settings` endpoints are removed. Cadence and maximum are fixed by Business Spec R6, and reminders are controlled by the customer's marketing consent (`/me/marketing-consents`). Restock `Notify Me` remains an explicit independent subscription.
 
 ### Financial response fields
 
@@ -784,6 +759,36 @@ The canonical rule text lives in `docs/product/business-spec.md` (R1–R12). Thi
 | R6 — Wishlist reminders | Wishlist reminders amendment |
 | R11 — Cancellation window | §15 Order Rules |
 | R12 — Variant restock subscription | §19 |
+
+## TASK-002A Amendments (v1.2)
+
+Added by TASK-002A. Permission codes in this contract come only from `docs/security/permission-catalog.md` (Business Spec R17).
+
+### Admin customers
+| Method | Endpoint | Purpose | Permission |
+|---|---|---|---|
+| GET | `/admin/customers` | Search customers | `CUSTOMER_VIEW` |
+| GET | `/admin/customers/{customerId}` | Customer detail and order history; phone/addresses only with `VIEW_CUSTOMER_CONTACT` (Q80) | `CUSTOMER_VIEW` |
+
+### Review moderation
+| Method | Endpoint | Purpose | Permission |
+|---|---|---|---|
+| GET | `/admin/reviews` | Reviews, including reported and hidden | `REVIEW_MODERATE` |
+| POST | `/admin/reviews/{reviewId}/hide` | Hide with a reason; history kept (Q174) | `REVIEW_MODERATE` |
+| POST | `/admin/reviews/{reviewId}/restore` | Restore a hidden review | `REVIEW_MODERATE` |
+
+### Supplier finance permissions
+`GET /admin/suppliers/{id}/ledger` and `/balance` require `SUPPLIER_FINANCE_VIEW`; `POST /admin/purchases/{id}/invoice` and `POST /admin/suppliers/{id}/payments` require `SUPPLIER_PAYMENT_MANAGE`.
+
+### Staff notifications and delivery logs
+| Method | Endpoint | Purpose | Permission |
+|---|---|---|---|
+| GET | `/admin/me/notifications` | Staff in-app notifications (e.g. low stock) | Employee |
+| POST | `/admin/me/notifications/{id}/read` | Mark as read | Employee |
+| GET | `/admin/notifications/deliveries` | WhatsApp/email delivery attempts and failures | `NOTIFICATION_LOG_VIEW` |
+
+### Idempotency (completes §9)
+`Idempotency-Key` is required on: `POST /checkout`, `POST /admin/returns/{id}/complete`, `POST /admin/returns/{id}/manual-refund`, `POST /admin/customers/{id}/wallet/adjust`, `POST /admin/suppliers/{id}/payments`. Webhooks use the provider's event id as the key. Stored in `idempotency_keys` (DB v1.2 amendments).
 
 ## TASK-002 Foundation Amendments
 

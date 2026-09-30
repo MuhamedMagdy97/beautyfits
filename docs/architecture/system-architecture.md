@@ -1,6 +1,6 @@
-# BeautyFits — System Architecture v1.1
+# BeautyFits — System Architecture v1.2
 
-**Status:** Proposed / Ready for Review\
+**Status:** Approved v1.2 — owner review completed in TASK-002A (2026-09-30). Items marked `[BUSINESS DECISION REQUIRED]` remain open and must be answered before their owning task.\
 **Depends on:** Business Specification v1.1 + User Flows & State Machines v1.1\
 **Primary goal:** Build one reliable backend and database that serve Website, Dashboard, and later Mobile App without over-engineering.
 
@@ -883,83 +883,9 @@ It will define:
 Only after the database design is reviewed should implementation tasks be generated.
 
 
-## v1.1 Closure Decisions (Post-Audit)
+## v1.1 Closure Decisions and Audit Corrections
 
-These decisions supersede earlier ambiguous or conflicting interpretations and are frozen for implementation planning.
-
-### C1 — Tax / Order Receipt
-- Customer-facing prices are treated as tax-inclusive for v1 where applicable.
-- Store tax amount and tax metadata on the order/item financial snapshot so future tax-invoice support can be added without redesigning historical orders.
-- No full tax engine or jurisdiction calculation module is required in v1 unless separately approved.
-
-### C2 — Return Pickup Shipping
-- Customer-caused returns / change-of-mind returns: customer pays the return pickup shipping directly to the carrier.
-- BeautyFits / wrong-item / carrier-damage returns: BeautyFits bears the return pickup cost.
-- Return shipping responsibility is based on final assessed responsibility, not the customer's initial description alone.
-
-### C3 — Original Delivery Fee on Return
-- Customer-fault / change-of-mind: product refund only; the original outbound delivery fee is not refunded.
-- BeautyFits fault / wrong item / carrier damage: refund the eligible product amount plus the original outbound delivery fee.
-- Future alternative refund methods remain permission-controlled.
-
-### C4 — Wallet-Fully-Covers-Order
-- If Wallet covers the entire final order total, COD amount is zero and no COD confirmation is required.
-- Wallet funds are captured from their reservation when the order is finalized according to the order outcome.
-
-### C5 — Order Modification
-- Customer may modify an order only before `Preparing`.
-- Any modification that changes quantity, price, discount, shipping fee, shipping address, wallet usage, or COD amount triggers full recalculation and a new customer confirmation step before the revised order is operationally confirmed.
-- Non-financial, non-fulfillment notes may be editable without re-confirmation when permitted.
-- Each material revision is auditable; the historical order is not silently rewritten.
-
-### C6 — Product / Variant Canonical Model
-- Every sellable SKU is represented by a `Product Variant`.
-- Products without visible variants receive a single `Default Variant`.
-- Price, cost, stock, SKU, and inventory live at variant level.
-- Reviews are displayed at Product level, while the qualifying purchase references the purchased Variant via `Order Item`.
-
-## v1.1 Pre-Implementation Audit Corrections
-
-1. **Order vs Shipment state separation**
-   - Order lifecycle: `Pending Confirmation → New → Confirmed → Preparing → Ready for Shipment → Shipped → Delivered`, plus `Cancelled` and `Expired`.
-   - Shipment lifecycle: `Created/Ready → Picked Up/Shipped → Out for Delivery → Delivery Failed → Return to Sender → Returned`.
-   - `Return` is a separate lifecycle from both Order and Shipment.
-
-2. **Pending Confirmation → New is automatic**
-   - Customer confirmation moves the order to `New` automatically.
-   - Human staff then perform `New → Confirmed`.
-
-3. **Ready for Shipment is a real transition**
-   - `Preparing → Ready for Shipment` uses a dedicated permission before carrier handoff.
-   - `Ready for Shipment → Shipped` confirms actual carrier pickup/handoff.
-
-4. **Order modification requires re-confirmation when commercially material**
-   - Material changes create a revision/revalidation flow rather than silently mutating the confirmed commercial state.
-
-5. **Wallet reservation is not a refund**
-   - A cancelled/expired pre-payment order releases reserved wallet funds.
-   - Refunds create a wallet credit transaction only when funds were actually captured and became refundable.
-
-6. **Supplier financial traceability**
-   - Purchase invoices remain immutable.
-   - Goods receipts represent quantity discrepancies.
-   - Supplier payment/credit/refund activity is represented in a supplier ledger.
-
-7. **Approval requests are first-class**
-   - Manager/pending approvals are represented by a persistent `approval_requests` concept rather than only an API endpoint.
-
-8. **Wishlist reminders are explicit background work**
-   - Keep reminder count and last-sent state.
-   - Respect marketing consent for marketing-style purchase reminders.
-   - Restock `Notify Me` remains a separate explicit subscription.
-
-9. **Marketing fallback respects consent**
-   - Email fallback is permitted only when Email Marketing consent exists.
-   - WhatsApp/Email delivery attempts remain independently logged.
-
-10. **Security-sensitive account changes**
-   - Email/phone changes require re-authentication plus verification of the new destination.
-   - Owner/Admin accounts require MFA.
+The canonical text of closure decisions C1–C6 and of the Pre-Implementation Audit Corrections 1–10 lives only in `docs/product/business-spec.md`. The copies that used to be repeated here were removed in TASK-002A to prevent the documents drifting apart.
 
 ## v1.1 Architecture Additions
 
@@ -993,3 +919,16 @@ The canonical rule text lives in `docs/product/business-spec.md` (R1–R12). Arc
 | R8 — Repository state | See §3 "Current state". |
 | R11 — Cancellation window | Enforced by the Orders state machine; post-pickup requests handled by Shipping. |
 | R12 — Restock subscriptions | Variant-level, consistent with C6. |
+
+## v1.2 TASK-002A Additions
+
+| Topic | Architectural consequence |
+|---|---|
+| Arabic + English (R14) | Website, dashboard and mobile are bilingual; Arabic renders right-to-left. The API selects the language with `Accept-Language`; catalog text is stored in both languages; notification templates exist per language. |
+| Reliable after-commit work | Business modules write `outbox_events` in the same database transaction as the business change; a worker delivers them to the queue/providers. This makes §9 and §11 ("external calls after commit") safe against crashes. The queue technology is still deferred. |
+| Idempotency (§10) | One shared `idempotency_keys` mechanism in the shared kernel, used by refunds, wallet operations, supplier payments and webhooks; checkout keeps `checkout_attempts`. |
+| Authorization | Permission codes come only from `docs/security/permission-catalog.md` (R17–R19). |
+| Guests (R16) | No guest order-tracking read model; guests only receive transactional messages and the confirm-only COD link. |
+| Customer login (R13) | Email + password; phone stays the business identifier. |
+
+Still deferred (§27): hosting model (long-running Node server vs serverless — affects connection pooling, background workers and the rate-limit store; `[BUSINESS DECISION REQUIRED]` before TASK-007), queue, object storage, email, WhatsApp, shipping providers, monitoring vendor.

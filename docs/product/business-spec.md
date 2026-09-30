@@ -785,7 +785,7 @@ These decisions supersede earlier ambiguous or conflicting interpretations and a
 
 1. **Order vs Shipment state separation**
    - Order lifecycle: `Pending Confirmation → New → Confirmed → Preparing → Ready for Shipment → Shipped → Delivered`, plus `Cancelled` and `Expired`.
-   - Shipment lifecycle: `Created/Ready → Picked Up/Shipped → Out for Delivery → Delivery Failed → Return to Sender → Returned`.
+   - Shipment lifecycle: `Created/Ready → Picked Up/Shipped → Out for Delivery → Delivered`; failure/return path: `Out for Delivery → Delivery Failed → Return to Sender → Returned` (aligned with R2 and User Flows §8.2 in TASK-002A).
    - `Return` is a separate lifecycle from both Order and Shipment.
 
 2. **Pending Confirmation → New is automatic**
@@ -905,6 +905,35 @@ R1–R5 and R8 reconcile wording across the source-of-truth documents without ch
 - API route: `POST /variants/{variantId}/restock-subscription` (and `DELETE` on the same path to cancel).
 - Ledger: "Closure & Audit Decisions" — R12.
 
+## v1.2 TASK-002A Closure Decisions
+
+Product-owner decisions made on 2026-09-30 during TASK-002A (`docs/tasks/TASK-002A-docs-closure.md`, decisions D-01 to D-07). D-05 to D-07 were delegated by the owner to the recommended option; they can be revised later like any other decision.
+
+### R13 — Customer login (D-01)
+- Customers log in with **email + password**.
+- Phone remains required, normalized and unique per customer; it stays the primary business identifier (Q41) for COD confirmation and guest-order linking. Email remains verified by OTP at registration (Q42) and is used for recovery.
+
+### R14 — Languages (D-02)
+- Website, mobile app and dashboard support **Arabic and English**; Arabic is displayed right-to-left.
+- Customer-facing catalog text (product, variant, brand and category names, descriptions) and customer notification templates exist in both languages.
+
+### R15 — Shared email between customer and employee accounts (D-03)
+- The same email address may hold one customer account and one employee account. The two remain separate identities with separate logins and sessions.
+
+### R16 — Guest orders after checkout (D-04)
+- Guests cannot view, track or cancel orders online. They contact support, or create an account and link eligible guest orders through the OTP claim flow (Q43, Q44).
+- The WhatsApp COD confirmation link (R10) still works for guest orders, but it only confirms the order; it does not show tracking or allow cancellation. Confirmed by the owner during TASK-002A review.
+
+### R17 — Default roles and permission catalog (D-05)
+- The canonical permission codes and the default editable roles are defined in `docs/security/permission-catalog.md`.
+
+### R18 — Manager limits (D-06)
+- By default no Manager-level role may publish products, approve returns, complete returns (trigger refunds) or perform manual refunds; these stay with Owner/Admin unless the Owner/Admin grants them explicitly.
+
+### R19 — Order status approvals in v1 (D-07)
+- In v1 no order status transition requires an approval request; order actions are controlled by their permissions (Q76 allows, but does not require, pending approval).
+- The approval-request mechanism (Audit Correction 7) is used in v1 for purchase orders, over-delivery extras, marketing campaigns and critical settings.
+
 ## Key non-negotiables
 - Backend is authoritative for price, stock, discount, shipping, permissions and order state.
 - Checkout core DB changes are atomic; external notifications happen after commit.
@@ -923,3 +952,4 @@ R1–R5 and R8 reconcile wording across the source-of-truth documents without ch
 - Clarified marketing fallback consent and wishlist reminder behavior.
 - TASK-001 reconciliation (R1–R8): automatic Pending Confirmation → New, Order/Shipment status separation, shipping cancellation request as a shipment-level request, Ready for Shipment transition, integer minor-unit money, wishlist reminders, customer-caused 25% Wallet refund, current repository state.
 - TASK-001 final closure decisions (R6, R7, R9–R12): wishlist reminder cadence and stop conditions, customer-caused 25% refund basis, HALF-UP financial rounding, phone COD confirmation event, cancellation window, variant-level restock subscription route.
+- TASK-002A closure decisions (R13–R19): email login, Arabic + English, shared customer/employee email, no online guest order tracking, permission catalog and default roles, Manager limits, no order-status approvals in v1. Audit Correction 1 shipment lifecycle aligned with R2.

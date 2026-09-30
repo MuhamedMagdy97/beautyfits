@@ -1,0 +1,5 @@
+# Normalize line endings in the repository (TASK-002A).
+* text=auto
+*.xlsx binary
+*.png binary
+*.ico binary

@@ -97,6 +97,13 @@ For every task:
 
 ---
 
+### TASK-002A — Documentation Closure v1.2
+**Depends on:** TASK-002
+
+**Goal:** Resolve the contradictions and gaps found by the post-TASK-002 audit so implementation can continue safely. Documentation only (`docs/tasks/TASK-002A-docs-closure.md`).
+
+---
+
 ### TASK-003 — Database Connection & Migration Foundation
 **Depends on:** TASK-002
 
@@ -131,6 +138,8 @@ For every task:
 - No public "create admin" endpoint exists.
 - Seed data is deterministic.
 
+**Sequencing note (TASK-002A):** the tables this task seeds (accounts, employees, roles, permissions, settings) are created by TASK-011/TASK-012, and the owner bootstrap needs the password hashing from TASK-011. Execute TASK-004 after TASK-012 (or split it: seed tooling now, data after TASK-012).
+
 ---
 
 ### TASK-005 — Cross-Cutting Backend Foundations
@@ -152,6 +161,8 @@ For every task:
 - API errors follow the contract.
 - Money cannot be represented inconsistently.
 - Sensitive values are not logged.
+
+**Status after TASK-002:** error model, request ids, structured logging, validation, response conventions and config validation are done. Remaining: money helpers (minor units, HALF-UP) and time handling, plus redacting sensitive values inside logged error messages and adding the v1.2 error codes `UNAUTHENTICATED` and `RATE_LIMITED` to `src/server/errors/app-error.ts` (API contract §6.1, §29).
 
 ---
 
@@ -602,6 +613,6 @@ The user/product owner reviews before moving across these gates:
 
 # 7. Next Immediate Task
 
-**TASK-001 — Repository & AI Development Rules**
+**TASK-002A — Documentation Closure v1.2** (`docs/tasks/TASK-002A-docs-closure.md`)
 
-Before coding business features, create `AGENTS.md` and freeze the AI development workflow.
+TASK-001 and TASK-002 are merged. Before TASK-003, resolve the documentation contradictions and gaps found by the 2026-09-30 audit.
