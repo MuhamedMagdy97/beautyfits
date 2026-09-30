@@ -68,7 +68,10 @@ export function isLogLevel(value: unknown): value is LogLevel {
 
 /** Masks secrets that appear inside free text. */
 export function redactText(text: string): string {
-  return TEXT_SECRETS.reduce((result, [pattern, replacement]) => result.replace(pattern, replacement), text);
+  return TEXT_SECRETS.reduce(
+    (result, [pattern, replacement]) => result.replace(pattern, replacement),
+    text,
+  );
 }
 
 export function redact(value: unknown, depth = 0): unknown {

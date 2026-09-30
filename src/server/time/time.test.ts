@@ -70,8 +70,12 @@ describe("UTC instants", () => {
 
   it("accepts at most millisecond precision", () => {
     expect(parseTimestamp("2026-09-30T12:00:00.1Z").toISOString()).toBe("2026-09-30T12:00:00.100Z");
-    expect(parseTimestamp("2026-09-30T12:00:00.12Z").toISOString()).toBe("2026-09-30T12:00:00.120Z");
-    expect(parseTimestamp("2026-09-30T12:00:00.123Z").toISOString()).toBe("2026-09-30T12:00:00.123Z");
+    expect(parseTimestamp("2026-09-30T12:00:00.12Z").toISOString()).toBe(
+      "2026-09-30T12:00:00.120Z",
+    );
+    expect(parseTimestamp("2026-09-30T12:00:00.123Z").toISOString()).toBe(
+      "2026-09-30T12:00:00.123Z",
+    );
     // Round-trips its own output.
     expect(toIsoUtc(parseTimestamp("2026-09-30T12:00:00.999Z"))).toBe("2026-09-30T12:00:00.999Z");
     for (const bad of [

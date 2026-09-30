@@ -9,12 +9,17 @@ import { createLogger, type LogLevel } from "@/server/logging/logger";
 
 function silentLogger() {
   const lines: { level: LogLevel; line: string }[] = [];
-  return { logger: createLogger({ level: "debug", write: (level, line) => lines.push({ level, line }) }), lines };
+  return {
+    logger: createLogger({ level: "debug", write: (level, line) => lines.push({ level, line }) }),
+    lines,
+  };
 }
 
 describe("resolveRequestId", () => {
   it("keeps a well-formed incoming id", () => {
-    expect(resolveRequestId(new Headers({ "x-request-id": "abc-1234.5678" }))).toBe("abc-1234.5678");
+    expect(resolveRequestId(new Headers({ "x-request-id": "abc-1234.5678" }))).toBe(
+      "abc-1234.5678",
+    );
   });
 
   it("replaces a missing or unsafe id with a UUID", () => {
@@ -41,10 +46,18 @@ describe("response envelopes", () => {
   });
 
   it("formats errors per the API contract", async () => {
-    const res = errorResponse("req-12345678", new AppError("CONFLICT", "Already exists", { details: { f: 1 } }));
+    const res = errorResponse(
+      "req-12345678",
+      new AppError("CONFLICT", "Already exists", { details: { f: 1 } }),
+    );
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({
-      error: { code: "CONFLICT", message: "Already exists", details: { f: 1 }, requestId: "req-12345678" },
+      error: {
+        code: "CONFLICT",
+        message: "Already exists",
+        details: { f: 1 },
+        requestId: "req-12345678",
+      },
     });
   });
 });
@@ -53,20 +66,31 @@ describe("validation helpers", () => {
   const schema = z.object({ name: z.string().min(1), qty: z.number().int() });
 
   it("returns parsed JSON bodies", async () => {
-    const req = new Request("http://x/api", { method: "POST", body: JSON.stringify({ name: "a", qty: 2 }) });
+    const req = new Request("http://x/api", {
+      method: "POST",
+      body: JSON.stringify({ name: "a", qty: 2 }),
+    });
     await expect(parseJsonBody(req, schema)).resolves.toEqual({ name: "a", qty: 2 });
   });
 
   it("rejects malformed JSON as VALIDATION_ERROR", async () => {
     const req = new Request("http://x/api", { method: "POST", body: "{nope" });
-    await expect(parseJsonBody(req, schema)).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    await expect(parseJsonBody(req, schema)).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      status: 400,
+    });
   });
 
   it("reports field issues with paths", async () => {
-    const req = new Request("http://x/api", { method: "POST", body: JSON.stringify({ name: "", qty: 1.5 }) });
+    const req = new Request("http://x/api", {
+      method: "POST",
+      body: JSON.stringify({ name: "", qty: 1.5 }),
+    });
     const error = await parseJsonBody(req, schema).catch((e: AppError) => e);
     expect(error).toBeInstanceOf(AppError);
-    const paths = ((error as AppError).details.issues as { path: string }[]).map((i) => i.path).sort();
+    const paths = ((error as AppError).details.issues as { path: string }[])
+      .map((i) => i.path)
+      .sort();
     expect(paths).toEqual(["name", "qty"]);
   });
 
@@ -80,8 +104,13 @@ describe("validation helpers", () => {
 describe("withApi", () => {
   it("passes a request id and returns handler responses", async () => {
     const { logger } = silentLogger();
-    const handler = withApi(async (_req, { requestId }) => ok(requestId, { fine: true }), { logger });
-    const res = await handler(new Request("http://x/api/v1/t", { headers: { "x-request-id": "incoming-123" } }), {});
+    const handler = withApi(async (_req, { requestId }) => ok(requestId, { fine: true }), {
+      logger,
+    });
+    const res = await handler(
+      new Request("http://x/api/v1/t", { headers: { "x-request-id": "incoming-123" } }),
+      {},
+    );
     expect(res.status).toBe(200);
     expect(res.headers.get("x-request-id")).toBe("incoming-123");
     expect((await res.json()).meta.requestId).toBe("incoming-123");
@@ -89,9 +118,12 @@ describe("withApi", () => {
 
   it("maps AppError to its envelope and status", async () => {
     const { logger } = silentLogger();
-    const handler = withApi(async () => {
-      throw new AppError("PERMISSION_DENIED", "Not allowed.");
-    }, { logger });
+    const handler = withApi(
+      async () => {
+        throw new AppError("PERMISSION_DENIED", "Not allowed.");
+      },
+      { logger },
+    );
     const res = await handler(new Request("http://x/api/v1/t"), {});
     expect(res.status).toBe(403);
     expect((await res.json()).error.code).toBe("PERMISSION_DENIED");
@@ -99,9 +131,12 @@ describe("withApi", () => {
 
   it("hides unexpected errors behind INTERNAL_ERROR and logs them", async () => {
     const { logger, lines } = silentLogger();
-    const handler = withApi(async () => {
-      throw new Error("db password=hunter2 leaked");
-    }, { logger });
+    const handler = withApi(
+      async () => {
+        throw new Error("db password=hunter2 leaked");
+      },
+      { logger },
+    );
     const res = await handler(new Request("http://x/api/v1/t?email=a@b.c"), {});
     const body = await res.json();
     expect(res.status).toBe(500);

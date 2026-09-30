@@ -29,7 +29,10 @@ describe("isRetryableTransactionError", () => {
     expect(isRetryableTransactionError(conflict())).toBe(true);
     expect(
       isRetryableTransactionError(
-        new Prisma.PrismaClientKnownRequestError("Unique constraint", { code: "P2002", clientVersion: "test" }),
+        new Prisma.PrismaClientKnownRequestError("Unique constraint", {
+          code: "P2002",
+          clientVersion: "test",
+        }),
       ),
     ).toBe(false);
     expect(isRetryableTransactionError(new Error("P2034"))).toBe(false);
@@ -49,7 +52,11 @@ describe("runInTransaction", () => {
 
   it("passes isolation level and timeouts", async () => {
     const { db, $transaction } = fakeDb(async () => {});
-    await runInTransaction(async () => null, { isolationLevel: IsolationLevel.Serializable, timeoutMs: 1_000, maxWaitMs: 500 }, db);
+    await runInTransaction(
+      async () => null,
+      { isolationLevel: IsolationLevel.Serializable, timeoutMs: 1_000, maxWaitMs: 500 },
+      db,
+    );
     expect($transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: "Serializable",
       timeout: 1_000,
@@ -79,7 +86,9 @@ describe("runInTransaction", () => {
     const { db, $transaction } = fakeDb(async () => {
       throw conflict();
     });
-    await expect(runInTransaction(async () => 1, { maxRetries: 2 }, db)).rejects.toMatchObject({ code: "P2034" });
+    await expect(runInTransaction(async () => 1, { maxRetries: 2 }, db)).rejects.toMatchObject({
+      code: "P2034",
+    });
     expect($transaction).toHaveBeenCalledTimes(3);
   });
 

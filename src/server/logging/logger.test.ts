@@ -44,7 +44,7 @@ describe("logger", () => {
       items: [{ passwordHash: "h" }],
     });
     const serialized = JSON.stringify(lines[0].entry);
-    for (const secret of ["correct horse", "123456", "\"rt\"", "Bearer abc", "sid=1", "\"h\""]) {
+    for (const secret of ["correct horse", "123456", '"rt"', "Bearer abc", "sid=1", '"h"']) {
       expect(serialized).not.toContain(secret);
     }
     expect(lines[0].entry.password).toBe(REDACTED);
@@ -69,17 +69,37 @@ describe("redaction of secrets inside text", () => {
       "s3cr3t-pw",
       "postgresql://beauty:[REDACTED]@db.internal:5432/beautyfits",
     ],
-    ["Bearer tokens", "Upstream rejected Bearer abc.DEF-123_xyz", "abc.DEF-123_xyz", "Bearer [REDACTED]"],
-    ["Basic credentials", "auth failed with Basic dXNlcjpwdw==", "dXNlcjpwdw==", "Basic [REDACTED]"],
+    [
+      "Bearer tokens",
+      "Upstream rejected Bearer abc.DEF-123_xyz",
+      "abc.DEF-123_xyz",
+      "Bearer [REDACTED]",
+    ],
+    [
+      "Basic credentials",
+      "auth failed with Basic dXNlcjpwdw==",
+      "dXNlcjpwdw==",
+      "Basic [REDACTED]",
+    ],
     [
       "JSON Web Tokens",
       "bad jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl here",
       "eyJhbGciOiJIUzI1NiJ9",
       "bad jwt [REDACTED] here",
     ],
-    ["key=value pairs", "retry with password=hunter2&user=a", "hunter2", "password=[REDACTED]&user=a"],
+    [
+      "key=value pairs",
+      "retry with password=hunter2&user=a",
+      "hunter2",
+      "password=[REDACTED]&user=a",
+    ],
     ["key: value pairs", "OTP: 482913 was rejected", "482913", "OTP: [REDACTED] was rejected"],
-    ["JSON fragments", 'body {"refreshToken":"rt-999","qty":2}', "rt-999", '"refreshToken":"[REDACTED]"'],
+    [
+      "JSON fragments",
+      'body {"refreshToken":"rt-999","qty":2}',
+      "rt-999",
+      '"refreshToken":"[REDACTED]"',
+    ],
     ["query parameters", "GET /x?api_key=k-123&page=2", "k-123", "api_key=[REDACTED]&page=2"],
   ])("masks %s", (_label, text, secret, expected) => {
     const masked = redactText(text);

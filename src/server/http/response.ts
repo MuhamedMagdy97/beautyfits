@@ -35,7 +35,12 @@ export function ok<T>(
   if (options.pagination) {
     meta.pagination = options.pagination;
   }
-  return json({ data, meta } satisfies SuccessBody<T>, options.status ?? 200, requestId, options.init);
+  return json(
+    { data, meta } satisfies SuccessBody<T>,
+    options.status ?? 200,
+    requestId,
+    options.init,
+  );
 }
 
 export function errorResponse(requestId: string, error: AppError): Response {
