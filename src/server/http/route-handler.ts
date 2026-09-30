@@ -43,7 +43,11 @@ export function withApi<RouteContext = unknown>(
       if (isAppError(error)) {
         response = errorResponse(requestId, error);
       } else {
-        log.error("Unhandled error while processing request", { method: request.method, path, err: error });
+        log.error("Unhandled error while processing request", {
+          method: request.method,
+          path,
+          err: error,
+        });
         response = errorResponse(
           requestId,
           new AppError("INTERNAL_ERROR", "An unexpected error occurred."),

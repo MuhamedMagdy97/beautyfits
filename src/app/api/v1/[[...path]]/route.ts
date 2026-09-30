@@ -9,4 +9,10 @@ const notFound = withApi(async () => {
   throw new AppError("NOT_FOUND", "The requested API endpoint does not exist.");
 });
 
-export { notFound as GET, notFound as POST, notFound as PUT, notFound as PATCH, notFound as DELETE };
+export {
+  notFound as GET,
+  notFound as POST,
+  notFound as PUT,
+  notFound as PATCH,
+  notFound as DELETE,
+};

@@ -1,0 +1,74 @@
+# Continuous integration (TASK-006, ADR-0012).
+# Runs every required check on a clean checkout. The `verify` job is the
+# status check that branch protection on `main` requires.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      # Same image as docker-compose.yml. Disposable: exists only during the job.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: beautyfits
+          POSTGRES_PASSWORD: beautyfits
+          POSTGRES_DB: beautyfits
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U beautyfits -d beautyfits"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      # CI has no .env file. Throwaway credentials for the service container only.
+      DATABASE_URL: postgresql://beautyfits:beautyfits@localhost:5432/beautyfits?schema=public
+      TEST_DATABASE_URL: postgresql://beautyfits:beautyfits@localhost:5432/beautyfits_test?schema=public
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js (.nvmrc)
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Integration tests (PostgreSQL 17)
+        run: npm run test:integration
+
+      - name: Build
+        run: npm run build

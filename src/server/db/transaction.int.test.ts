@@ -43,7 +43,9 @@ describe("migrations", () => {
 
   it("generates UUIDv7 primary keys", async () => {
     const event = await db.outboxEvent.create({ data: outboxEvent("ID_CHECK") });
-    expect(event.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(event.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
   });
 });
 

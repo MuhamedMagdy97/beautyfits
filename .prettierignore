@@ -1,0 +1,18 @@
+# Prettier formatting scope (ADR-0012).
+# Generated, vendored or tool-owned files.
+node_modules/
+.next/
+out/
+build/
+coverage/
+src/generated/
+public/
+package-lock.json
+next-env.d.ts
+prisma/migrations/
+
+# Markdown documents (source of truth) are not reformatted yet (TASK-006 decision).
+*.md
+
+# Local environment files.
+.env*

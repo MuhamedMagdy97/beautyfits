@@ -13,7 +13,7 @@ The backend lives in `src/server/**` and is served under `/api/v1` ([ADR-0001](d
 
 ## Getting started
 
-Requirements: Node.js ≥ 20.19, npm, and Docker (for the local database) or any PostgreSQL 15+ instance.
+Requirements: Node.js 24 (`.nvmrc`; minimum 20.19), npm, and Docker (for the local database) or any PostgreSQL 15+ instance.
 
 ```bash
 npm install                 # also generates the Prisma client (postinstall)
@@ -45,9 +45,14 @@ Migrations live in `prisma/migrations/` and are committed to Git ([ADR-0003](doc
 | `npm run dev` | Development server |
 | `npm run build` / `npm start` | Production build / server (drains in-flight requests on SIGTERM) |
 | `npm run lint` | ESLint |
+| `npm run format` / `npm run format:check` | Prettier: format the code / check formatting (CI) |
 | `npm run typecheck` | Next.js route type generation + TypeScript (`tsc --noEmit`) |
 | `npm test` / `npm run test:watch` | Vitest unit tests (no database) |
 | `npm run test:integration` | Integration tests against a real PostgreSQL test database (Docker must be running) |
 | `npm run db:migrate` / `db:status` / `db:reset` / `db:deploy` | Database migrations |
 
-Before committing, run `lint`, `typecheck`, `test`, `test:integration` when database code changed, and `build` when application code changed (see `docs/testing/test-strategy.md`).
+Before committing, run `lint`, `format:check`, `typecheck`, `test`, `test:integration` and `build` (see `docs/testing/test-strategy.md`).
+
+## Continuous integration
+
+GitHub Actions (`.github/workflows/ci.yml`, [ADR-0012](docs/decisions/ADR-0012-formatting-and-ci.md)) runs the same checks on every pull request and push to `main`, on a clean checkout with a PostgreSQL 17 service container. Do not merge a pull request while the `verify` check is red.

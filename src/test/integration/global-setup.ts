@@ -30,7 +30,9 @@ export default async function setup(): Promise<void> {
   const adminUrl = new URL(url);
   adminUrl.pathname = "/postgres";
   adminUrl.search = "";
-  const admin = new PrismaClient({ adapter: new PrismaPg({ connectionString: adminUrl.toString() }) });
+  const admin = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: adminUrl.toString() }),
+  });
   try {
     // dbName is validated above, so it is safe to use as an identifier.
     await admin.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${dbName}" WITH (FORCE)`);
