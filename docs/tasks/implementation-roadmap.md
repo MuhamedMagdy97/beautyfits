@@ -184,6 +184,8 @@ For every task:
 - CI can run on a clean checkout.
 - Failed tests block merge.
 
+**Status:** implemented in `docs/tasks/TASK-006-ci-baseline.md` (ADR-0012): GitHub Actions CI (`verify`), Prettier, Linux-compatible lockfile. Branch protection on `main` is enabled by the owner.
+
 ---
 
 # Phase 1 — Identity & RBAC

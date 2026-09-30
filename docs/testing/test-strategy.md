@@ -10,13 +10,16 @@ This document defines what must be tested and when. It introduces no business ru
 ## 1. Current State
 
 - TASK-002 established the unit-test foundation: Vitest, tests colocated as `src/**/*.test.ts`. There are no business tests yet.
-- Until TASK-006 completes (CI, DB integration tests), the minimum checks for any change are:
+- Required checks for every change. CI runs all of them on every pull request and push to `main` (TASK-006, ADR-0012), and contributors run them locally before committing:
   - `npm run lint`
+  - `npm run format:check` (Prettier; fix with `npm run format`)
   - `npm run typecheck` (`next typegen && tsc --noEmit`; plain `npx tsc --noEmit` fails on a clean checkout until Next.js route types are generated)
   - `npm test`
-  - `npm run build` when application code changed
+  - `npm run test:integration` (PostgreSQL; Docker locally, a PostgreSQL 17 service container in CI)
+  - `npm run build`
+- A pull request is not merged while CI is red. Branch protection on `main` requires the `verify` check where the GitHub plan allows it (`docs/tasks/TASK-006-ci-baseline.md`).
 - Unit tests must not require a database.
-- TASK-003 added PostgreSQL integration tests (`*.int.test.ts`, `npm run test:integration`, ADR-0010). Run them whenever database code, schema or migrations change.
+- TASK-003 added PostgreSQL integration tests (`*.int.test.ts`, `npm run test:integration`, ADR-0010).
 
 ## 2. Principles
 
@@ -42,7 +45,7 @@ This document defines what must be tested and when. It introduces no business ru
 - A clean database must be creatable entirely from migrations (TASK-003).
 - Integration tests run against real PostgreSQL, not a substitute engine, because correctness depends on PostgreSQL transactions and locking.
 - Transaction boundaries must be testable (TASK-003); test that each atomic operation in DB Design §23 either fully commits or fully rolls back.
-- Exact isolation/reset mechanism is chosen in TASK-006.
+- Isolation/reset: a dedicated `*_test` database recreated from migrations on every run, tables truncated between tests (TASK-003, ADR-0010). CI uses a disposable PostgreSQL 17 service container (TASK-006, ADR-0012).
 
 ## 5. Critical Invariants — Must Have Automated Tests
 
@@ -111,6 +114,7 @@ Decided in TASK-002 (ADR-0009):
 Decided in TASK-003 (ADR-0010):
 - Integration tests against real PostgreSQL: `npm run test:integration`, separate config, test database named `*_test` recreated from migrations on every run, tables truncated between tests.
 
-Deferred to TASK-006:
-- Formatter choice
-- CI provider/workflow and CI database provisioning
+Decided in TASK-006 (ADR-0012):
+- Formatter: Prettier (`npm run format`, `npm run format:check`); Markdown documents are not formatted yet.
+- CI: GitHub Actions workflow `CI`, job `verify`, on every pull request and push to `main`; Node.js version from `.nvmrc`; PostgreSQL 17 service container for integration tests.
+- Merge gate: failed checks block merging via branch protection/ruleset on `main` (requires GitHub Pro/Team for private repositories); otherwise no pull request is merged while CI is red.

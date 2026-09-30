@@ -67,14 +67,15 @@ For every task:
 10. Do not push directly to `main`.
 
 ### Required checks
-Until TASK-006 completes the test harness and CI, run at minimum:
+CI (`.github/workflows/ci.yml`, check `verify`, ADR-0012) runs these on every pull request and push to `main`. Run them locally before committing:
 - `npm run lint`
+- `npm run format:check` (fix with `npm run format`)
 - `npm run typecheck`
 - `npm test`
-- `npm run test:integration` when database code, schema or migrations changed (Docker PostgreSQL running)
-- `npm run build` when application code changed
+- `npm run test:integration` (Docker PostgreSQL running)
+- `npm run build`
 
-After TASK-006, run the commands defined in `docs/testing/test-strategy.md` and `package.json`.
+Do not merge a pull request while CI is red. Details: `docs/testing/test-strategy.md`.
 
 ### Task status
 - Update the `## Status` checklist in the task file under `docs/tasks/` as the task progresses (Planned → In Progress → Tests Passing → Reviewed → Done).
