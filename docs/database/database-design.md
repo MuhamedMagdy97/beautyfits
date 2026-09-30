@@ -15,7 +15,7 @@
 7. Hard deletion is prohibited for historical business records.
 8. External files live in object storage; PostgreSQL stores metadata/references.
 9. IDs should be opaque, stable identifiers (UUID recommended).
-10. All timestamps are stored in UTC; presentation timezone is handled by the application.
+10. All timestamps are stored in UTC; presentation timezone is handled by the application. Calendar-day business concepts use the business timezone Africa/Cairo (Business Spec R20).
 
 ---
 
@@ -627,7 +627,7 @@ Fields:
 - `completed_at`
 - `created_at`, `updated_at`
 
-Rule: return eligibility is disabled after 14 days from the actual delivery timestamp.
+Rule: a return may be requested until the end of the 14th calendar day after the delivery date in Africa/Cairo; the delivery day is day 0 (Business Spec R21).
 
 ### `return_items`
 
@@ -1372,7 +1372,7 @@ Queue technology remains deferred (Architecture §27); the outbox works with any
 - `order_revision_id` nullable (re-confirmation of a material revision, C5)
 - `token_hash` unique
 - `channel` = `WHATSAPP`
-- `expires_at` (never later than the COD confirmation deadline, max 3 days — Q25)
+- `expires_at` (never later than the COD confirmation deadline, at most 72 hours after order creation — Q25, Business Spec R21)
 - `used_at` nullable
 - `created_at`
 

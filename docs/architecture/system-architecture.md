@@ -414,7 +414,7 @@ The API should recognize a repeated request and return the already-created resul
 Background processing is required for:
 
 - COD confirmation reminders
-- COD expiration after the configured timeout / maximum 3 days
+- COD expiration after the configured timeout / maximum 72 hours elapsed (Business Spec R21)
 - Wishlist reminders
 - Restock notifications
 - Email sending

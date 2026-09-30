@@ -4,10 +4,12 @@
  * Adding a code requires updating the API contract first.
  */
 export const ERROR_CODES = [
+  "UNAUTHENTICATED",
   "AUTH_INVALID_CREDENTIALS",
   "AUTH_OTP_INVALID",
   "AUTH_OTP_EXPIRED",
   "AUTH_RATE_LIMITED",
+  "RATE_LIMITED",
   "FORBIDDEN",
   "NOT_FOUND",
   "VALIDATION_ERROR",
@@ -40,10 +42,12 @@ export type ErrorCode = (typeof ERROR_CODES)[number];
  * Typed as a full Record so a new code cannot be added without a status.
  */
 export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
+  UNAUTHENTICATED: 401,
   AUTH_INVALID_CREDENTIALS: 401,
   AUTH_OTP_INVALID: 401,
   AUTH_OTP_EXPIRED: 401,
   AUTH_RATE_LIMITED: 429,
+  RATE_LIMITED: 429,
   FORBIDDEN: 403,
   PERMISSION_DENIED: 403,
   NOT_FOUND: 404,

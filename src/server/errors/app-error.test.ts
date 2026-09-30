@@ -20,6 +20,12 @@ describe("AppError", () => {
     expect(isAppError(new Error("plain"))).toBe(false);
   });
 
+  it("uses the v1.2 authentication and rate-limit statuses (API contract §6.1)", () => {
+    expect(new AppError("UNAUTHENTICATED", "Sign in").status).toBe(401);
+    expect(new AppError("RATE_LIMITED", "Slow down").status).toBe(429);
+    expect(ERROR_HTTP_STATUS.AUTH_RATE_LIMITED).toBe(429);
+  });
+
   it("defaults details to an empty object", () => {
     expect(new AppError("CONFLICT", "c").details).toEqual({});
   });

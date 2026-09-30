@@ -934,6 +934,22 @@ Product-owner decisions made on 2026-09-30 during TASK-002A (`docs/tasks/TASK-00
 - In v1 no order status transition requires an approval request; order actions are controlled by their permissions (Q76 allows, but does not require, pending approval).
 - The approval-request mechanism (Audit Correction 7) is used in v1 for purchase orders, over-delivery extras, marketing campaigns and critical settings.
 
+## v1.2 TASK-005 Closure Decisions
+
+Product-owner decisions made on 2026-09-30 during TASK-005 (`docs/tasks/TASK-005-cross-cutting-foundations.md`). Recorded in `docs/decisions/business-rules-ledger.xlsx`, "Closure & Audit Decisions" worksheet.
+
+### R20 — Business timezone
+- The business timezone is **Africa/Cairo**, including daylight saving time when Egypt applies it.
+- Timestamps are still stored in UTC (Database Design §1 principle 10).
+- Calendar-day concepts use Africa/Cairo: analytics Today / Yesterday / ranges (Q149) and the return window (R21).
+
+### R21 — Day counting
+- **Return window (Q17):** a return may be requested until the end of the **14th calendar day after the delivery date**, in Africa/Cairo. The delivery day is day 0.
+- **COD confirmation maximum (Q25):** an **exact elapsed duration** of at most **72 hours** from order creation. The configurable timeout can never exceed 72 hours.
+
+### R22 — HALF-UP on negative amounts
+- HALF-UP rounding (R9) rounds ties **away from zero** for negative amounts too: `2.5 → 3`, `-2.5 → -3`.
+
 ## Key non-negotiables
 - Backend is authoritative for price, stock, discount, shipping, permissions and order state.
 - Checkout core DB changes are atomic; external notifications happen after commit.
@@ -953,3 +969,4 @@ Product-owner decisions made on 2026-09-30 during TASK-002A (`docs/tasks/TASK-00
 - TASK-001 reconciliation (R1–R8): automatic Pending Confirmation → New, Order/Shipment status separation, shipping cancellation request as a shipment-level request, Ready for Shipment transition, integer minor-unit money, wishlist reminders, customer-caused 25% Wallet refund, current repository state.
 - TASK-001 final closure decisions (R6, R7, R9–R12): wishlist reminder cadence and stop conditions, customer-caused 25% refund basis, HALF-UP financial rounding, phone COD confirmation event, cancellation window, variant-level restock subscription route.
 - TASK-002A closure decisions (R13–R19): email login, Arabic + English, shared customer/employee email, no online guest order tracking, permission catalog and default roles, Manager limits, no order-status approvals in v1. Audit Correction 1 shipment lifecycle aligned with R2.
+- TASK-005 closure decisions (R20–R22): Africa/Cairo business timezone, calendar-day return window and 72-hour elapsed COD maximum, HALF-UP ties away from zero for negative amounts.

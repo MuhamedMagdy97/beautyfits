@@ -301,7 +301,7 @@ Rules:
 - Confirmation channel is provider-agnostic and can support WhatsApp/phone according to availability; SMS can be added later.
 - Confirmation source: WhatsApp secure link → `WHATSAPP`; phone → `PHONE` recorded by an authorized staff member (actor stored); SMS is future. In both cases the System transitions `Pending Confirmation → New` (Business Spec R10).
 - Multiple reminders can be sent during the confirmation window.
-- Confirmation timeout is configurable by Admin/Owner but cannot exceed 3 days.
+- Confirmation timeout is configurable by Admin/Owner but cannot exceed 72 hours (3 days) of elapsed time from order creation (Business Spec R21).
 - After timeout: `Pending Confirmation → Expired`.
 - Expired orders are not deleted.
 - Reserved stock is released on Expired.
@@ -896,7 +896,7 @@ Analytics ranges should support Today, Yesterday, 7 Days, 30 Days, 90 Days and C
 8. **Return ≠ cancellation.** Returned orders remain historically delivered; the Return is a separate lifecycle.
 9. **Shipping cancellation ≠ customer return.**
 10. **Marketing requires consent.**
-11. **Return eligibility is 14 days from actual delivery.**
+11. **Return eligibility runs until the end of the 14th calendar day after delivery, in Africa/Cairo (Business Spec R21).**
 12. **External notifications are asynchronous.** Notification failure must not roll back a successful order transaction.
 13. **Manual money/stock changes require permissions and auditability.**
 14. **Archived products remain historically referenceable.**

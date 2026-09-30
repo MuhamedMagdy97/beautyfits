@@ -2,8 +2,10 @@
  * Structured JSON logger (ADR-0006).
  *
  * One JSON object per line on stdout/stderr. Sensitive keys are redacted
- * recursively before serialization so passwords, OTPs, tokens, cookies and
- * secrets never reach the logs (docs/security/security-requirements.md §9).
+ * recursively before serialization, and secrets embedded in text (error
+ * messages, stacks, other strings) are masked, so passwords, OTPs, tokens,
+ * cookies and secrets never reach the logs
+ * (docs/security/security-requirements.md §9).
  */
 
 export const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
@@ -16,6 +18,27 @@ export const REDACTED = "[REDACTED]";
 // Matched against object keys, case-insensitively.
 const SENSITIVE_KEY =
   /pass(word|phrase)?|otp|token|secret|authorization|cookie|api[-_]?key|session|credential|private[-_]?key|hash|database[-_]?url|connection[-_]?string/i;
+
+// Secrets embedded in free text, e.g. an error message that echoes a
+// connection string or a request header. Applied in this order.
+const SECRET_WORD =
+  "pass(?:word|phrase|wd)?|pwd|otp|token|secret|authorization|cookie|api[-_]?key|session[-_]?id|credential|private[-_]?key";
+const TEXT_SECRETS: [RegExp, string][] = [
+  // scheme://user:password@host → keep the user, hide the password.
+  [/\b([a-z][a-z0-9+.-]*:\/\/[^\s:@/?#]*):[^\s@/?#]+@/gi, `$1:${REDACTED}@`],
+  // Authorization schemes: "Bearer abc", "Basic dXNlcjpwdw==".
+  [/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi, `$1 ${REDACTED}`],
+  // JSON Web Tokens.
+  [/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/g, REDACTED],
+  // key=value, key: value, "key":"value" where the key names a secret.
+  [
+    new RegExp(
+      String.raw`\b([\w-]*(?:${SECRET_WORD})[\w-]*["']?\s*[:=]\s*["']?)[^\s"'&,;)}\]]+`,
+      "gi",
+    ),
+    `$1${REDACTED}`,
+  ],
+];
 
 const MAX_DEPTH = 8;
 
@@ -43,9 +66,17 @@ export function isLogLevel(value: unknown): value is LogLevel {
   return typeof value === "string" && (LOG_LEVELS as readonly string[]).includes(value);
 }
 
+/** Masks secrets that appear inside free text. */
+export function redactText(text: string): string {
+  return TEXT_SECRETS.reduce((result, [pattern, replacement]) => result.replace(pattern, replacement), text);
+}
+
 export function redact(value: unknown, depth = 0): unknown {
   if (value instanceof Error) {
     return serializeError(value, depth);
+  }
+  if (typeof value === "string") {
+    return redactText(value);
   }
   if (value === null || typeof value !== "object") {
     return typeof value === "bigint" ? value.toString() : value;
@@ -66,8 +97,8 @@ export function redact(value: unknown, depth = 0): unknown {
 function serializeError(error: Error, depth: number): Record<string, unknown> {
   const serialized: Record<string, unknown> = {
     name: error.name,
-    message: error.message,
-    stack: error.stack,
+    message: redactText(error.message),
+    stack: error.stack === undefined ? undefined : redactText(error.stack),
   };
   if ("code" in error && typeof error.code === "string") {
     serialized.code = error.code;
@@ -92,7 +123,12 @@ export function createLogger(
     const entry = redact({ ...bindings, ...fields }) as LogFields;
     write(
       entryLevel,
-      JSON.stringify({ time: new Date().toISOString(), level: entryLevel, msg, ...entry }),
+      JSON.stringify({
+        time: new Date().toISOString(),
+        level: entryLevel,
+        msg: redactText(msg),
+        ...entry,
+      }),
     );
   };
 
