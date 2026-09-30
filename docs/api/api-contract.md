@@ -112,6 +112,26 @@ Idempotency-Key: <key>
 
 Clients should branch on stable error `code` values, not message text.
 
+### 6.1 Error conventions (TASK-002, ADR-0004/ADR-0005)
+
+- Every API failure uses the error shape above, including unknown `/api/v1` paths (`NOT_FOUND`) and unexpected server failures (`INTERNAL_ERROR`, generic message; details are never leaked).
+- `error.details` is always an object (`{}` when empty). For `VALIDATION_ERROR`, `details.issues` is a list of `{ path, code, message }`, where `path` is a dot-separated field path (e.g. `items.0.qty`).
+- `X-Request-Id`: a well-formed client-supplied id (8–128 characters of `A–Z a–z 0–9 . _ : -`) is reused, otherwise the server generates one. It is returned in the `X-Request-Id` response header and in `meta.requestId` / `error.requestId`.
+- API responses are sent with `Cache-Control: no-store`.
+- Default HTTP status per error code (a feature task may refine a status only by updating this table):
+
+| HTTP | Codes |
+|---|---|
+| 400 | `VALIDATION_ERROR` |
+| 401 | `AUTH_INVALID_CREDENTIALS`, `AUTH_OTP_INVALID`, `AUTH_OTP_EXPIRED` |
+| 403 | `FORBIDDEN`, `PERMISSION_DENIED` |
+| 404 | `NOT_FOUND` |
+| 409 | `CONFLICT`, `IDEMPOTENCY_CONFLICT`, `DUPLICATE_OPERATION`, `STOCK_CHANGED`, `PRICE_CHANGED`, `ORDER_STATE_INVALID`, `RETURN_STATE_INVALID`, `WALLET_RESERVATION_CONFLICT`, `RECONFIRMATION_REQUIRED` |
+| 422 | `OUT_OF_STOCK`, `DISCOUNT_INVALID`, `DISCOUNT_EXPIRED`, `SHIPPING_UNAVAILABLE`, `ORDER_CANCELLATION_NOT_ALLOWED`, `RETURN_WINDOW_EXPIRED`, `WALLET_INSUFFICIENT_FUNDS`, `APPROVAL_REQUIRED` |
+| 429 | `AUTH_RATE_LIMITED` |
+| 500 | `INTERNAL_ERROR` |
+| 502 | `PROVIDER_ERROR` |
+
 ## 7. HTTP Semantics
 
 - `GET` — read
@@ -764,3 +784,19 @@ The canonical rule text lives in `docs/product/business-spec.md` (R1–R12). Thi
 | R6 — Wishlist reminders | Wishlist reminders amendment |
 | R11 — Cancellation window | §15 Order Rules |
 | R12 — Variant restock subscription | §19 |
+
+## TASK-002 Foundation Amendments
+
+Technical conventions only; no business behavior changed. See `docs/decisions/ADR-0004-api-foundation.md`.
+
+- All endpoints in this contract are served under `/api/v1` (§3) by the backend in `src/server` (ADR-0001).
+- Error conventions and the default HTTP status per error code: §6.1.
+
+### Operational endpoints
+
+Not business endpoints. Unauthenticated, and they expose no internal details.
+
+| Method | Endpoint | Purpose | Response |
+|---|---|---|---|
+| GET | `/health` | Liveness (no dependency checks) | `200 { data: { status: "ok" }, meta }` |
+| GET | `/health/ready` | Readiness (database reachable within 2 s) | `200 { data: { status: "ready", checks: { database: "up" } }, meta }` or `503` with `status: "not_ready"`, `database: "down"` |

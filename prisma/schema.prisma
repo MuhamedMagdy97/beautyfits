@@ -1,0 +1,17 @@
+// BeautyFits Prisma schema.
+//
+// Models are added by their owning tasks (TASK-003 onward) following
+// docs/database/database-design.md. Conventions (ADR-0003):
+// - money columns are integer minor units (BigInt/Int), never Float/Decimal
+// - ids are opaque UUIDs
+// - timestamps are stored in UTC
+// - tables use snake_case names via @@map / @map
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

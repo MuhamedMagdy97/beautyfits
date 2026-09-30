@@ -9,6 +9,7 @@ BeautyFits is a beauty e-commerce platform with one authoritative backend and Po
 
 ## Repository Reality
 - The repository currently contains a Next.js starter project (`create-next-app`) at the repository root (`src/app`). It is **not** an existing completed BeautyFits website.
+- The backend lives in the same app (TASK-002, `docs/decisions/ADR-0001-backend-placement.md`): business/backend code in `src/server/**`, HTTP adapters in `src/app/api/v1/**/route.ts`. Technical decisions are recorded as ADRs in `docs/decisions/`.
 - Do not move the Next.js app into an `apps/web` monorepo layout until a task explicitly requires it. The `apps/*` / `packages/*` shape in `docs/architecture/system-architecture.md` is a target, not the current state.
 - Next.js in this repo is a recent major version with breaking changes; see the Next.js agent rules block at the end of this file.
 
@@ -65,9 +66,10 @@ For every task:
 10. Do not push directly to `main`.
 
 ### Required checks
-Until TASK-006 establishes the test harness and CI, run at minimum:
+Until TASK-006 completes the test harness and CI, run at minimum:
 - `npm run lint`
-- `npx tsc --noEmit`
+- `npm run typecheck`
+- `npm test`
 - `npm run build` when application code changed
 
 After TASK-006, run the commands defined in `docs/testing/test-strategy.md` and `package.json`.
