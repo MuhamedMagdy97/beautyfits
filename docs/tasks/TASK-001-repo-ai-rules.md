@@ -57,7 +57,7 @@ None. Business decisions raised during TASK-001 were closed as Business Spec R6,
 - Human/product-owner review completed.
 
 ## Status
-- [ ] Planned
+- [x] Planned
 - [x] In Progress
 - [x] Reviewed
 - [x] Done

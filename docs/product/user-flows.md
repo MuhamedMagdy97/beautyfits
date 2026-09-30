@@ -360,7 +360,7 @@ Return to Sender
 Returned
 ```
 
-### 8.2 Main transition permissions
+### 8.3 Main transition permissions
 
 | Transition | Permission / Actor | Notes |
 |---|---|---|
@@ -371,7 +371,7 @@ Returned
 | Ready for Shipment → Shipped | `MARK_AS_SHIPPED` | Requires actual carrier handoff + tracking data when available |
 | Shipped → Delivered | Carrier/manual status | Manual in MVP; integration later. Reflects the Shipment reaching `Delivered` |
 | Pending Confirmation/New/Confirmed/Preparing/Ready for Shipment → Cancelled | Customer (own order) or `CANCEL_ORDER` (staff, reason required) | Allowed while the carrier has not physically received the shipment; releases reserved stock and wallet (Business Spec R11) |
-| Shipped → Cancelled | Authorized ops | Only after a shipping cancellation request, the Shipment reaching `Returned`, and inspection for shipping damage (see 8.3) |
+| Shipped → Cancelled | Authorized ops | Only after a shipping cancellation request, the Shipment reaching `Returned`, and inspection for shipping damage (see 8.4) |
 
 Shipment-level transitions (not Order statuses):
 
@@ -383,7 +383,7 @@ Shipment-level transitions (not Order statuses):
 | Shipping cancellation request (recorded on the Shipment) | `REQUEST_SHIPPING_CANCELLATION` | Not a final cancellation; Order stays `Shipped` |
 | → Return to Sender → Returned | Shipping/ops confirmation | Shipment is physically returning to BeautyFits |
 
-### 8.3 Cancellation rule
+### 8.4 Cancellation rule
 
 The customer may cancel until the shipping company physically receives the shipment (allowed statuses: see the transition table above and Business Spec R11).
 
@@ -453,7 +453,7 @@ Delivery Failed
 
 ## 11. Customer Return State Machine
 
-### 10.1 Eligibility
+### 11.1 Eligibility
 
 ```text
 Delivered
@@ -465,7 +465,7 @@ Within 14 days?
 
 The 14-day window starts from actual delivery date. Damaged/defective items do not get a later window under the current policy.
 
-### 10.2 Return Flow
+### 11.2 Return Flow
 
 ```text
 Customer submits Return Request
@@ -494,7 +494,7 @@ Rejected    Pickup Requested
              Wallet Refund
 ```
 
-### 10.3 Return Request
+### 11.3 Return Request
 
 - Customer provides a free-text reason.
 - Customer can upload evidence.
@@ -502,7 +502,7 @@ Rejected    Pickup Requested
 - Customer pays return shipping by default, but final responsibility may switch to BeautyFits for shipping damage or wrong item.
 - Admin may reject; customer can submit a new request rather than mutating historical rejected data.
 
-### 10.4 Inspection
+### 11.4 Inspection
 
 Each returned product/quantity is evaluated independently.
 
@@ -513,7 +513,7 @@ Allowed results:
 
 Inspection notes are required/encouraged to document the physical finding.
 
-### 10.5 Customer-caused opened/used condition
+### 11.5 Customer-caused opened/used condition
 
 If inspection establishes customer-caused opening/use/damage, the resolution can be:
 
@@ -522,7 +522,7 @@ If inspection establishes customer-caused opening/use/damage, the resolution can
 
 Policy-value configurability, audit requirements and rounding: Business Spec R7 and R9.
 
-### 10.6 Refund logic
+### 11.6 Refund logic
 
 - Full/eligible refunds go to BeautyFits Wallet by default.
 - Partial refunds are supported per returned item.
@@ -534,7 +534,7 @@ Policy-value configurability, audit requirements and rounding: Business Spec R7 
 
 ## 12. Wallet Flow
 
-### 11.1 Refund
+### 12.1 Refund
 
 ```text
 Return Approved
@@ -550,7 +550,7 @@ Wallet Transaction
 Customer Wallet Balance Updated
 ```
 
-### 11.2 Wallet as Payment Source
+### 12.2 Wallet as Payment Source
 
 Wallet is a real payment balance usable on future orders.
 
@@ -579,7 +579,7 @@ Wallet balance is never changed without a ledger transaction.
 
 ## 13. Inventory State & Movement Flow
 
-### 12.1 Core quantities
+### 13.1 Core quantities
 
 ```text
 Available
@@ -589,7 +589,7 @@ Damaged / Non-sellable
 
 Sellable stock is based on Available quantity; Reserved and Damaged quantities cannot be sold as normal available stock.
 
-### 12.2 Order reservation
+### 13.2 Order reservation
 
 ```text
 Place Order
@@ -603,11 +603,11 @@ Available / Reserved updated
 
 Concurrent checkouts must not oversell the last available quantity.
 
-### 12.3 Release reservation
+### 13.3 Release reservation
 
 Reservation is released when an order is cancelled or expired according to the order state.
 
-### 12.4 Inventory ledger
+### 13.4 Inventory ledger
 
 Every stock movement creates an Inventory Movement record, such as:
 - Purchase Receipt
@@ -623,7 +623,7 @@ Manual stock adjustment requires the `ADJUST_INVENTORY` permission and a mandato
 
 ## 14. Purchasing & Supplier Flow
 
-### 13.1 Purchase lifecycle
+### 14.1 Purchase lifecycle
 
 ```text
 Draft Purchase Order
@@ -648,7 +648,7 @@ Inventory Increase
 - Supplier invoice is uploaded for every purchase.
 - Any quantity mismatch or deviation from the invoice/order must be documented in a required description/notes field.
 
-### 13.2 Short delivery
+### 14.2 Short delivery
 
 Example: Ordered 100, received 97.
 
@@ -660,7 +660,7 @@ Short = 3
 
 The original supplier invoice is not silently rewritten. The system records the actual receipt separately.
 
-### 13.3 Over-delivery
+### 14.3 Over-delivery
 
 Example: Ordered 100, received 105.
 
@@ -671,7 +671,7 @@ Example: Ordered 100, received 105.
 
 Owner/Admin decides whether to accept and add the extra quantity or reject/return it.
 
-### 13.4 Supplier return
+### 14.4 Supplier return
 
 ```text
 Received Goods
@@ -693,7 +693,7 @@ Supplier returns should link to the original purchase where possible.
 
 ## 15. Shipping Assignment & Pricing
 
-### 14.1 Company assignment
+### 15.1 Company assignment
 
 ```text
 Order Ready for Shipment
@@ -709,7 +709,7 @@ Authorized employee reviews/changes
 Carrier assigned
 ```
 
-### 14.2 Shipping price
+### 15.2 Shipping price
 
 Shipping rules may depend on:
 - Shipping company
@@ -717,7 +717,7 @@ Shipping rules may depend on:
 - Order value
 - Other Dashboard-configured rules
 
-### 14.3 Free shipping
+### 15.3 Free shipping
 
 Free shipping is evaluated after product discounts using the final qualifying order total.
 
@@ -725,7 +725,7 @@ Free shipping is evaluated after product discounts using the final qualifying or
 
 ## 16. Marketing & Notification Flows
 
-### 15.1 Transactional notification
+### 16.1 Transactional notification
 
 Primary/fallback strategy:
 
@@ -741,7 +741,7 @@ Log every attempt/result
 
 Transactional messages cannot be disabled as if they were marketing promotions.
 
-### 15.2 Marketing consent
+### 16.2 Marketing consent
 
 Marketing requires explicit opt-in.
 
@@ -755,13 +755,13 @@ Can enter marketing audience
 
 Opt-out immediately removes eligibility for the relevant marketing channel.
 
-### 15.3 Restock notifications
+### 16.3 Restock notifications
 
 Restock is separately controlled by `Notify Me` preferences and is not assumed from wishlist membership.
 
 Customer can select email, WhatsApp, or both. Notification is sent once per restock cycle.
 
-### 15.4 New-product campaign
+### 16.4 New-product campaign
 
 ```text
 Product published
@@ -777,7 +777,7 @@ Send
 Delivery / failure logs
 ```
 
-### 15.5 Marketing frequency
+### 16.5 Marketing frequency
 
 Marketing messages are subject to configurable frequency limits to reduce excessive contact.
 
@@ -785,7 +785,7 @@ Marketing messages are subject to configurable frequency limits to reduce excess
 
 ## 17. Employee, Role & Approval Flows
 
-### 16.1 Hierarchy
+### 17.1 Hierarchy
 
 ```text
 Owner
@@ -803,7 +803,7 @@ Employee
 - Custom roles are created by Owner/Admin.
 - Granular permissions control actions.
 
-### 16.2 Sensitive actions
+### 17.2 Sensitive actions
 
 Examples of separate permissions:
 - `ADJUST_INVENTORY`
@@ -816,7 +816,7 @@ Examples of separate permissions:
 - `VIEW_COST_PRICE`
 - `VIEW_PROFIT`
 
-### 16.3 Approval pattern
+### 17.3 Approval pattern
 
 Where a Manager is not authorized to finalize a sensitive transition:
 
@@ -830,7 +830,7 @@ Owner/Admin review
 Approve     Reject
 ```
 
-### 16.4 Employee deactivation
+### 17.4 Employee deactivation
 
 Employee access is deactivated/revoked, not hard-deleted, when business history exists. Historical actions and audit logs remain linked to the employee record.
 
@@ -923,80 +923,6 @@ Architecture work must preserve these boundaries:
 Before designing tables, the architecture must explicitly explain how the state machines and invariants above are enforced.
 
 
-## v1.1 Closure Decisions (Post-Audit)
+## v1.1 Closure Decisions and Audit Corrections
 
-These decisions supersede earlier ambiguous or conflicting interpretations and are frozen for implementation planning.
-
-### C1 — Tax / Order Receipt
-- Customer-facing prices are treated as tax-inclusive for v1 where applicable.
-- Store tax amount and tax metadata on the order/item financial snapshot so future tax-invoice support can be added without redesigning historical orders.
-- No full tax engine or jurisdiction calculation module is required in v1 unless separately approved.
-
-### C2 — Return Pickup Shipping
-- Customer-caused returns / change-of-mind returns: customer pays the return pickup shipping directly to the carrier.
-- BeautyFits / wrong-item / carrier-damage returns: BeautyFits bears the return pickup cost.
-- Return shipping responsibility is based on final assessed responsibility, not the customer's initial description alone.
-
-### C3 — Original Delivery Fee on Return
-- Customer-fault / change-of-mind: product refund only; the original outbound delivery fee is not refunded.
-- BeautyFits fault / wrong item / carrier damage: refund the eligible product amount plus the original outbound delivery fee.
-- Future alternative refund methods remain permission-controlled.
-
-### C4 — Wallet-Fully-Covers-Order
-- If Wallet covers the entire final order total, COD amount is zero and no COD confirmation is required.
-- Wallet funds are captured from their reservation when the order is finalized according to the order outcome.
-
-### C5 — Order Modification
-- Customer may modify an order only before `Preparing`.
-- Any modification that changes quantity, price, discount, shipping fee, shipping address, wallet usage, or COD amount triggers full recalculation and a new customer confirmation step before the revised order is operationally confirmed.
-- Non-financial, non-fulfillment notes may be editable without re-confirmation when permitted.
-- Each material revision is auditable; the historical order is not silently rewritten.
-
-### C6 — Product / Variant Canonical Model
-- Every sellable SKU is represented by a `Product Variant`.
-- Products without visible variants receive a single `Default Variant`.
-- Price, cost, stock, SKU, and inventory live at variant level.
-- Reviews are displayed at Product level, while the qualifying purchase references the purchased Variant via `Order Item`.
-
-## v1.1 Pre-Implementation Audit Corrections
-
-1. **Order vs Shipment state separation**
-   - Order lifecycle: `Pending Confirmation → New → Confirmed → Preparing → Ready for Shipment → Shipped → Delivered`, plus `Cancelled` and `Expired`.
-   - Shipment lifecycle: `Created/Ready → Picked Up/Shipped → Out for Delivery → Delivery Failed → Return to Sender → Returned`.
-   - `Return` is a separate lifecycle from both Order and Shipment.
-
-2. **Pending Confirmation → New is automatic**
-   - Customer confirmation moves the order to `New` automatically.
-   - Human staff then perform `New → Confirmed`.
-
-3. **Ready for Shipment is a real transition**
-   - `Preparing → Ready for Shipment` uses a dedicated permission before carrier handoff.
-   - `Ready for Shipment → Shipped` confirms actual carrier pickup/handoff.
-
-4. **Order modification requires re-confirmation when commercially material**
-   - Material changes create a revision/revalidation flow rather than silently mutating the confirmed commercial state.
-
-5. **Wallet reservation is not a refund**
-   - A cancelled/expired pre-payment order releases reserved wallet funds.
-   - Refunds create a wallet credit transaction only when funds were actually captured and became refundable.
-
-6. **Supplier financial traceability**
-   - Purchase invoices remain immutable.
-   - Goods receipts represent quantity discrepancies.
-   - Supplier payment/credit/refund activity is represented in a supplier ledger.
-
-7. **Approval requests are first-class**
-   - Manager/pending approvals are represented by a persistent `approval_requests` concept rather than only an API endpoint.
-
-8. **Wishlist reminders are explicit background work**
-   - Keep reminder count and last-sent state.
-   - Respect marketing consent for marketing-style purchase reminders.
-   - Restock `Notify Me` remains a separate explicit subscription.
-
-9. **Marketing fallback respects consent**
-   - Email fallback is permitted only when Email Marketing consent exists.
-   - WhatsApp/Email delivery attempts remain independently logged.
-
-10. **Security-sensitive account changes**
-   - Email/phone changes require re-authentication plus verification of the new destination.
-   - Owner/Admin accounts require MFA.
+The canonical text of closure decisions C1–C6 and of the Pre-Implementation Audit Corrections 1–10 lives only in `docs/product/business-spec.md`. The copies that used to be repeated here were removed in TASK-002A to prevent the documents drifting apart.

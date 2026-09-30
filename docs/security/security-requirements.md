@@ -72,7 +72,7 @@ Security is a cross-cutting concern from the beginning, not a post-MVP feature (
 
 ### Dedicated permissions for high-risk actions
 
-`ADJUST_INVENTORY` (reason required, Q71/Q72), `EDIT_PRODUCT_PRICE` (Q73), `MANAGE_PRODUCT_MEDIA` (Q175), `MANAGE_MANUAL_REFUNDS` (reason + audit, Q77), `ADJUST_WALLET` (Owner/Admin only, Q78), `RECORD_COD_CONFIRMATION` (records phone COD confirmation event; audited, Business Spec R10), `CONFIRM_ORDER` (Q82), `START_PREPARING` (Q83), `MARK_READY_FOR_SHIPMENT` (Audit Correction 3), `MARK_AS_SHIPPED` (Q84), `CANCEL_ORDER` (reason required, Q86), `REQUEST_SHIPPING_CANCELLATION` (Q88). Full catalog: API Contract.
+`ADJUST_INVENTORY` (reason required, Q71/Q72), `EDIT_PRODUCT_PRICE` (Q73), `MANAGE_PRODUCT_MEDIA` (Q175), `MANAGE_MANUAL_REFUNDS` (reason + audit, Q77), `ADJUST_WALLET` (Owner/Admin only, Q78), `RECORD_COD_CONFIRMATION` (records phone COD confirmation event; audited, Business Spec R10), `CONFIRM_ORDER` (Q82), `START_PREPARING` (Q83), `MARK_READY_FOR_SHIPMENT` (Audit Correction 3), `MARK_AS_SHIPPED` (Q84), `CANCEL_ORDER` (reason required, Q86), `REQUEST_SHIPPING_CANCELLATION` (Q88). Full catalog and default roles: `docs/security/permission-catalog.md` (Business Spec R17–R19).
 
 ### Sensitive data visibility
 
