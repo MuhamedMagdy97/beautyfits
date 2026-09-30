@@ -60,7 +60,7 @@ From User Flows §20, DB Design §26, and API Contract §34:
 | 8 | Return ≠ cancellation | Returned orders stay `Delivered`; returns have their own lifecycle |
 | 9 | Shipping cancellation ≠ customer return | Shipping cancellation request does not change Order status; order becomes `Cancelled` only after the shipment is `Returned` and inspected |
 | 10 | Marketing requires consent | No marketing recipient/fallback without per-channel consent |
-| 11 | Return window is 14 days from actual delivery | Boundary tests at the window edge |
+| 11 | Return window ends at the end of the 14th calendar day after delivery, Africa/Cairo (Business Spec R21) | Boundary tests at the window edge, including DST transitions |
 | 12 | External notifications are asynchronous | Notification/provider failure does not roll back a committed order |
 | 13 | Manual money/stock changes require permission + audit | Missing permission → rejected; success writes audit log and reason |
 | 14 | Inventory movements | Every stock change produces an inventory movement |

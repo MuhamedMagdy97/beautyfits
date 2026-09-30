@@ -400,7 +400,7 @@ Webhook processing is idempotent, signature-verified, persisted, then mapped to 
 | POST | `/returns/{returnId}/resubmit` | Submit a new request after rejection (creates a new return; the rejected one is unchanged, Q92) | Customer |
 | POST | `/returns/{returnId}/cancel` | Withdraw a request while `PENDING_APPROVAL` | Customer |
 
-Return requests are limited to 14 days from actual delivery. Evidence is mandatory for configured damage/wrong-item cases.
+Return requests are allowed until the end of the 14th calendar day after the delivery date in Africa/Cairo (delivery day is day 0; Business Spec R21). Evidence is mandatory for configured damage/wrong-item cases.
 
 ## Admin
 
@@ -660,7 +660,7 @@ Workers handle email, WhatsApp, in-app notifications, reminders, analytics enric
 
 - Checkout revalidates current price, stock, discount, shipping, free-shipping eligibility, customer data, and total.
 - Order status transitions follow the approved state machine; arbitrary jumps are rejected.
-- Return eligibility is measured from actual delivery timestamp and closes after 14 days.
+- Return eligibility is measured from the actual delivery date and closes at the end of the 14th calendar day after it, in Africa/Cairo (Business Spec R21).
 - Inventory reservations are atomic and released according to order cancellation/expiry rules.
 - Wallet credit used in a pending order is reserved.
 - One discount applies per order and the customer chooses among eligible discounts.

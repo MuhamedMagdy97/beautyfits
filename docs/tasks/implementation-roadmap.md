@@ -164,6 +164,8 @@ For every task:
 
 **Status after TASK-002:** error model, request ids, structured logging, validation, response conventions and config validation are done. Remaining: money helpers (minor units, HALF-UP) and time handling, plus redacting sensitive values inside logged error messages and adding the v1.2 error codes `UNAUTHENTICATED` and `RATE_LIMITED` to `src/server/errors/app-error.ts` (API contract §6.1, §29).
 
+**Remaining scope implemented in TASK-005** (`docs/tasks/TASK-005-cross-cutting-foundations.md`, ADR-0011): money and time helpers, the two error codes, and redaction of secrets inside logged text. Business decisions R20–R22 recorded.
+
 ---
 
 ### TASK-006 — Test Harness & CI Baseline

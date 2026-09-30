@@ -9,6 +9,8 @@ The backend modular monolith. See `docs/decisions/ADR-0001-backend-placement.md`
 | `errors/` | `AppError` and the API contract error codes (ADR-0004) |
 | `http/` | `withApi`, response envelopes, request ids, zod input helpers (ADR-0004, ADR-0005) |
 | `logging/` | Structured logger with redaction (ADR-0006) |
+| `money/` | Integer minor-unit money and HALF-UP rounding (ADR-0011) |
+| `time/` | UTC instants, `Clock`, Africa/Cairo calendar days (ADR-0011) |
 | `health/` | Liveness and readiness checks |
 | `modules/<module>/` | Business modules (added from TASK-007 onward) |
 
