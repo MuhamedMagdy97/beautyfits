@@ -27,7 +27,16 @@ Check the API:
 - `GET http://localhost:3000/api/v1/health` returns liveness
 - `GET http://localhost:3000/api/v1/health/ready` returns readiness (database reachable)
 
-There are no database tables yet. Migrations start with TASK-003 ([ADR-0003](docs/decisions/ADR-0003-database-access-and-migrations.md)).
+## Database
+
+```bash
+npm run db:migrate          # apply migrations to the local database (and create a new one after a schema change: npm run db:migrate -- --name <change>)
+npm run db:status           # show which migrations are applied
+npm run db:reset            # DEVELOPMENT ONLY: drop all local data and re-apply migrations
+npm run db:deploy           # apply committed migrations (CI / staging / production)
+```
+
+Migrations live in `prisma/migrations/` and are committed to Git ([ADR-0003](docs/decisions/ADR-0003-database-access-and-migrations.md), [ADR-0010](docs/decisions/ADR-0010-ids-transactions-integration-tests.md)).
 
 ## Scripts
 
@@ -37,6 +46,8 @@ There are no database tables yet. Migrations start with TASK-003 ([ADR-0003](doc
 | `npm run build` / `npm start` | Production build / server (drains in-flight requests on SIGTERM) |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Next.js route type generation + TypeScript (`tsc --noEmit`) |
-| `npm test` / `npm run test:watch` | Vitest unit tests |
+| `npm test` / `npm run test:watch` | Vitest unit tests (no database) |
+| `npm run test:integration` | Integration tests against a real PostgreSQL test database (Docker must be running) |
+| `npm run db:migrate` / `db:status` / `db:reset` / `db:deploy` | Database migrations |
 
-Before committing, run `lint`, `typecheck`, `test` and, when application code changed, `build` (see `docs/testing/test-strategy.md`).
+Before committing, run `lint`, `typecheck`, `test`, `test:integration` when database code changed, and `build` when application code changed (see `docs/testing/test-strategy.md`).

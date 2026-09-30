@@ -71,6 +71,7 @@ Until TASK-006 completes the test harness and CI, run at minimum:
 - `npm run lint`
 - `npm run typecheck`
 - `npm test`
+- `npm run test:integration` when database code, schema or migrations changed (Docker PostgreSQL running)
 - `npm run build` when application code changed
 
 After TASK-006, run the commands defined in `docs/testing/test-strategy.md` and `package.json`.

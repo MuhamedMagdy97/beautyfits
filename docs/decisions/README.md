@@ -14,5 +14,6 @@
 | [ADR-0007](ADR-0007-environment-configuration.md) | Environment and configuration | TASK-002 |
 | [ADR-0008](ADR-0008-authentication-architecture.md) | Authentication architecture (first-party, session-based) | TASK-002 |
 | [ADR-0009](ADR-0009-testing-foundation.md) | Testing foundation (Vitest) | TASK-002 |
+| [ADR-0010](ADR-0010-ids-transactions-integration-tests.md) | UUIDv7 ids, transaction helper, integration tests | TASK-003 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.
