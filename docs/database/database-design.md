@@ -1153,6 +1153,8 @@ The following remain implementation decisions after this schema review:
 
 These should not change the business semantics defined above.
 
+**Resolved in TASK-002:** ORM and migration tool are Prisma ORM 7 (`@prisma/adapter-pg`) and Prisma Migrate, with SQL migrations committed under `prisma/migrations/` and applied with `prisma migrate deploy` outside development. Schema conventions (minor-unit money, UUID ids, UTC timestamps, `snake_case` mapping) are recorded in `docs/decisions/ADR-0003-database-access-and-migrations.md`. No tables exist yet; TASK-003 creates the first migration. The ID generator (UUIDv4 vs v7) remains a TASK-003 decision.
+
 ---
 
 ## 26. Database Review Checklist Before Migrations

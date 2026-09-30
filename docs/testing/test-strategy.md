@@ -3,18 +3,19 @@
 **Status:** Consolidated from existing source-of-truth documents (TASK-001)
 **Sources:** `AGENTS.md`, `docs/tasks/implementation-roadmap.md` (§1, §5, TASK-006, TASK-062, TASK-063), `docs/product/user-flows.md` (§20), `docs/architecture/system-architecture.md`, `docs/database/database-design.md` (§23, §26), `docs/api/api-contract.md` (§34)
 
-This document defines what must be tested and when. It introduces no business rules. Test tools and frameworks are **not** chosen here; they are selected and documented in TASK-006.
+This document defines what must be tested and when. It introduces no business rules. Test tooling is recorded in `docs/decisions/ADR-0009-testing-foundation.md` (Vitest, selected in TASK-002); the remaining tooling is completed in TASK-006.
 
 ---
 
 ## 1. Current State
 
-- The repository is a Next.js starter project. There is no test framework, test script, typecheck script, or CI yet.
-- Until TASK-006 completes, the minimum checks for any change are:
+- TASK-002 established the unit-test foundation: Vitest, tests colocated as `src/**/*.test.ts`. There are no business tests yet.
+- Until TASK-006 completes (CI, DB integration tests), the minimum checks for any change are:
   - `npm run lint`
-  - `npx tsc --noEmit`
+  - `npm run typecheck` (`next typegen && tsc --noEmit`; plain `npx tsc --noEmit` fails on a clean checkout until Next.js route types are generated)
+  - `npm test`
   - `npm run build` when application code changed
-- TASK-001 is documentation-only; its acceptance is by human review.
+- Unit tests must not require a database. PostgreSQL integration tests arrive with TASK-003/TASK-006.
 
 ## 2. Principles
 
@@ -100,10 +101,14 @@ Each task file lists its own tests and edge cases (`docs/tasks/task-template.md`
 - Lint/typecheck/format pass.
 - Relevant integration tests pass.
 
-## 9. Deferred to TASK-006
+## 9. Tooling
 
-- Unit/integration test frameworks
+Decided in TASK-002 (ADR-0009):
+- Unit test framework: Vitest (`npm test`, `npm run test:watch`)
+- `package.json` scripts `test`, `test:watch`, `typecheck`, `lint`
+
+Deferred to TASK-003 / TASK-006:
+- Integration test setup against real PostgreSQL
 - Test database provisioning and reset strategy
 - Formatter choice
 - CI provider/workflow
-- `package.json` scripts (`test`, `typecheck`, etc.)

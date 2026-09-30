@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BeautyFits
 
-## Getting Started
+A beauty e-commerce platform. One authoritative backend and PostgreSQL database serve the Website, the Admin Dashboard, and a future Mobile App.
 
-First, run the development server:
+- Contributor/agent rules: [`AGENTS.md`](AGENTS.md)
+- Requirements (source of truth): [`docs/`](docs/). Start with `docs/product/business-spec.md`.
+- Technical decisions: [`docs/decisions/`](docs/decisions/README.md)
+
+## Stack
+
+Next.js 16 (App Router) · React 19 · TypeScript · PostgreSQL · Prisma ORM 7 · zod · Vitest.
+The backend lives in `src/server/**` and is served under `/api/v1` ([ADR-0001](docs/decisions/ADR-0001-backend-placement.md)).
+
+## Getting started
+
+Requirements: Node.js ≥ 20.19, npm, and Docker (for the local database) or any PostgreSQL 15+ instance.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install                 # also generates the Prisma client (postinstall)
+cp .env.example .env        # local development values only
+docker compose up -d        # local PostgreSQL on 127.0.0.1:5432
+npm run dev                 # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Check the API:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `GET http://localhost:3000/api/v1/health` returns liveness
+- `GET http://localhost:3000/api/v1/health/ready` returns readiness (database reachable)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+There are no database tables yet. Migrations start with TASK-003 ([ADR-0003](docs/decisions/ADR-0003-database-access-and-migrations.md)).
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Script | Purpose |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build / server (drains in-flight requests on SIGTERM) |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | Next.js route type generation + TypeScript (`tsc --noEmit`) |
+| `npm test` / `npm run test:watch` | Vitest unit tests |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Before committing, run `lint`, `typecheck`, `test` and, when application code changed, `build` (see `docs/testing/test-strategy.md`).

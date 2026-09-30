@@ -110,7 +110,16 @@ The exact framework/library choice for the API can be finalized after this archi
 
 ### Current state (TASK-001)
 
-The layout above is the **target** shape, not the current one. The repository currently contains a single Next.js starter project at the repository root (`src/app`); it is not a completed BeautyFits website. Do not move it into `apps/web` until a task explicitly requires the move. Where the backend lives is decided in TASK-002.
+The layout above is the **target** shape, not the current one. The repository currently contains a single Next.js starter project at the repository root (`src/app`); it is not a completed BeautyFits website. Do not move it into `apps/web` until a task explicitly requires the move.
+
+### Backend placement (TASK-002, ADR-0001)
+
+The backend lives in the root Next.js application behind a framework-agnostic boundary:
+
+- `src/server/**`: the backend modular monolith. It holds the shared kernel (config, db, errors, http, logging, health) and business modules under `src/server/modules/<module>/`. Domain code does not import Next.js or React.
+- `src/app/api/v1/**/route.ts`: thin HTTP adapters serving the versioned API to the Website, Dashboard, and Mobile App.
+
+This satisfies "one backend API" without a monorepo. Extracting the backend into `apps/api` later stays mechanical.
 
 ---
 
@@ -820,6 +829,15 @@ The following are intentionally deferred until the next design stage:
 - Exact monitoring vendor
 
 These choices should be evaluated against the architecture instead of being allowed to drive the architecture.
+
+**Resolved in TASK-002** (see `docs/decisions/`):
+
+- backend framework/placement: the root Next.js app with `src/server` plus `/api/v1` Route Handlers (ADR-0001);
+- ORM and migrations: Prisma 7 + PostgreSQL adapter, with Prisma Migrate (ADR-0003);
+- auth library: none; a first-party session-based auth module (ADR-0008);
+- also validation (ADR-0005), logging (ADR-0006), configuration (ADR-0007), and testing (ADR-0009).
+
+The other items above remain deferred.
 
 ---
 

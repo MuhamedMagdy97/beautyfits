@@ -93,6 +93,8 @@ For every task:
 - Health endpoint returns a stable response.
 - No business logic in the bootstrap layer.
 
+**Executed as "Project Foundation"** (`docs/tasks/TASK-002-project-foundation.md`): it also laid the foundation slices of TASK-003 (DB client, migration strategy), TASK-005 (error model, request ids, logging, validation, config validation) and TASK-006 (Vitest, scripts). Those tasks complete the remaining scope listed in the TASK-002 task file.
+
 ---
 
 ### TASK-003 — Database Connection & Migration Foundation

@@ -136,7 +136,9 @@ Pipeline (Architecture §20): authentication + permission → type/size/dimensio
 ## 12. Open Items
 
 Items the source documents leave to implementation tasks (not business decisions):
-- Session/token mechanism and auth library (Architecture §27; TASK-007, TASK-011).
+- Session/token mechanism and auth library (Architecture §27). **Architecture decided in TASK-002** (ADR-0008): no auth library, first-party opaque server-side revocable sessions, and Bearer transport. Token lifetimes/rotation and cookie usage for the Website remain for TASK-007/TASK-011.
+- Password hashing algorithm parameters (ADR-0008 default: Node `crypto.scrypt`; TASK-007).
+- Log redaction is implemented by the shared logger (ADR-0006); callers must still avoid logging unnecessary personal data.
 - CSRF/CORS policy (TASK-061).
 - Malware scanning provider (TASK-016).
 - Exact rate-limit thresholds other than the OTP rules above (TASK-007, TASK-061).
