@@ -1,6 +1,6 @@
 # ADR-0019 — Products and variants
 
-- **Status:** Accepted (TASK-014); the defaults in §4 await the product owner's confirmation
+- **Status:** Accepted (TASK-014); the defaults in §4 confirmed by the product owner on 2026-10-01
 - **Date:** 2026-10-01
 - **Relates to:** ADR-0016 (permissions), ADR-0018 (audit logs); Business Spec C6, Q73–Q75, R14, R17, R19; User Flows §4.1; DB Design §5, §22 and "Variant canonicalization"; API Contract §13 and "TASK-014 Amendments"; permission catalog §1, §3
 
@@ -27,7 +27,7 @@ The catalog starts here. Later tasks hang brands and categories (TASK-015), medi
 - SKU and slug uniqueness are checked first for a clear error and enforced by unique indexes; a race that loses at the index gets the same `409`.
 - Adding a variant, moving the default and archiving lock the product row (`SELECT … FOR UPDATE`), so two simultaneous default moves leave exactly one default.
 
-## 4. Defaults where the documents are silent (to be confirmed by the product owner)
+## 4. Defaults where the documents are silent (confirmed by the product owner, 2026-10-01)
 
 1. **SKU format and case.** Staff type the SKU. 1–64 characters: letters, digits, and single `-`, `_` or `.` between them. Stored in capitals, so `lip-01` and `LIP-01` are the same SKU. Unique across all variants, archived ones included, so a SKU is never reused.
 2. **SKUs can be corrected** while the variant is active. Past orders keep the SKU they were placed with (Q184 snapshot), so history is unaffected; the change is audited.

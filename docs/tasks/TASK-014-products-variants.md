@@ -73,7 +73,7 @@ Migration `products_variants`. DB Design "v1.2 TASK-014 Amendments".
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-Defaults where the documents are silent (ADR-0019 §4), waiting for the product owner's confirmation:
+Defaults where the documents are silent (ADR-0019 §4), confirmed by the product owner on 2026-10-01:
 1. SKUs: typed by staff, letters/digits with `-` `_` `.`, stored in capitals, never reused.
 2. SKUs can be corrected while the variant is active (orders keep their own copy).
 3. Slug made from the English name when not given; a taken slug is refused, not numbered; it changes only while Draft.
