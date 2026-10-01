@@ -15,9 +15,9 @@ Security is a cross-cutting concern from the beginning, not a post-MVP feature (
 |---|---|
 | Phone is the primary customer identifier; email is also stored and verified | Q41 |
 | Phone is an Egyptian mobile number (010/011/012/015 + 8 digits), stored in E.164 | R27 |
-| Phone verified by WhatsApp OTP at registration; the account is ACTIVE only after email and phone are both verified | R25 |
+| No phone OTP at registration; the account is ACTIVE once the email is verified by email OTP | R25, R30 |
 | Pending registrations do not reserve email/phone; uniqueness applies to verified identities; a pending account expires after 24 hours | R25 |
-| A customer with an unverified email cannot log in; a verified email with a pending phone gives limited access (session and verification only) | R26 |
+| A customer with an unverified email cannot log in; | R26 |
 | Email verification by OTP is required at account creation | Q42 |
 | Duplicate (verified) email is rejected; the user is directed to login/recovery | Q151, R25 |
 | Password: minimum 12 characters, long passphrases allowed, checked against common/breached passwords, no forced composition rules | Q156 |

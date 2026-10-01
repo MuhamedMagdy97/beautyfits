@@ -965,6 +965,7 @@ Product-owner decisions made on 2026-09-30 during TASK-007 (`docs/tasks/TASK-007
 - CAPTCHA is added later (TASK-061), as a further layer (Q157).
 
 ### R25 — Phone verification and account activation
+- **Amended by R30 (2026-10-01):** no WhatsApp OTP; the phone is not verified by OTP and the account becomes ACTIVE once the email is verified. Phone change and guest-order claim use email (R30, R31).
 - At registration the phone is verified by a **WhatsApp OTP** and the email by an email OTP (Q42). The account becomes **ACTIVE only after both** are verified; until then it is `PENDING_VERIFICATION`.
 - Registration requires email, phone, password and full name.
 - WhatsApp is also the OTP channel for **phone change** (Q153) and **guest-order claim** (Q44). This closes TASK-002A open decision 3.
@@ -997,7 +998,7 @@ Product-owner decisions made on 2026-10-01 (project thread "Settle Phase 1 busin
 - **Email is the only OTP channel in v1**, for customers and employees. SMS and WhatsApp OTP cost more and may be added later.
 - **Phone change:** re-authenticate, then an OTP is sent to the account's **verified email** (not to the new phone), then the phone is changed and the verified email is notified. The new phone number is not proven by OTP in v1.
 - **Email change:** unchanged (Q152): OTP to the new email, notify the previous email.
-- **Registration phone verification** (R25 sets a WhatsApp OTP): `[BUSINESS DECISION REQUIRED]` — how the phone is verified, or whether activation requires it, now that WhatsApp OTP is not used.
+- **Registration (amends R25 and R26):** the phone is **not** verified by OTP. A customer account becomes `ACTIVE` as soon as its email is verified by email OTP. The phone is still required, Egyptian (R27) and unique among active accounts; wrong numbers are caught by the COD confirmation call (R10). The R26 "verified email, pending phone" state no longer occurs.
 
 ### R31 — Guest order claim OTP (Q43, Q44; replaces the WhatsApp channel of R25)
 - The claim OTP is sent by **email to the `guest_email` stored on the guest order(s)**.
@@ -1024,5 +1025,5 @@ Product-owner decisions made on 2026-10-01 (project thread "Settle Phase 1 busin
 - TASK-001 final closure decisions (R6, R7, R9–R12): wishlist reminder cadence and stop conditions, customer-caused 25% refund basis, HALF-UP financial rounding, phone COD confirmation event, cancellation window, variant-level restock subscription route.
 - TASK-002A closure decisions (R13–R19): email login, Arabic + English, shared customer/employee email, no online guest order tracking, permission catalog and default roles, Manager limits, no order-status approvals in v1. Audit Correction 1 shipment lifecycle aligned with R2.
 - TASK-005 closure decisions (R20–R22): Africa/Cairo business timezone, calendar-day return window and 72-hour elapsed COD maximum, HALF-UP ties away from zero for negative amounts.
-- v1.3 Phase 1 staff and OTP decisions (R28–R31): email OTP for all staff with 30-day trusted devices, 12 h / 60 min staff session defaults and staff reset revoking all sessions, email as the only OTP channel (phone change OTP to the verified email), guest order claim OTP to the order's email.
+- v1.3 Phase 1 staff and OTP decisions (R28–R31): email OTP for all staff with 30-day trusted devices, 12 h / 60 min staff session defaults and staff reset revoking all sessions, email as the only OTP channel (no phone OTP at registration; phone change OTP to the verified email), guest order claim OTP to the order's email.
 - TASK-007 closure decisions (R23–R27): sessions after password reset/change and absolute 30-day sessions, login throttling, WhatsApp phone verification and activation with non-reserving pending registrations, no login with an unverified email, Egyptian mobile numbers only.

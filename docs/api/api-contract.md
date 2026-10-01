@@ -53,7 +53,7 @@ Employees use a separate employee authorization domain with email + password + e
 
 ### Sensitive Changes
 
-Changing email or phone requires re-authentication plus verification of the new destination. The old contact method should also receive a security notification where appropriate.
+Changing email or phone requires re-authentication plus an email OTP: to the new email for an email change, to the verified account email for a phone change (Business Spec R30). The old contact method should also receive a security notification where appropriate.
 
 ## 5. Common Headers
 

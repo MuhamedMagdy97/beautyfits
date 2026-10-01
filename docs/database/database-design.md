@@ -71,8 +71,8 @@ Constraints:
 Key fields:
 - `id`
 - `account_id` nullable for guest-only historical customers if needed
-- `phone` (Egyptian mobile number normalized to E.164 — Business Spec R27; required; unique among **verified** phones only — R25; primary business identifier, not the login — Business Spec R13)
-- `phone_verified_at` nullable (WhatsApp OTP, R25; TASK-007)
+- `phone` (Egyptian mobile number normalized to E.164 — Business Spec R27; required; unique among **active** accounts only (Business Spec R25, R30); primary business identifier, not the login — Business Spec R13)
+- `phone_verified_at` nullable. Since R30 there is no phone OTP: it is set when the account becomes `ACTIVE` (email verified), meaning the phone is confirmed for this account, so the partial unique index on verified phones keeps working.
 - `preferred_locale` = `ar` | `en` (Business Spec R14)
 - `full_name`
 - `date_of_birth` nullable
@@ -1428,7 +1428,7 @@ Customer-facing text is stored as `_ar` / `_en` column pairs (two fixed language
 Added by TASK-007 (`docs/tasks/TASK-007-customer-auth-core.md`, ADR-0013, Business Spec R23–R27). Migrated in `prisma/migrations/*_customer_auth_core`.
 
 ### `accounts` (§3.1)
-- `status` adds `PENDING_VERIFICATION` (default at registration). A customer account becomes `ACTIVE` only after both email and phone are verified (R25; activation is TASK-008).
+- `status` adds `PENDING_VERIFICATION` (default at registration). A customer account becomes `ACTIVE` once the email is verified (Business Spec R30 amends R25; activation is TASK-008).
 - `password_changed_at` (set at registration and on every password change/reset).
 - A pending account expires **24 hours** after `created_at` (R25). It is treated as non-existent afterwards.
 - Unique `(account_type, email) WHERE email_verified_at IS NOT NULL` (`accounts_verified_email_key`), plus a plain index on `(account_type, email)` for lookups.
@@ -1461,8 +1461,8 @@ Throttling counters shared by all app instances (ADR-0013 §4).
 - `count`, `window_started_at`, `blocked_until` nullable, `updated_at` (indexed, for cleanup)
 
 ### `otp_challenges` (design only; migrated in TASK-008)
-- `purpose` adds `PHONE_VERIFICATION` (registration, R25).
-- `channel`: `EMAIL` for every purpose in v1 (Business Spec R30, R31), including `EMPLOYEE_LOGIN` (R28). `PHONE_VERIFICATION` at registration: `[BUSINESS DECISION REQUIRED]` (R30). `WHATSAPP` stays in the enum for later.
+- `purpose` adds `PHONE_VERIFICATION` (registration, R25). Not used in v1: R30 removed the registration phone OTP.
+- `channel`: `EMAIL` for every purpose in v1 (Business Spec R30, R31), including `EMPLOYEE_LOGIN` (R28). `WHATSAPP` stays in the enum for later.
 
 #### `employee_trusted_devices` (Business Spec R28)
 - `id`
