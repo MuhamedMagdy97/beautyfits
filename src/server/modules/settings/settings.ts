@@ -36,7 +36,11 @@ function isPositiveInteger(value: unknown): value is number {
 export const SETTING_KEYS = {
   staffSessionMaxLifetimeMinutes: "staff_session.max_lifetime_minutes",
   staffSessionIdleTimeoutMinutes: "staff_session.idle_timeout_minutes",
+  catalogMaxImagesPerProduct: "catalog.max_images_per_product",
 } as const;
+
+/** Default image limit per product (Q177 "configurable"; ADR-0021). */
+export const DEFAULT_MAX_IMAGES_PER_PRODUCT = 20;
 
 export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
   {
@@ -53,9 +57,41 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     isValid: isPositiveInteger,
     source: "Business Spec R29 (60 minutes)",
   },
+  {
+    key: SETTING_KEYS.catalogMaxImagesPerProduct,
+    dataType: "INTEGER",
+    defaultValue: DEFAULT_MAX_IMAGES_PER_PRODUCT,
+    isValid: isPositiveInteger,
+    source: "Business Spec Q177 (configurable); default ADR-0021",
+  },
 ];
 
 const DEFINITIONS_BY_KEY = new Map(SETTING_DEFINITIONS.map((d) => [d.key, d]));
+
+/**
+ * The stored value of an integer setting, or its default when the row is
+ * missing or invalid (an invalid row is logged).
+ */
+async function readIntegerSetting(db: Db, key: string, log: Logger): Promise<number> {
+  const definition = DEFINITIONS_BY_KEY.get(key)!;
+  const row = await db.setting.findUnique({ where: { key }, select: { valueJson: true } });
+  if (!row) {
+    return definition.defaultValue as number;
+  }
+  if (!definition.isValid(row.valueJson)) {
+    log.warn("settings.invalid_value", { key });
+    return definition.defaultValue as number;
+  }
+  return row.valueJson as number;
+}
+
+/** How many images a product may have, its variants' images included (Q177). */
+export async function readMaxImagesPerProduct(
+  db: Db,
+  log: Logger = defaultLogger,
+): Promise<number> {
+  return readIntegerSetting(db, SETTING_KEYS.catalogMaxImagesPerProduct, log);
+}
 
 /**
  * Current staff session lengths (R29, Q163). Missing or invalid rows fall

@@ -9,6 +9,7 @@ The backend modular monolith. See `docs/decisions/ADR-0001-backend-placement.md`
 | `errors/` | `AppError` and the API contract error codes (ADR-0004) |
 | `http/` | `withApi`, response envelopes, request ids, zod input helpers, client IP, `Accept-Language` (ADR-0004, ADR-0005, ADR-0013) |
 | `email/` | Outgoing email port; local `.eml` mailbox transport (ADR-0014) |
+| `storage/` | File storage port; local directory storage (`MEDIA_DIR`, ADR-0021) |
 | `rate-limit/` | PostgreSQL-backed throttling counters (ADR-0013) |
 | `logging/` | Structured logger with redaction (ADR-0006) |
 | `money/` | Integer minor-unit money and HALF-UP rounding (ADR-0011) |

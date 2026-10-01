@@ -1072,3 +1072,61 @@ Added by TASK-015 (`docs/tasks/TASK-015-brands-categories.md`). Business rules: 
 | Creating, moving or reactivating an active category under an inactive parent | `409 CONFLICT`, `details.reason = PARENT_INACTIVE` |
 | Linking a product to an inactive brand or category | `409 CONFLICT`, `details.reason = BRAND_INACTIVE` / `CATEGORY_INACTIVE` |
 | Unknown or malformed brand or category id in the path | `404 NOT_FOUND` |
+
+## TASK-016 Amendments (product media and uploads)
+
+Added by TASK-016 (`docs/tasks/TASK-016-product-media.md`). Business rules: Q175–Q178, R14, R19. Technical design and defaults: ADR-0021. Session endpoints use the employee session (Bearer, or the employee cookie with the `Origin` check). No approval requests (R19).
+
+### Uploads (§28)
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /files/upload-init` | Employee with the purpose's permission (`MANAGE_PRODUCT_MEDIA` for `PRODUCT_MEDIA`) | `{ purpose: "PRODUCT_MEDIA", filename, mimeType, sizeBytes }` | `201` `{ mediaAssetId, upload: { method: "PUT", url, headers, expiresAt } }` |
+| `PUT <upload.url>` (local storage: `/files/uploads/{id}`) | The `X-Upload-Token` header from `upload.headers` (no session) | the file's bytes, with every header in `upload.headers` | `204` |
+| `POST /files/complete` | The employee who started the upload | `{ mediaAssetId }` | `200` `mediaAsset` (`scanStatus: SAFE`); repeating it returns the same result |
+| `GET /files/{id}/content` | Public for current images of `PUBLISHED` products; otherwise an employee with `PRODUCT_VIEW` or `MANAGE_PRODUCT_MEDIA` | `If-None-Match` optional | `200` the file (checked `Content-Type`, `X-Content-Type-Options: nosniff`, sandbox CSP, `ETag`), or `304` |
+
+- `mimeType`: `image/jpeg`, `image/png` or `image/webp`; `filename` must end in a matching extension (`.jpg`/`.jpeg`, `.png`, `.webp`) and is kept for display only (path parts removed, max 255). `sizeBytes`: 1 to 5 MB (5 242 880).
+- The upload authorization is single-use and valid for 15 minutes (`expiresAt`). Sending again before completing replaces the earlier bytes. Clients send the bytes to `upload.url` with exactly `upload.headers`; with a future storage provider the URL and headers change, the steps do not.
+- Completing checks the stored file: type from its content (must match `mimeType`), size, dimensions (500–6000 pixels on each side), one well-formed image with nothing appended and no animation, and the security scan. A refused file becomes `REJECTED` and its bytes are deleted.
+- `mediaAsset`: `{ id, purpose, originalFilename, mimeType, sizeBytes, width, height, scanStatus: PENDING | SAFE | REJECTED, url, createdAt, completedAt }`; `url` is `/api/v1/files/{id}/content`.
+- At most 300 uploads started per employee per hour.
+
+### Product media (§13)
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `POST /admin/products/{id}/media` | `MANAGE_PRODUCT_MEDIA` | `{ mediaAssetId, variantId?, altTextAr?, altTextEn?, isMain? }` | `201` `productMedia` |
+| `PATCH /admin/products/{id}/media/{mediaId}` | `MANAGE_PRODUCT_MEDIA` | any of `{ variantId, altTextAr, altTextEn, isMain: true }` | `200` `productMedia` |
+| `DELETE /admin/products/{id}/media/{mediaId}` | `MANAGE_PRODUCT_MEDIA` | — | `200` `[productMedia]`, the remaining images |
+| `PUT /admin/products/{id}/media/order` | `MANAGE_PRODUCT_MEDIA` | `{ mediaIds }`: every current image once, in the new order | `200` `[productMedia]` |
+
+- `productMedia`: `{ id, productId, variantId, mediaAssetId, url, mimeType, width, height, sizeBytes, sortOrder, isMain, altTextAr, altTextEn, createdAt, updatedAt }`.
+- `variantId`: one of the product's active variants, or `null` for the whole product. Alt text: max 250 characters; blank becomes `null`.
+- The first image becomes the main image; `isMain: true` moves it; removing the main image makes the first remaining image main. `isMain: false` is not accepted on `PATCH`.
+- Removing hides the image (the record and file are kept for history). At most `catalog.max_images_per_product` current images (default 20, variant images included).
+- `product` gains `media: [productMedia]` (current images in order); `productSummary` gains `mainImage: { id, url, width, height, altTextAr, altTextEn } | null`.
+- Audit actions added: `PRODUCT_MEDIA_ADDED`, `PRODUCT_MEDIA_UPDATED`, `PRODUCT_MEDIA_REMOVED` (entity type `PRODUCT_MEDIA`), `PRODUCT_MEDIA_REORDERED` (entity type `PRODUCT`).
+
+### Errors
+| Case | Response |
+|---|---|
+| Invalid body; type not JPEG/PNG/WebP; file name extension not matching (`file_extension_mismatch`); `sizeBytes` over 5 MB | `400 VALIDATION_ERROR` |
+| Upload without the purpose's permission | `403 PERMISSION_DENIED` |
+| Upload bytes without a valid token, or after completion | `403 FORBIDDEN` |
+| Upload bytes with another `Content-Type` | `400 VALIDATION_ERROR`, issue code `content_type_mismatch` |
+| More bytes than `sizeBytes`, or none | `400 VALIDATION_ERROR`, issue `file` / `file_too_large` / `file_empty` |
+| Upload authorization expired | `409 CONFLICT`, `details.reason = UPLOAD_EXPIRED` |
+| Upload bytes that arrive after the upload was completed meanwhile | `409 CONFLICT`, `details.reason = UPLOAD_CLOSED` |
+| Completing before any bytes arrived | `409 CONFLICT`, `details.reason = UPLOAD_NOT_RECEIVED` |
+| Completing a refused file | `409 CONFLICT`, `details.reason = UPLOAD_REJECTED` (+ `rejectionReason`) |
+| The file fails a check on completion | `400 VALIDATION_ERROR`, issue `file` with code `file_type_not_allowed`, `file_type_mismatch`, `file_corrupt`, `file_trailing_data`, `image_animated`, `image_too_small`, `image_too_large`, `file_too_large`, `file_empty` or `file_content_suspicious` |
+| Too many uploads started | `429 RATE_LIMITED` (+ `retryAfterSeconds`) |
+| Unknown upload, or one started by another employee (`/files/complete`); unknown, pending, refused or not-allowed file (`/content`) | `404 NOT_FOUND` (`401` without a session for files that are not public) |
+| Attaching an unknown file or one of another purpose | `400 VALIDATION_ERROR`, issue code `media_asset_not_found` |
+| Attaching a file that is not `SAFE` | `409 CONFLICT`, `details.reason = MEDIA_NOT_READY` (+ `scanStatus`) |
+| Attaching a file already on the product | `409 CONFLICT`, `details.reason = MEDIA_ALREADY_ATTACHED` |
+| `variantId` not of this product / archived | `400 VALIDATION_ERROR` `variant_not_found` / `409 CONFLICT` `VARIANT_ARCHIVED` |
+| More images than the limit | `409 CONFLICT`, `details.reason = IMAGE_LIMIT` (+ `limit`) |
+| Removing the last image of a `PUBLISHED` product | `409 CONFLICT`, `details.reason = MAIN_IMAGE_REQUIRED` |
+| Changing images of an `ARCHIVED` product | `409 CONFLICT`, `details.reason = PRODUCT_ARCHIVED` |
+| `mediaIds` not exactly the current images | `400 VALIDATION_ERROR`, issue code `media_order_mismatch` |
+| Unknown or malformed product or image id, or a removed image | `404 NOT_FOUND` |

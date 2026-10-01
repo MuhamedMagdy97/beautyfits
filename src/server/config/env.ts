@@ -77,6 +77,11 @@ const envSchema = z.object({
    */
   MAIL_DIR: z.string().min(1).default(".mail"),
   /**
+   * Local file storage directory: uploaded files such as product images are
+   * stored there (ADR-0021). The only storage until a provider is chosen.
+   */
+  MEDIA_DIR: z.string().min(1).default(".media"),
+  /**
    * Origin of the staff dashboard, used for links in staff emails such as
    * employee invitations (ADR-0016). Default: the local development server.
    */
