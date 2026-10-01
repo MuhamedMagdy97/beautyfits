@@ -74,7 +74,7 @@ Every admin endpoint checks its catalog permission on the server; hierarchy and 
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-[BUSINESS DECISION REQUIRED] — safe defaults implemented (ADR-0016 §6), to be confirmed by the product owner:
+Defaults where the documents are silent (ADR-0016 §6), confirmed by the product owner on 2026-10-01:
 1. Only the Owner invites and manages Admins; Admins cannot manage other Admins.
 2. A Manager manages every Employee-level member (not only those they invited), within their role scope, and never changes levels.
 3. An invitation is valid for 7 days.
