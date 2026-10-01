@@ -74,10 +74,11 @@ describe("default roles", () => {
 });
 
 describe("default settings", () => {
-  it("are the R29 staff session lengths, in minutes", () => {
+  it("are the R29 staff session lengths, in minutes, and the image limit", () => {
     const byKey = new Map(SETTING_DEFINITIONS.map((d) => [d.key, d]));
     expect(byKey.get(SETTING_KEYS.staffSessionMaxLifetimeMinutes)?.defaultValue).toBe(12 * 60);
     expect(byKey.get(SETTING_KEYS.staffSessionIdleTimeoutMinutes)?.defaultValue).toBe(60);
+    expect(byKey.get(SETTING_KEYS.catalogMaxImagesPerProduct)?.defaultValue).toBe(20);
     for (const definition of SETTING_DEFINITIONS) {
       expect(definition.isValid(definition.defaultValue)).toBe(true);
       for (const bad of [0, -5, 1.5, "60", null]) {

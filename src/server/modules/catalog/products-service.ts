@@ -11,6 +11,18 @@ import type { Pagination } from "@/server/http/response";
 import type { Logger } from "@/server/logging/logger";
 import { AUDIT_ENTITY_TYPES, employeeActor, recordAudit } from "@/server/modules/audit/audit";
 import { conflict, isUniqueViolation, validationError } from "@/server/modules/catalog/errors";
+import {
+  loadActiveMedia,
+  type MainImageView,
+  type ProductMediaView,
+  toMainImageView,
+  toProductMediaView,
+} from "@/server/modules/catalog/media-service";
+import {
+  assertProductChangeable,
+  lockProduct,
+  productNotFound,
+} from "@/server/modules/catalog/product-guards";
 import { slugFromName } from "@/server/modules/catalog/schemas";
 import { systemClock, type Clock } from "@/server/time/time";
 
@@ -33,6 +45,9 @@ import { systemClock, type Clock } from "@/server/time/time";
  *   `MAX_CATEGORIES_PER_PRODUCT` categories (TASK-015, ADR-0020). Only active
  *   brands and categories can be newly linked; existing links stay when a
  *   brand or category is deactivated.
+ *
+ * - Product views include the current images (TASK-016,
+ *   `media-service.ts`); lists show the main image.
  *
  * New products are DRAFT; publishing, archiving and disabling products are
  * TASK-017. Prices and costs are TASK-018.
@@ -105,6 +120,8 @@ export interface ProductView {
   brand: TaxonomyRef | null;
   categories: CategoryRef[];
   variants: VariantView[];
+  /** Current images in display order (TASK-016). */
+  media: ProductMediaView[];
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
@@ -117,6 +134,7 @@ export interface ProductSummaryView {
   slug: string;
   status: ProductStatus;
   brand: TaxonomyRef | null;
+  mainImage: MainImageView | null;
   defaultVariant: { id: string; sku: string } | null;
   activeVariantCount: number;
   createdAt: string;
@@ -142,11 +160,14 @@ type ProductRow = Prisma.ProductGetPayload<object>;
 type BrandRow = Prisma.BrandGetPayload<object>;
 type CategoryRow = Prisma.CategoryGetPayload<object>;
 
+type MediaRow = Awaited<ReturnType<typeof loadActiveMedia>>[number];
+
 /** A product row with what its view shows besides the variants. */
 interface ProductWithTaxonomy {
   product: ProductRow;
   brand: BrandRow | null;
   categories: CategoryRow[];
+  media: MediaRow[];
 }
 
 const variantOrder = [{ createdAt: "asc" }, { id: "asc" }] as const;
@@ -179,7 +200,7 @@ const byEnglishName = (a: { nameEn: string; id: string }, b: { nameEn: string; i
   a.nameEn.localeCompare(b.nameEn) || a.id.localeCompare(b.id);
 
 function toProductView(
-  { product: row, brand, categories }: ProductWithTaxonomy,
+  { product: row, brand, categories, media }: ProductWithTaxonomy,
   variants: VariantRow[],
 ): ProductView {
   return {
@@ -193,6 +214,7 @@ function toProductView(
     brand: brand ? toTaxonomyRef(brand) : null,
     categories: [...categories].sort(byEnglishName).map(toCategoryRef),
     variants: variants.map(toVariantView),
+    media: media.map(toProductMediaView),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     archivedAt: row.archivedAt?.toISOString() ?? null,
@@ -264,10 +286,6 @@ async function assertCategoriesLinkable(tx: Db, categoryIds: string[]): Promise<
   }
 }
 
-function productNotFound(): AppError {
-  return new AppError("NOT_FOUND", "Product not found.");
-}
-
 function variantNotFound(): AppError {
   return new AppError("NOT_FOUND", "Variant not found.");
 }
@@ -315,28 +333,6 @@ async function assertSkuFree(tx: Db, sku: string, exceptId?: string): Promise<vo
   }
 }
 
-/**
- * Locks the product row, so that variant changes of one product (adding,
- * moving the default, archiving) run one at a time.
- */
-async function lockProduct(tx: Db, productId: string): Promise<ProductRow> {
-  const locked = await tx.$queryRaw<{ id: string }[]>`
-    SELECT id FROM products WHERE id = ${productId}::uuid FOR UPDATE`;
-  if (locked.length === 0) {
-    throw productNotFound();
-  }
-  return tx.product.findUniqueOrThrow({ where: { id: productId } });
-}
-
-/** Archived products are kept for history only and no longer change (ADR-0019). */
-function assertProductChangeable(product: ProductRow): void {
-  if (product.status === "ARCHIVED") {
-    throw conflict("This product is archived and can no longer be changed.", {
-      reason: "PRODUCT_ARCHIVED",
-    });
-  }
-}
-
 function sameAttributes(
   a: Record<string, string> | null | undefined,
   b: Record<string, string> | null | undefined,
@@ -359,9 +355,10 @@ export function createProductsService(deps: ProductsServiceDeps) {
       where: { productId },
       orderBy: [...variantOrder],
     });
+    const media = await loadActiveMedia(tx, productId);
     const { brand, categories, ...row } = product;
     return toProductView(
-      { product: row, brand, categories: categories.map((link) => link.category) },
+      { product: row, brand, categories: categories.map((link) => link.category), media },
       variants,
     );
   }
@@ -489,6 +486,7 @@ export function createProductsService(deps: ProductsServiceDeps) {
         take: query.pageSize,
         include: {
           brand: true,
+          media: { where: { isMain: true, removedAt: null }, include: { mediaAsset: true } },
           variants: { where: { isDefault: true }, select: { id: true, sku: true } },
           _count: { select: { variants: { where: { status: "ACTIVE" } } } },
         },
@@ -502,6 +500,7 @@ export function createProductsService(deps: ProductsServiceDeps) {
         slug: row.slug,
         status: row.status,
         brand: row.brand ? toTaxonomyRef(row.brand) : null,
+        mainImage: row.media[0] ? toMainImageView(row.media[0]) : null,
         defaultVariant: row.variants[0] ?? null,
         activeVariantCount: row._count.variants,
         createdAt: row.createdAt.toISOString(),

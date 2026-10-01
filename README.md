@@ -49,6 +49,8 @@ There is no sign-up for staff and no "create admin" endpoint ([ADR-0017](docs/de
 
 The Owner then invites the other staff (`POST /api/v1/admin/employees`). The dashboard screens come later (TASK-052 onward).
 
+Uploaded files such as product images are stored in `.media/` (`MEDIA_DIR`) until a storage provider is chosen ([ADR-0021](docs/decisions/ADR-0021-product-media-and-uploads.md)). Include that folder in backups along with the database.
+
 Migrations live in `prisma/migrations/` and are committed to Git ([ADR-0003](docs/decisions/ADR-0003-database-access-and-migrations.md), [ADR-0010](docs/decisions/ADR-0010-ids-transactions-integration-tests.md)).
 
 ## Scripts

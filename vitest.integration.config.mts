@@ -32,6 +32,8 @@ export default defineConfig({
       DATABASE_URL: process.env.TEST_DATABASE_URL ?? "",
       // Outgoing test emails go to a throwaway mailbox, never the local .mail/.
       MAIL_DIR: join(tmpdir(), `beautyfits-test-mail-${process.pid}`),
+      // Uploaded test files go to a throwaway directory, never the local .media/.
+      MEDIA_DIR: join(tmpdir(), `beautyfits-test-media-${process.pid}`),
     },
   },
 });

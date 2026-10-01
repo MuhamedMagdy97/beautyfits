@@ -235,3 +235,51 @@ export const updateCategorySchema = z
 export const listCategoriesQuerySchema = z.object({
   status: taxonomyStatusSchema.optional(),
 });
+
+// ---------------------------------------------------------------------------
+// Product media (TASK-016, ADR-0021)
+// ---------------------------------------------------------------------------
+
+export const ALT_TEXT_MAX = 250;
+
+/** Blank means "no alt text". */
+/** Ids are compared as text, so they are normalized to lowercase. */
+const lowerUuid = z.uuid().transform((id) => id.toLowerCase());
+
+const altText = z
+  .string()
+  .trim()
+  .max(ALT_TEXT_MAX)
+  .transform((value) => (value === "" ? null : value))
+  .nullable();
+
+export const addProductMediaSchema = z.object({
+  /** A `SAFE` upload (`POST /files/complete`) for product media. */
+  mediaAssetId: lowerUuid,
+  /** Null or omitted: an image of the whole product. */
+  variantId: lowerUuid.nullable().optional(),
+  altTextAr: altText.optional(),
+  altTextEn: altText.optional(),
+  /** `true` makes it the main image; the first image always becomes main. */
+  isMain: z.boolean().optional(),
+});
+
+/** Only `true` for `isMain`: the main image moves here (a product never switches it off). */
+export const updateProductMediaSchema = z
+  .object({
+    variantId: lowerUuid.nullable().optional(),
+    altTextAr: altText.optional(),
+    altTextEn: altText.optional(),
+    isMain: z.literal(true).optional(),
+  })
+  .refine(atLeastOne, { message: "Provide at least one field to change." });
+
+/** Every current image of the product, in the new order. */
+export const reorderProductMediaSchema = z.object({
+  mediaIds: z
+    .array(lowerUuid)
+    .min(1)
+    .refine((ids) => new Set(ids).size === ids.length, {
+      message: "Each image may appear only once.",
+    }),
+});

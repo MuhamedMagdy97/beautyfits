@@ -129,6 +129,7 @@ Pipeline (Architecture §20): authentication + permission → type/size/dimensio
 - Backend validation is required; frontend checks are not enough (Q176).
 - `media_assets.scan_status` = `PENDING` | `SAFE` | `REJECTED` (DB §6).
 - Binary data is not stored in PostgreSQL.
+- Implemented by TASK-016 (ADR-0021): type from file content, size and dimension limits, one well-formed image with nothing appended, a security scan port (built-in checks until an antivirus service is chosen), single-use upload tokens, only `SAFE` files attached or served, served with `nosniff` and a sandbox CSP.
 
 ## 8. Audit Logging
 

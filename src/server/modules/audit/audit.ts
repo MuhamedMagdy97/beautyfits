@@ -44,6 +44,11 @@ export const AUDIT_ACTIONS = [
   "BRAND_UPDATED",
   "CATEGORY_CREATED",
   "CATEGORY_UPDATED",
+  // Product media (TASK-016)
+  "PRODUCT_MEDIA_ADDED",
+  "PRODUCT_MEDIA_UPDATED",
+  "PRODUCT_MEDIA_REMOVED",
+  "PRODUCT_MEDIA_REORDERED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -58,6 +63,7 @@ export const AUDIT_ENTITY_TYPES = {
   productVariant: "PRODUCT_VARIANT",
   brand: "BRAND",
   category: "CATEGORY",
+  productMedia: "PRODUCT_MEDIA",
 } as const;
 
 export interface AuditActor {
