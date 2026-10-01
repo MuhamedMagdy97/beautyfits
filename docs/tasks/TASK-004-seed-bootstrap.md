@@ -72,13 +72,13 @@ Migration `settings` (table `settings`, enum `setting_data_type`). Database Desi
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-[BUSINESS DECISION REQUIRED] — safe defaults implemented (ADR-0017 §5), to be confirmed by the product owner:
+Defaults where the documents are silent (ADR-0017 §5), confirmed by the product owner on 2026-10-01:
 1. The bootstrap marks the Owner's email verified; the first login code proves it.
 2. Default roles are created once; later runs never restore a role the Owner edited, renamed or emptied.
 3. Staff session settings accept any whole number of minutes above zero; minimum and maximum to be decided with the settings screen (TASK-057).
 
 Other:
-- ADR-0016 §6 defaults (TASK-012) are still unconfirmed.
+- ADR-0016 §6 defaults (TASK-012) were confirmed on 2026-10-01.
 
 ## Status
 - [x] Planned

@@ -1,6 +1,6 @@
 # ADR-0016 — Roles, permission checks and employee invitations
 
-- **Status:** Accepted (TASK-012); the defaults in §6 await product-owner confirmation
+- **Status:** Accepted (TASK-012); the defaults in §6 confirmed by the product owner on 2026-10-01
 - **Date:** 2026-10-01
 - **Relates to:** ADR-0013, ADR-0014, ADR-0015; Business Spec Q64–Q69, R15, R17–R19, R28; User Flows §17; permission catalog; API Contract §25 and "TASK-012 Amendments"; DB Design §4 and "v1.2 TASK-012 Amendments"
 
@@ -41,9 +41,9 @@ TASK-012 adds roles, the permission catalog in the database, server-side permiss
 - **Revoke invitation** (`POST /admin/employees/invitations/{id}/revoke`): only pending invitations, within the hierarchy (`409 CONFLICT` otherwise).
 - **List**: `GET /admin/employees` (filters `status`, `level`, `search`; pagination) and the new `GET /admin/employees/invitations` (filter `status`).
 
-## 6. Defaults where the documents are silent ([BUSINESS DECISION REQUIRED] for confirmation)
+## 6. Defaults where the documents are silent (confirmed by the product owner, 2026-10-01)
 
-The documents say who creates Managers and Employees but not everything around it. These safe defaults are implemented and listed in the task file for the product owner:
+The documents say who creates Managers and Employees but not everything around it. These defaults are implemented and were confirmed by the product owner on 2026-10-01:
 
 1. **Only the Owner invites and manages Admins.** Q65 says Owner/Admin create Managers and Employees but names no one for Admins; an Admin cannot invite, edit or deactivate another Admin or the Owner.
 2. **A Manager manages every Employee-level member**, not only those they invited, but can give or take away only roles whose permissions they hold, and can never change a level.
