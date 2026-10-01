@@ -21,5 +21,6 @@
 | [ADR-0014](ADR-0014-email-otp-and-recovery.md) | One-time codes, local email delivery and password recovery | TASK-008 |
 | [ADR-0015](ADR-0015-employee-auth.md) | Employee login: email codes, trusted devices and staff sessions | TASK-011 |
 | [ADR-0016](ADR-0016-roles-permissions-invitations.md) | Roles, permission checks and employee invitations | TASK-012 |
+| [ADR-0017](ADR-0017-bootstrap-and-settings.md) | Bootstrap, default roles and the settings table | TASK-004 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

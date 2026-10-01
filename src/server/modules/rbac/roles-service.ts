@@ -134,7 +134,7 @@ async function assertNameFree(tx: Db, name: string, exceptId?: string): Promise<
   }
 }
 
-async function lockRoleNames(tx: Db): Promise<void> {
+export async function lockRoleNames(tx: Db): Promise<void> {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('rbac:role-names'))`;
 }
 

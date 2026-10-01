@@ -1543,6 +1543,19 @@ Added by TASK-012 (`docs/tasks/TASK-012-roles-permissions.md`, ADR-0016). Migrat
 ### `employees`
 - Index on `(status, employee_level)` for the employee list. Deactivation sets `status = DEACTIVATED` and `deactivated_at`, revokes `auth_sessions` (`revoke_reason = DEACTIVATED`) and sets `employee_trusted_devices.revoked_at`; no row is deleted (Q69).
 
+## v1.2 TASK-004 Amendments
+
+Added by TASK-004 (`docs/tasks/TASK-004-seed-bootstrap.md`, ADR-0017). Migrated in `prisma/migrations/*_settings`.
+
+### `settings` (§20, migrated)
+- `key` (primary key), `value_json`, `data_type` = `INTEGER` | `BOOLEAN` | `STRING` | `JSON`, `updated_by_employee_id` nullable (null for values written by the bootstrap), `updated_at`.
+- First keys (R29): `staff_session.max_lifetime_minutes` = 720, `staff_session.idle_timeout_minutes` = 60. The bootstrap inserts missing keys and never overwrites a value; readers use the default when a row is missing or invalid.
+- `setting_history` (§20) is not migrated yet: it comes with the settings endpoints (TASK-057), when values can first change.
+
+### Bootstrap data
+- The first Owner: an `EMPLOYEE` account (`ACTIVE`, email verified) and an `OWNER` employee with `created_by_employee_id` null, created by `npm run db:seed` only while no Owner exists.
+- The default roles of the permission catalog §3, with fixed ids `00000000-0000-7000-8000-00000000000N`, `is_system_role = false`, `created_by_employee_id` null; created once, never changed by later runs.
+
 ## TASK-001 Reconciliation
 
 The canonical rule text lives in `docs/product/business-spec.md` (R1–R12). Schema implications:

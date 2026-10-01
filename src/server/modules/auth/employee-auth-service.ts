@@ -38,6 +38,7 @@ import {
 } from "@/server/modules/auth/sessions";
 import { generateToken, hashToken, isWellFormedToken } from "@/server/modules/auth/tokens";
 import type { IssuedTokens } from "@/server/modules/auth/transport";
+import { readStaffSessionSettings } from "@/server/modules/settings/settings";
 import {
   getBlockedUntil,
   recordHit,
@@ -109,8 +110,8 @@ export interface EmployeeAuthServiceDeps {
   /** Defaults to the configured sender (ADR-0014). */
   email?: EmailSender;
   /**
-   * Current staff session settings (R29). Defaults to the R29 values until
-   * the settings store exists (TASK-004/TASK-057).
+   * Current staff session settings (R29). Defaults to the R29 values; the
+   * process-wide service reads them from the `settings` table (TASK-004).
    */
   sessionSettings?: () => Promise<StaffSessionSettings>;
 }
@@ -788,6 +789,7 @@ export function getEmployeeAuthService(): EmployeeAuthService {
     db: getDb(),
     clock: systemClock,
     hasher: createScryptHasher(),
+    sessionSettings: () => readStaffSessionSettings(getDb()),
   });
   return defaultService;
 }
