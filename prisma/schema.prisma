@@ -569,3 +569,74 @@ model ApprovalRequest {
   @@index([entityType, entityId])
   @@map("approval_requests")
 }
+
+// ---------------------------------------------------------------------------
+// Catalog: products and variants (DB design §5 "products", "product_variants",
+// "Variant canonicalization"; Business Spec C6, Q75; TASK-014, ADR-0019).
+// Brands, categories, media, prices and costs are added by TASK-015..018.
+// ---------------------------------------------------------------------------
+
+/// Product lifecycle (User Flows §4.1). TASK-014 creates DRAFT products only;
+/// the transitions belong to TASK-017.
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  DISABLED
+
+  @@map("product_status")
+}
+
+enum ProductVariantStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@map("product_variant_status")
+}
+
+/// The container shown to customers (C6). Never hard-deleted (Q75): a
+/// database trigger rejects DELETE.
+model Product {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  nameAr        String        @map("name_ar")
+  nameEn        String        @map("name_en")
+  /// Unique, lowercase Latin letters, digits and hyphens.
+  slug          String        @unique
+  descriptionAr String?       @map("description_ar")
+  descriptionEn String?       @map("description_en")
+  status        ProductStatus @default(DRAFT)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime      @default(now()) @map("updated_at") @db.Timestamptz(3)
+  archivedAt    DateTime?     @map("archived_at") @db.Timestamptz(3)
+
+  variants ProductVariant[]
+
+  @@index([status, createdAt(sort: Desc)])
+  @@map("products")
+}
+
+/// The canonical sellable unit (C6): SKU, and later price, cost and stock,
+/// live here. Every product has exactly one default variant. Never
+/// hard-deleted: archived instead.
+model ProductVariant {
+  id             String               @id @default(uuid(7)) @db.Uuid
+  productId      String               @map("product_id") @db.Uuid
+  /// Unique across all variants, archived ones included; stored uppercase.
+  sku            String               @unique
+  isDefault      Boolean              @default(false) @map("is_default")
+  /// Null for a variant without visible options (a simple product).
+  variantNameAr  String?              @map("variant_name_ar")
+  variantNameEn  String?              @map("variant_name_en")
+  /// Option values such as {"shade": "Rose", "size": "50 ml"}.
+  attributesJson Json?                @map("attributes_json")
+  status         ProductVariantStatus @default(ACTIVE)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
+  archivedAt     DateTime?            @map("archived_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([productId], map: "product_variants_one_default_key", where: raw("is_default"))
+  @@index([productId, createdAt])
+  @@map("product_variants")
+}

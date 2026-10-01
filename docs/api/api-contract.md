@@ -994,3 +994,41 @@ Requests are created by the features that need them (R19: purchase orders, over-
 - Actions so far: `OWNER_BOOTSTRAPPED`, `ROLE_SEEDED`, `ROLE_CREATED`, `ROLE_UPDATED`, `EMPLOYEE_INVITED`, `EMPLOYEE_INVITATION_REVOKED`, `EMPLOYEE_INVITATION_ACCEPTED`, `EMPLOYEE_UPDATED`, `EMPLOYEE_DEACTIVATED`, `APPROVAL_REQUESTED`, `APPROVAL_APPROVED`, `APPROVAL_REJECTED`, `APPROVAL_CANCELLED`. Later tasks add their own; codes are never renamed.
 - Entries are read-only: there is no endpoint to change or delete one.
 - Invalid filters (unknown `actorType`, malformed `actorId` or date, `from` not before `to`): `400 VALIDATION_ERROR`.
+
+## TASK-014 Amendments (products and variants)
+
+Added by TASK-014 (`docs/tasks/TASK-014-products-variants.md`). Business rules: C6, Q73, Q75, R14, R19, User Flows §4.1. Technical design and defaults: ADR-0019. The endpoints use the employee session (Bearer, or the employee cookie with the `Origin` check). Product and variant changes need no approval request (R19).
+
+### Endpoints (§13)
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `POST /admin/products` | `PRODUCT_CREATE` | `{ nameAr, nameEn, slug?, descriptionAr?, descriptionEn?, defaultVariant: variantInput }` | `201` `product` (status `DRAFT`, one default variant) |
+| `GET /admin/products` | `PRODUCT_VIEW` | query `page`, `pageSize` (max 100), `status`, `search` (names, slug or SKU) | `200` `[productSummary]` newest first + `meta.pagination` |
+| `GET /admin/products/{id}` | `PRODUCT_VIEW` | — | `200` `product` |
+| `PATCH /admin/products/{id}` | `PRODUCT_EDIT` | any of `{ nameAr, nameEn, slug, descriptionAr, descriptionEn }` | `200` `product` |
+| `GET /admin/products/{id}/variants` | `PRODUCT_VIEW` | — | `200` `[variant]` in creation order, archived included |
+| `POST /admin/products/{id}/variants` | `PRODUCT_CREATE` | `variantInput` | `201` `variant` (not default) |
+| `PATCH /admin/variants/{id}` | `PRODUCT_EDIT` | any of `{ sku, nameAr, nameEn, attributes, isDefault: true }` | `200` `variant` |
+| `POST /admin/variants/{id}/archive` | `PRODUCT_ARCHIVE` | — | `200` `variant`; repeating it returns the same result |
+
+- `variantInput`: `{ sku, nameAr?, nameEn?, attributes? }`. `sku`: 1–64 letters, digits and single `-` `_` `.` between them, returned in capitals. Variant names come in pairs (both or neither). `attributes`: object of up to 20 text values, or `null`.
+- `slug`: lowercase Latin letters, digits and single hyphens, max 120. Omitted on create: made from `nameEn`. Blank descriptions become `null`.
+- `product`: `{ id, nameAr, nameEn, slug, descriptionAr, descriptionEn, status, variants: [variant], createdAt, updatedAt, archivedAt }`.
+- `productSummary`: `{ id, nameAr, nameEn, slug, status, defaultVariant: { id, sku }, activeVariantCount, createdAt, updatedAt }`.
+- `variant`: `{ id, productId, sku, isDefault, nameAr, nameEn, attributes, status: ACTIVE | ARCHIVED, createdAt, updatedAt, archivedAt }`.
+- Prices and costs are not part of these responses yet (TASK-018). Publishing, archiving and disabling products, media, brands and categories come with TASK-015–017.
+- Audit actions added: `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_VARIANT_CREATED`, `PRODUCT_VARIANT_UPDATED`, `PRODUCT_VARIANT_ARCHIVED` (entity types `PRODUCT`, `PRODUCT_VARIANT`).
+
+### Errors
+| Case | Response |
+|---|---|
+| Invalid body or query; a variant name in one language only; `isDefault: false` | `400 VALIDATION_ERROR` (issue code `variant_name_pair` for names) |
+| No slug given and the English name has no Latin letter or digit | `400 VALIDATION_ERROR`, issue `slug` / `slug_required` |
+| Slug used by another product | `409 CONFLICT`, `details.reason = SLUG_TAKEN` (+ `slug`) |
+| SKU used by another variant, archived ones included | `409 CONFLICT`, `details.reason = SKU_TAKEN` (+ `sku`) |
+| Changing the slug of a product that is not `DRAFT` | `409 CONFLICT`, `details.reason = SLUG_LOCKED` |
+| Changing an `ARCHIVED` product or its variants | `409 CONFLICT`, `details.reason = PRODUCT_ARCHIVED` |
+| Editing an archived variant, or making it the default | `409 CONFLICT`, `details.reason = VARIANT_ARCHIVED` |
+| Archiving the default variant | `409 CONFLICT`, `details.reason = VARIANT_IS_DEFAULT` |
+| More than 100 variants on one product | `409 CONFLICT`, `details.reason = VARIANT_LIMIT` |
+| Unknown or malformed product or variant id | `404 NOT_FOUND` |

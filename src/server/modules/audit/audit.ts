@@ -33,6 +33,12 @@ export const AUDIT_ACTIONS = [
   "APPROVAL_APPROVED",
   "APPROVAL_REJECTED",
   "APPROVAL_CANCELLED",
+  // Products and variants (TASK-014)
+  "PRODUCT_CREATED",
+  "PRODUCT_UPDATED",
+  "PRODUCT_VARIANT_CREATED",
+  "PRODUCT_VARIANT_UPDATED",
+  "PRODUCT_VARIANT_ARCHIVED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -43,6 +49,8 @@ export const AUDIT_ENTITY_TYPES = {
   employee: "EMPLOYEE",
   employeeInvitation: "EMPLOYEE_INVITATION",
   approvalRequest: "APPROVAL_REQUEST",
+  product: "PRODUCT",
+  productVariant: "PRODUCT_VARIANT",
 } as const;
 
 export interface AuditActor {

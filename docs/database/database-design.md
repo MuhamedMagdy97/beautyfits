@@ -1587,3 +1587,24 @@ Added by TASK-013 (`docs/tasks/TASK-013-approvals-audit.md`, ADR-0018). Migrated
 - `requested_by_employee_id` and `resolved_by_employee_id` reference `employees`.
 - At most one `PENDING` request per `(approval_type, entity_type, entity_id)` (partial unique index `approval_requests_one_pending_key`). Indexes on `(status, requested_at)` and `(entity_type, entity_id)`.
 - Rows are never deleted; a request ends `APPROVED`, `REJECTED` or `CANCELLED`.
+
+## v1.2 TASK-014 Amendments
+
+Added by TASK-014 (`docs/tasks/TASK-014-products-variants.md`, ADR-0019). Migrated in `prisma/migrations/*_products_variants`.
+
+### `products` (§5, migrated)
+- Fields: `id`, `name_ar`, `name_en`, `slug` (unique; lowercase Latin letters, digits and single hyphens, enforced by a check constraint), `description_ar` nullable, `description_en` nullable, `status` = `DRAFT` | `PUBLISHED` | `ARCHIVED` | `DISABLED` (default `DRAFT`), `created_at`, `updated_at`, `archived_at` nullable.
+- `brand_id` is added by TASK-015 with the `brands` table.
+- Index `(status, created_at desc)`.
+
+### `product_variants` (§5, migrated)
+- Fields: `id`, `product_id` (references `products`, delete restricted), `sku` (unique, stored uppercase, enforced by a check constraint), `is_default`, `variant_name_ar` nullable, `variant_name_en` nullable, `attributes_json` nullable (object of text values), `status` = `ACTIVE` | `ARCHIVED`, `created_at`, `updated_at`, `archived_at` nullable.
+- At most one default per product (partial unique index `product_variants_one_default_key`); the default must be `ACTIVE` (check constraint). The service creates every product with its default variant, so each product has exactly one.
+- `selling_price`, `latest_purchase_cost`, `weighted_average_cost` are added by TASK-018 and `low_stock_threshold` by the inventory tasks, with their rules.
+- Index `(product_id, created_at)`.
+
+### No hard delete
+- The trigger function `catalog_reject_delete` rejects `DELETE` on `products` and `product_variants` (Q75). Variants are archived; products are archived by TASK-017.
+
+### Uniqueness note
+- §22 lists "product SKU"; per §5 v1.2 SKUs exist only on variants, so only `product_variants.sku` is unique.
