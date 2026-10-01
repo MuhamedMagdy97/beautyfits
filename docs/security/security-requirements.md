@@ -88,6 +88,9 @@ Security is a cross-cutting concern from the beginning, not a post-MVP feature (
 | Custom roles with granular permissions, created by Owner/Admin | Q66, Q67 |
 | Sensitive transitions by Managers can enter Pending Approval for Owner/Admin (persistent `approval_requests`) | Q76, Audit Correction 7 |
 | Never trust client-supplied ownership identifiers | API §30 |
+| Owner/Admin hold every permission; Managers and Employees hold their roles' permissions minus the Owner/Admin-only ones (catalog §2), checked on every request by `requirePermission` | Permission catalog, ADR-0016 |
+| Invitations: 256-bit single-use token stored only as SHA-256, sent as a dashboard link with the token in the URL fragment, valid 7 days; the inviter's authority is re-checked at acceptance; 30 rejected tokens per IP in 15 minutes block the IP | Q64, ADR-0016 |
+| Nobody changes their own level or roles or deactivates themselves; deactivation revokes all sessions and trusted devices | Q69, ADR-0016 |
 
 ### Dedicated permissions for high-risk actions
 

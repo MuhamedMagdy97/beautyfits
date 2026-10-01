@@ -1,7 +1,11 @@
 import { getDb } from "@/server/db/client";
 
+/** Reference data inserted by migrations (the permission catalog, TASK-012). */
+const REFERENCE_TABLES = ["_prisma_migrations", "permissions"];
+
 /**
- * Removes all rows from every application table (not the migrations table).
+ * Removes all rows from every application table (not the migrations table or
+ * the reference data inserted by migrations).
  * Integration tests call this in `beforeEach`. Test-only: never import it
  * from application code.
  */
@@ -9,7 +13,7 @@ export async function resetDatabase(): Promise<void> {
   const db = getDb();
   const tables = await db.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables
-    WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
+    WHERE schemaname = 'public' AND tablename <> ALL(${REFERENCE_TABLES})`;
   if (tables.length === 0) {
     return;
   }

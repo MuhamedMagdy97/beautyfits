@@ -11,6 +11,8 @@ This is the canonical list of permission codes. The API contract and all code mu
 - Owner/Admin create Managers and Employees; Managers create Employees only and cannot grant permissions they do not hold; Employees cannot assign roles (Q65).
 - Custom roles are created by Owner/Admin (User Flows §17.1).
 
+Enforcement (TASK-012, ADR-0016): the codes are mirrored in `src/server/modules/rbac/catalog.ts` and the `permissions` table (tests keep the three in sync); endpoints check them with `requirePermission`.
+
 Legend for the "Source" column: **Q/R/API/UF** = already in the documents; **NEW** = proposed name for a permission the documents require but never named.
 
 ## 1. Permission catalog
