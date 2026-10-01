@@ -7,7 +7,7 @@
 ## Requirements (from source-of-truth documents)
 
 - **Customers.** Phone is the primary identifier; email is verified by OTP at registration and used for recovery. Password rules: 12+ characters, a breached/common-password check, and no composition rules. Sessions last 30 days and are revocable. Customers can log out from all devices. Email/phone changes require re-authentication plus OTP to the new destination.
-- **Employees.** A separate authorization domain. Login is email + password + OTP, and MFA is mandatory for Owner/Admin. Staff sessions are shorter/stricter and admin-configurable.
+- **Employees.** A separate authorization domain. Login is email + password + email OTP; a successful OTP trusts the device for 30 days, for every employee level including Owner/Admin (Business Spec R28, 2026-10-01). Staff sessions default to 12 hours maximum and 60 minutes idle, and are admin-configurable (R29).
 - **OTP.** 5-minute expiry, 60 s resend cooldown, 5 attempts then a temporary lock, rate-limited by email + IP + device, with abuse events logged.
 - **Clients.** Website, Dashboard, and Mobile use one API with `Authorization: Bearer <access-token>` (API Contract §5). A refresh endpoint exists for each domain.
 - **Identity model.** An `accounts` table (`account_type` = `CUSTOMER` | `EMPLOYEE`) holds the password hash, with `customers`/`employees` profiles (DB Design §3–§4).

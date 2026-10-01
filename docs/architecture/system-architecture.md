@@ -240,8 +240,8 @@ The mobile app consumes the same API and business rules as the website. It is in
 ### Employees
 
 - Separate employee authorization domain from customer roles.
-- Employee login requires stronger authentication (password + OTP/MFA).
-- Owner/Admin have mandatory MFA.
+- Employee login requires stronger authentication: email + password + email OTP, with the device trusted for 30 days after a successful OTP (Business Spec R28).
+- Owner/Admin follow the same email OTP rule in v1; no separate MFA factor yet.
 - Manager can create employees only within permitted scope.
 - Employees cannot create/modify roles unless explicitly permitted (default: no).
 
@@ -738,7 +738,7 @@ Required from the beginning:
 
 - secure password storage
 - secure sessions/tokens
-- MFA for privileged employees
+- Email OTP for all employees, with 30-day trusted devices (R28)
 - rate limiting
 - abuse protection
 - backend authorization
@@ -931,6 +931,6 @@ The canonical rule text lives in `docs/product/business-spec.md` (R1–R12). Arc
 | Guests (R16) | No guest order-tracking read model; guests only receive transactional messages and the confirm-only COD link. |
 | Customer login (R13) | Email + password; phone stays the business identifier. |
 
-Hosting (TASK-007, ADR-0013): the app runs as a **long-running Node.js server** (`server.mjs`, a thin custom server around Next.js) so the backend sees the real client address; serverless and standalone output are excluded. The rate-limit store is PostgreSQL (`rate_limit_buckets`). The hosting provider itself is still open.
+Hosting (TASK-007, ADR-0013): the app runs as a **long-running Node.js server** (`server.mjs`, a thin custom server around Next.js) so the backend sees the real client address; serverless and standalone output are excluded. The rate-limit store is PostgreSQL (`rate_limit_buckets`). For now the system runs locally (owner decision, 2026-10-01); the hosting provider itself is still open.
 
 Still deferred (§27): queue, object storage, email, WhatsApp, shipping providers, monitoring vendor.

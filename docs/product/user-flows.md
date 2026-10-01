@@ -36,9 +36,9 @@ Validate email / phone / password policy
         ↓
 Account created: Pending Verification (expires after 24 hours)
         ↓
-Send Email OTP + WhatsApp OTP to the phone
+Send Email OTP
         ↓
-Verify both OTPs
+Verify the email OTP
         ↓
 Account Active
 ```
@@ -46,9 +46,9 @@ Account Active
 Rules:
 - Phone is the primary customer identifier; email is also associated with the account.
 - The phone must be an Egyptian mobile number (Business Spec R27).
-- Email verification (email OTP) and phone verification (WhatsApp OTP) are both required; the account becomes Active only after both (Business Spec R25).
+- Email verification (email OTP) is required; the account becomes Active as soon as the email is verified. The phone is not verified by OTP in v1 (Business Spec R30, amending R25).
 - A pending registration does not reserve the email or phone; a new registration replaces an unverified pending account (R25).
-- A customer cannot log in until the email is verified; with a verified email and a pending phone, only session and verification actions are allowed (R26).
+- A customer cannot log in until the email is verified (R26).
 - Password policy: at least 12 characters, allow long passphrases, block common/breached passwords; do not require artificial uppercase/lowercase/number composition.
 - OTP expires after 5 minutes.
 - Resend is available after 60 seconds.
@@ -98,7 +98,7 @@ Re-authenticate
       ↓
 Enter new phone
       ↓
-OTP to new phone
+OTP to the verified account email (Business Spec R30; email is the only OTP channel in v1)
       ↓
 Verify
       ↓
@@ -116,12 +116,14 @@ Customer later creates account
       ↓
 Same phone detected
       ↓
+OTP sent to the email stored on the guest order(s)
+      ↓
 OTP verification
       ↓
-Eligible historical guest orders linked to account
+Guest orders whose phone and email both match are linked to the account
 ```
 
-Phone match alone is never sufficient to claim historical guest orders.
+Phone match alone is never sufficient to claim historical guest orders. Guest orders with a different or missing email are linked only through support (Business Spec R31).
 
 ---
 

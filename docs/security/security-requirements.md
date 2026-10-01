@@ -15,9 +15,9 @@ Security is a cross-cutting concern from the beginning, not a post-MVP feature (
 |---|---|
 | Phone is the primary customer identifier; email is also stored and verified | Q41 |
 | Phone is an Egyptian mobile number (010/011/012/015 + 8 digits), stored in E.164 | R27 |
-| Phone verified by WhatsApp OTP at registration; the account is ACTIVE only after email and phone are both verified | R25 |
+| No phone OTP at registration; the account is ACTIVE once the email is verified by email OTP | R25, R30 |
 | Pending registrations do not reserve email/phone; uniqueness applies to verified identities; a pending account expires after 24 hours | R25 |
-| A customer with an unverified email cannot log in; a verified email with a pending phone gives limited access (session and verification only) | R26 |
+| A customer with an unverified email cannot log in; | R26 |
 | Email verification by OTP is required at account creation | Q42 |
 | Duplicate (verified) email is rejected; the user is directed to login/recovery | Q151, R25 |
 | Password: minimum 12 characters, long passphrases allowed, checked against common/breached passwords, no forced composition rules | Q156 |
@@ -63,9 +63,10 @@ Security is a cross-cutting concern from the beginning, not a post-MVP feature (
 | Requirement | Source |
 |---|---|
 | Employee authorization domain is separate from customers | Architecture §6 |
-| Employee login: email + password + OTP | Q165 |
-| Owner/Admin: mandatory MFA | Q165, Audit Correction 10 |
-| Staff sessions: admin-configurable with safer (shorter/stricter) defaults than customer sessions | Q163 |
+| Employee login: email + password + email OTP; a successful OTP trusts the device for 30 days | Q165, Business Spec R28 |
+| Owner/Admin: same email OTP rule in v1 (no separate MFA factor yet) | Q165, Audit Correction 10, Business Spec R28 |
+| Staff sessions: default 12 hours maximum and 60 minutes idle; admin-configurable; a staff password reset revokes all sessions | Q163, Business Spec R29 |
+| Email is the only OTP channel in v1 | Business Spec R30 |
 | Employees are invited by work email; access is deactivated, never hard-deleted when history exists | Q64, Q69 |
 
 ## 5. Authorization
