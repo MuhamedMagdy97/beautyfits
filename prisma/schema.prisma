@@ -332,6 +332,8 @@ model Employee {
   invitationsRevoked EmployeeInvitation[] @relation("InvitationRevokedBy")
   invitation         EmployeeInvitation?  @relation("InvitationAcceptedAs")
   settingsUpdated    Setting[]            @relation("SettingUpdatedBy")
+  approvalsRequested ApprovalRequest[]    @relation("ApprovalRequestedBy")
+  approvalsResolved  ApprovalRequest[]    @relation("ApprovalResolvedBy")
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -477,4 +479,93 @@ model Setting {
   updatedBy Employee? @relation("SettingUpdatedBy", fields: [updatedByEmployeeId], references: [id])
 
   @@map("settings")
+}
+
+// ---------------------------------------------------------------------------
+// Audit logs and approval requests (DB design §20 + v1.1 "approval_requests"
+// + "v1.2 TASK-013 Amendments"; TASK-013, ADR-0018)
+// ---------------------------------------------------------------------------
+
+enum AuditActorType {
+  SYSTEM
+  EMPLOYEE
+  CUSTOMER
+
+  @@map("audit_actor_type")
+}
+
+/// One important business action (Q70, Architecture §19). Append-only: a
+/// database trigger rejects every UPDATE and DELETE (ADR-0018). Snapshots
+/// never contain passwords, password hashes, codes or tokens.
+model AuditLog {
+  id               String         @id @default(uuid(7)) @db.Uuid
+  actorType        AuditActorType @map("actor_type")
+  /// Employee id or customer id; null for SYSTEM.
+  actorId          String?        @map("actor_id") @db.Uuid
+  /// Stable action code, e.g. ROLE_UPDATED (src/server/modules/audit/audit.ts).
+  action           String
+  entityType       String         @map("entity_type")
+  /// Text so that entities keyed by something other than a UUID (a setting
+  /// key) can be audited.
+  entityId         String         @map("entity_id")
+  previousDataJson Json?          @map("previous_data_json")
+  newDataJson      Json?          @map("new_data_json")
+  reason           String?
+  /// The request id of the API call that made the change.
+  correlationId    String?        @map("correlation_id")
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([entityType, entityId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([actorType, actorId, createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
+/// What a request asks to approve (Business Spec R19, permission catalog D-07).
+enum ApprovalType {
+  PURCHASE_ORDER
+  PURCHASE_OVER_DELIVERY
+  MARKETING_CAMPAIGN
+  CRITICAL_SETTING
+
+  @@map("approval_type")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("approval_status")
+}
+
+/// A pending action waiting for Owner/Admin approval (Audit Correction 7,
+/// User Flows §17.3). Created by the feature that needs it; resolved through
+/// /admin/approval-requests. At most one PENDING request per type and entity.
+model ApprovalRequest {
+  id                    String         @id @default(uuid(7)) @db.Uuid
+  approvalType          ApprovalType   @map("approval_type")
+  entityType            String         @map("entity_type")
+  entityId              String         @map("entity_id")
+  requestedByEmployeeId String         @map("requested_by_employee_id") @db.Uuid
+  status                ApprovalStatus @default(PENDING)
+  requestedAt           DateTime       @default(now()) @map("requested_at") @db.Timestamptz(3)
+  resolvedByEmployeeId  String?        @map("resolved_by_employee_id") @db.Uuid
+  resolvedAt            DateTime?      @map("resolved_at") @db.Timestamptz(3)
+  /// Why the requester asks for the action.
+  reason                String?
+  /// Why the request was approved, rejected or cancelled (required to reject).
+  resolutionReason      String?        @map("resolution_reason")
+  /// What will happen on approval, as recorded by the feature (e.g. old and
+  /// new value of a setting).
+  metadataJson          Json?          @map("metadata_json")
+
+  requestedBy Employee  @relation("ApprovalRequestedBy", fields: [requestedByEmployeeId], references: [id])
+  resolvedBy  Employee? @relation("ApprovalResolvedBy", fields: [resolvedByEmployeeId], references: [id])
+
+  @@unique([approvalType, entityType, entityId], map: "approval_requests_one_pending_key", where: raw("status = 'PENDING'"))
+  @@index([status, requestedAt])
+  @@index([entityType, entityId])
+  @@map("approval_requests")
 }

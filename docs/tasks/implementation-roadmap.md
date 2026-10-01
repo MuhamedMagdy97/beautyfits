@@ -235,6 +235,8 @@ Implement Owner/Admin/Manager/Employee hierarchy, custom roles, granular permiss
 
 Implement reusable approval request mechanism and immutable-style audit logging for critical actions.
 
+**Status after TASK-013** (`docs/tasks/TASK-013-approvals-audit.md`): `audit_logs` (append-only) and `approval_requests` exist, with `GET /admin/audit-logs` and the `/admin/approval-requests` endpoints. Role, staff and bootstrap changes are audited. Each feature that needs approval (TASK-022, TASK-023, TASK-048, the settings changes of TASK-057) adds its handler in `src/server/modules/approvals/handlers.ts` and audits its own actions with `recordAudit`.
+
 ---
 
 # Phase 2 — Catalog

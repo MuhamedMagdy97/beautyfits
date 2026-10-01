@@ -13,6 +13,7 @@ export const POST = withApi<RouteContext<"/api/v1/admin/employees/invitations/[i
       actorOf(employee),
       id,
       api.logger,
+      api.requestId,
     );
     return ok(api.requestId, invitation);
   },

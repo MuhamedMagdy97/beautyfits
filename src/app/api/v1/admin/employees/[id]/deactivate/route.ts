@@ -16,6 +16,7 @@ export const POST = withApi<RouteContext<"/api/v1/admin/employees/[id]/deactivat
       actorOf(employee),
       id,
       api.logger,
+      api.requestId,
     );
     return ok(api.requestId, updated);
   },

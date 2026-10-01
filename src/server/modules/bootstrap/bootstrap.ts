@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { runInTransaction } from "@/server/db/transaction";
 import { logger as defaultLogger, type Logger } from "@/server/logging/logger";
+import { AUDIT_ENTITY_TYPES, recordAudit, SYSTEM_ACTOR } from "@/server/modules/audit/audit";
 import { normalizeEmail } from "@/server/modules/auth/identifiers";
 import type { PasswordHasher } from "@/server/modules/auth/password-hash";
 import {
@@ -151,6 +152,14 @@ async function ensureDefaultRoles(deps: BootstrapDeps): Promise<string[]> {
             },
           },
         });
+        await recordAudit(tx, {
+          actor: SYSTEM_ACTOR,
+          action: "ROLE_SEEDED",
+          entityType: AUDIT_ENTITY_TYPES.role,
+          entityId: role.id,
+          next: { name: role.name, description: null, permissions: [...role.permissions] },
+          createdAt: now,
+        });
         created.push(role.name);
       }
       return created;
@@ -218,6 +227,15 @@ async function ensureOwner(
           updatedAt: now,
         },
       });
+      // No email or password in the audit entry.
+      await recordAudit(tx, {
+        actor: SYSTEM_ACTOR,
+        action: "OWNER_BOOTSTRAPPED",
+        entityType: AUDIT_ENTITY_TYPES.employee,
+        entityId: employee.id,
+        next: { displayName: employee.displayName, level: employee.employeeLevel },
+        createdAt: now,
+      });
       return { outcome: "CREATED" as const, employeeId: employee.id };
     },
     {},
@@ -254,7 +272,7 @@ export async function runBootstrap(
   const passwordHash = owner && !ownerExists ? await deps.hasher.hash(owner.password) : null;
   const ownerResult = await ensureOwner(deps, owner, passwordHash);
 
-  // Until audit_logs exists (TASK-013), bootstrap events go to the logger.
+  // Created roles and the Owner are also in audit_logs (TASK-013).
   // No emails or passwords are logged.
   log.info("bootstrap.completed", {
     settingsCreated,

@@ -172,6 +172,26 @@ describe("runBootstrap", () => {
     expect(await db.role.count()).toBe(0);
     expect(await db.account.count()).toBe(0);
   });
+
+  it("audits the seeded roles and the first Owner as SYSTEM actions, once (TASK-013)", async () => {
+    await runBootstrap(deps, { owner: OWNER });
+    await runBootstrap(deps, { owner: OWNER });
+    const [owner] = await owners();
+    const rows = await db.auditLog.findMany({ orderBy: { createdAt: "asc" } });
+    expect(rows.filter((r) => r.action === "ROLE_SEEDED").map((r) => r.entityId)).toEqual(
+      DEFAULT_ROLES.map((role) => role.id),
+    );
+    const ownerEntries = rows.filter((r) => r.action === "OWNER_BOOTSTRAPPED");
+    expect(ownerEntries).toHaveLength(1);
+    expect(ownerEntries[0]).toMatchObject({
+      actorType: "SYSTEM",
+      actorId: null,
+      entityType: "EMPLOYEE",
+      entityId: owner.id,
+      newDataJson: { displayName: "Magdy", level: "OWNER" },
+    });
+    expect(JSON.stringify(rows)).not.toMatch(/owner@beautyfits|saffron/i);
+  });
 });
 
 describe("readStaffSessionSettings", () => {

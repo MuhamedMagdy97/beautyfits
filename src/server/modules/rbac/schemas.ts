@@ -56,7 +56,8 @@ export const updateEmployeeSchema = z
     message: "Provide at least one field to change.",
   });
 
-const pageQuery = {
+/** `page` and `pageSize` query parameters of the admin list endpoints. */
+export const pageQuery = {
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(24),
 };

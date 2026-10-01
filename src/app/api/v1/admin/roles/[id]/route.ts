@@ -17,6 +17,7 @@ export const PATCH = withApi<RouteContext<"/api/v1/admin/roles/[id]">>(
       id,
       input,
       api.logger,
+      api.requestId,
     );
     return ok(api.requestId, role);
   },

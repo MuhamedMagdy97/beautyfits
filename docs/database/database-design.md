@@ -1569,3 +1569,21 @@ The canonical rule text lives in `docs/product/business-spec.md` (R1–R12). Sch
 | R7 — Customer-caused refund | `return_items.deduction_amount`, `refund_eligible_amount`, resolution + `audit_logs` (§12). |
 | R11 — Cancellation window | Allowed `→ CANCELLED` source statuses are enforced by the backend state machine, recorded in `order_status_history`. |
 | R12 — Restock subscriptions | `restock_subscriptions.product_variant_id` (§15). |
+
+## v1.2 TASK-013 Amendments
+
+Added by TASK-013 (`docs/tasks/TASK-013-approvals-audit.md`, ADR-0018). Migrated in `prisma/migrations/*_audit_logs_approvals`.
+
+### `audit_logs` (§20, migrated)
+- Fields as designed: `id`, `actor_type` = `SYSTEM` | `EMPLOYEE` | `CUSTOMER`, `actor_id` nullable (employee or customer id; null for `SYSTEM`; no foreign key because it points at either table), `action`, `entity_type`, `entity_id`, `previous_data_json` nullable, `new_data_json` nullable, `reason` nullable, `correlation_id` nullable (the API request id), `created_at`.
+- `entity_id` is text, so entities keyed by something other than a UUID (a setting key) can be audited.
+- Append-only: the trigger `audit_logs_append_only` rejects every `UPDATE` and `DELETE`, from the application or any SQL client.
+- Indexes: `(entity_type, entity_id, created_at desc)` (§22), `(created_at desc)`, `(actor_type, actor_id, created_at desc)`.
+- An entry is written in the same transaction as the change it describes. Snapshots never contain passwords, password hashes, codes or tokens.
+
+### `approval_requests` (v1.1 Database Amendments, migrated)
+- Fields as designed, plus `resolution_reason` nullable (why it was approved, rejected or cancelled; required to reject). `reason` is the requester's reason.
+- `approval_type` is an enum: `PURCHASE_ORDER`, `PURCHASE_OVER_DELIVERY`, `MARKETING_CAMPAIGN`, `CRITICAL_SETTING` (Business Spec R19). `entity_id` is text, like `audit_logs.entity_id`.
+- `requested_by_employee_id` and `resolved_by_employee_id` reference `employees`.
+- At most one `PENDING` request per `(approval_type, entity_type, entity_id)` (partial unique index `approval_requests_one_pending_key`). Indexes on `(status, requested_at)` and `(entity_type, entity_id)`.
+- Rows are never deleted; a request ends `APPROVED`, `REJECTED` or `CANCELLED`.

@@ -12,6 +12,7 @@ export function requestMeta(request: Request, api: ApiContext): RequestMeta {
     ip: getClientIp(request),
     userAgent: request.headers.get("user-agent"),
     logger: api.logger,
+    requestId: api.requestId,
   };
 }
 

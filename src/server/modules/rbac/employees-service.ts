@@ -13,6 +13,7 @@ import type { Pagination } from "@/server/http/response";
 import type { Logger } from "@/server/logging/logger";
 import type { RequestMeta } from "@/server/modules/auth/auth-service";
 import { emailDigest, OTP_VERIFY_IP_LIMIT } from "@/server/modules/auth/otp";
+import { AUDIT_ENTITY_TYPES, employeeActor, recordAudit } from "@/server/modules/audit/audit";
 import { createScryptHasher, type PasswordHasher } from "@/server/modules/auth/password-hash";
 import { revokeAccountSessions } from "@/server/modules/auth/sessions";
 import { generateToken, hashToken, isWellFormedToken } from "@/server/modules/auth/tokens";
@@ -389,7 +390,7 @@ export function createEmployeeManagementService(deps: EmployeeManagementDeps) {
         }
         const roles = await loadAssignableRoles(tx, input.roleIds);
         assertRolesInScope(actor, roles);
-        return tx.employeeInvitation.create({
+        const created = await tx.employeeInvitation.create({
           data: {
             email: input.email,
             displayName: input.displayName,
@@ -403,6 +404,23 @@ export function createEmployeeManagementService(deps: EmployeeManagementDeps) {
           },
           include: invitationInclude,
         });
+        await recordAudit(tx, {
+          actor: employeeActor(actor.employeeId),
+          action: "EMPLOYEE_INVITED",
+          entityType: AUDIT_ENTITY_TYPES.employeeInvitation,
+          entityId: created.id,
+          next: {
+            email: created.email,
+            displayName: created.displayName,
+            department: created.department,
+            level: created.employeeLevel,
+            roleIds: roleIdsOf(created),
+            expiresAt: created.expiresAt.toISOString(),
+          },
+          correlationId: meta.requestId ?? null,
+          createdAt: now,
+        });
+        return created;
       },
       {},
       db,
@@ -439,6 +457,7 @@ export function createEmployeeManagementService(deps: EmployeeManagementDeps) {
     actor: StaffActor,
     invitationId: string,
     logger: Logger,
+    correlationId: string | null = null,
   ): Promise<InvitationView> {
     const now = clock.now();
     const row = await runInTransaction(
@@ -464,6 +483,16 @@ export function createEmployeeManagementService(deps: EmployeeManagementDeps) {
             },
           });
         }
+        await recordAudit(tx, {
+          actor: employeeActor(actor.employeeId),
+          action: "EMPLOYEE_INVITATION_REVOKED",
+          entityType: AUDIT_ENTITY_TYPES.employeeInvitation,
+          entityId: invitationId,
+          previous: { status: "PENDING" },
+          next: { status: "REVOKED" },
+          correlationId,
+          createdAt: now,
+        });
         return tx.employeeInvitation.findUniqueOrThrow({
           where: { id: invitationId },
           include: invitationInclude,
@@ -495,6 +524,7 @@ export function createEmployeeManagementService(deps: EmployeeManagementDeps) {
       roleIds?: string[];
     },
     logger: Logger,
+    correlationId: string | null = null,
   ): Promise<EmployeeListView> {
     const now = clock.now();
     const { row, change } = await runInTransaction(
@@ -576,6 +606,30 @@ export function createEmployeeManagementService(deps: EmployeeManagementDeps) {
           },
           include: employeeInclude,
         });
+        const before = {
+          displayName: target.displayName,
+          department: target.department,
+          level: target.employeeLevel,
+          roleIds: [...current.keys()].sort(),
+        };
+        const after = {
+          displayName: updated.displayName,
+          department: updated.department,
+          level: updated.employeeLevel,
+          roleIds: updated.roles.map((r) => r.role.id).sort(),
+        };
+        if (JSON.stringify(before) !== JSON.stringify(after)) {
+          await recordAudit(tx, {
+            actor: employeeActor(actor.employeeId),
+            action: "EMPLOYEE_UPDATED",
+            entityType: AUDIT_ENTITY_TYPES.employee,
+            entityId: employeeId,
+            previous: before,
+            next: after,
+            correlationId,
+            createdAt: now,
+          });
+        }
         return {
           row: updated,
           change: {
@@ -607,6 +661,7 @@ export function createEmployeeManagementService(deps: EmployeeManagementDeps) {
     actor: StaffActor,
     employeeId: string,
     logger: Logger,
+    correlationId: string | null = null,
   ): Promise<EmployeeListView> {
     const now = clock.now();
     const { row, revokedSessions, changed } = await runInTransaction(
@@ -637,6 +692,16 @@ export function createEmployeeManagementService(deps: EmployeeManagementDeps) {
         await tx.employeeTrustedDevice.updateMany({
           where: { accountId: target.accountId, revokedAt: null },
           data: { revokedAt: now },
+        });
+        await recordAudit(tx, {
+          actor: employeeActor(actor.employeeId),
+          action: "EMPLOYEE_DEACTIVATED",
+          entityType: AUDIT_ENTITY_TYPES.employee,
+          entityId: employeeId,
+          previous: { status: "ACTIVE" },
+          next: { status: "DEACTIVATED", revokedSessions: revoked },
+          correlationId,
+          createdAt: now,
         });
         return { row: updated, revokedSessions: revoked, changed: true };
       },
@@ -768,6 +833,22 @@ export function createEmployeeManagementService(deps: EmployeeManagementDeps) {
           await tx.employeeInvitation.update({
             where: { id: invitation.id },
             data: { acceptedEmployeeId: employee.id },
+          });
+          await recordAudit(tx, {
+            actor: employeeActor(employee.id),
+            action: "EMPLOYEE_INVITATION_ACCEPTED",
+            entityType: AUDIT_ENTITY_TYPES.employee,
+            entityId: employee.id,
+            next: {
+              invitationId: invitation.id,
+              invitedByEmployeeId: inviter.id,
+              displayName: employee.displayName,
+              department: employee.department,
+              level: employee.employeeLevel,
+              roleIds: roles.map((role) => role.id).sort(),
+            },
+            correlationId: meta.requestId ?? null,
+            createdAt: now,
           });
           return { account, employee };
         },

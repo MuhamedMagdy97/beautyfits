@@ -19,6 +19,7 @@ export const POST = withApi(async (request, api) => {
     { employeeId: employee.employeeId },
     input,
     api.logger,
+    api.requestId,
   );
   return ok(api.requestId, role, { status: 201 });
 });

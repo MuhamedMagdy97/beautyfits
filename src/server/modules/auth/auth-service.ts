@@ -46,6 +46,8 @@ import { systemClock, type Clock } from "@/server/time/time";
 
 export interface RequestMeta extends SessionMeta {
   logger: Logger;
+  /** The API request id; recorded as the correlation id of audit entries. */
+  requestId?: string;
 }
 
 export interface AccountView {
