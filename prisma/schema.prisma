@@ -331,6 +331,7 @@ model Employee {
   invitationsSent    EmployeeInvitation[] @relation("InvitationInvitedBy")
   invitationsRevoked EmployeeInvitation[] @relation("InvitationRevokedBy")
   invitation         EmployeeInvitation?  @relation("InvitationAcceptedAs")
+  settingsUpdated    Setting[]            @relation("SettingUpdatedBy")
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -446,4 +447,34 @@ model EmployeeInvitation {
 
   @@index([email])
   @@map("employee_invitations")
+}
+
+// ---------------------------------------------------------------------------
+// Settings (DB design §20 + "v1.2 TASK-004 Amendments"; TASK-004, ADR-0017).
+// `setting_history` and the settings screen come with TASK-057.
+// ---------------------------------------------------------------------------
+
+enum SettingDataType {
+  INTEGER
+  BOOLEAN
+  STRING
+  JSON
+
+  @@map("setting_data_type")
+}
+
+/// One Owner/Admin-configurable value (Q179). The known keys, their types and
+/// defaults are listed in src/server/modules/settings/settings.ts; the
+/// bootstrap inserts missing keys and never overwrites a stored value.
+model Setting {
+  key                 String          @id
+  valueJson           Json            @map("value_json")
+  dataType            SettingDataType @map("data_type")
+  /// Null for values written by the bootstrap.
+  updatedByEmployeeId String?         @map("updated_by_employee_id") @db.Uuid
+  updatedAt           DateTime        @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  updatedBy Employee? @relation("SettingUpdatedBy", fields: [updatedByEmployeeId], references: [id])
+
+  @@map("settings")
 }

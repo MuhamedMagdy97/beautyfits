@@ -34,7 +34,20 @@ npm run db:migrate          # apply migrations to the local database (and create
 npm run db:status           # show which migrations are applied
 npm run db:reset            # DEVELOPMENT ONLY: drop all local data and re-apply migrations
 npm run db:deploy           # apply committed migrations (CI / staging / production)
+npm run db:seed             # bootstrap: default settings, default roles, first Owner (safe to re-run)
+npm run db:seed:dev         # DEVELOPMENT ONLY: bootstrap + two sample staff accounts
 ```
+
+### First Owner sign-in
+
+There is no sign-up for staff and no "create admin" endpoint ([ADR-0017](docs/decisions/ADR-0017-bootstrap-and-settings.md)). On a new database:
+
+1. Put the Owner's details in `.env`: `BOOTSTRAP_OWNER_EMAIL`, `BOOTSTRAP_OWNER_PASSWORD` (at least 12 characters) and optionally `BOOTSTRAP_OWNER_NAME`.
+2. `npm run db:migrate`, then `npm run db:seed`. It prints "Owner account created".
+3. Remove `BOOTSTRAP_OWNER_PASSWORD` from `.env`. Running the seed again never changes an existing Owner.
+4. Sign in: `POST /api/v1/employee-auth/login` with `{ "email", "password" }` returns a `loginTicket`; the 6-digit code is in the newest file in `.mail/`; `POST /api/v1/employee-auth/verify-otp` with `{ "loginTicket", "code" }` signs in and trusts the device for 30 days.
+
+The Owner then invites the other staff (`POST /api/v1/admin/employees`). The dashboard screens come later (TASK-052 onward).
 
 Migrations live in `prisma/migrations/` and are committed to Git ([ADR-0003](docs/decisions/ADR-0003-database-access-and-migrations.md), [ADR-0010](docs/decisions/ADR-0010-ids-transactions-integration-tests.md)).
 
@@ -50,6 +63,7 @@ Migrations live in `prisma/migrations/` and are committed to Git ([ADR-0003](doc
 | `npm test` / `npm run test:watch` | Vitest unit tests (no database) |
 | `npm run test:integration` | Integration tests against a real PostgreSQL test database (Docker must be running) |
 | `npm run db:migrate` / `db:status` / `db:reset` / `db:deploy` | Database migrations |
+| `npm run db:seed` / `db:seed:dev` | Production bootstrap / development sample data ([ADR-0017](docs/decisions/ADR-0017-bootstrap-and-settings.md)) |
 
 Before committing, run `lint`, `format:check`, `typecheck`, `test`, `test:integration` and `build` (see `docs/testing/test-strategy.md`).
 

@@ -140,6 +140,8 @@ For every task:
 
 **Sequencing note (TASK-002A):** the tables this task seeds (accounts, employees, roles, permissions, settings) are created by TASK-011/TASK-012, and the owner bootstrap needs the password hashing from TASK-011. Execute TASK-004 after TASK-012 (or split it: seed tooling now, data after TASK-012).
 
+**Status after TASK-004** (`docs/tasks/TASK-004-seed-bootstrap.md`, ADR-0017): `npm run db:seed` checks the permission rows, inserts the default settings (the `settings` table, starting with the R29 staff session lengths), creates the default roles of catalog §3 and the first Owner from `BOOTSTRAP_OWNER_EMAIL` / `BOOTSTRAP_OWNER_PASSWORD`. `npm run db:seed:dev` adds sample staff for local use. The settings screen and `setting_history` remain with TASK-057.
+
 ---
 
 ### TASK-005 — Cross-Cutting Backend Foundations

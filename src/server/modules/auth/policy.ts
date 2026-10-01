@@ -62,9 +62,9 @@ export const EMPLOYEE_AUTH_POLICY = {
 } as const;
 
 /**
- * Staff session lengths (R29, Q163). Owner/Admin-configurable: this is the
- * shape the settings store (TASK-004 defaults, TASK-057 settings screen)
- * provides; until then the R29 defaults apply.
+ * Staff session lengths (R29, Q163). Owner/Admin-configurable: read from the
+ * `settings` table (TASK-004, src/server/modules/settings/settings.ts); the
+ * settings screen comes with TASK-057. Missing values use the R29 defaults.
  */
 export interface StaffSessionSettings {
   /** Absolute session lifetime from login. */
