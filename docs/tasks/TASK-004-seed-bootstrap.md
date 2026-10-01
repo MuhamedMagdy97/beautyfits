@@ -78,7 +78,7 @@ Defaults where the documents are silent (ADR-0017 §5), confirmed by the product
 3. Staff session settings accept any whole number of minutes above zero; minimum and maximum to be decided with the settings screen (TASK-057).
 
 Other:
-- ADR-0016 §6 defaults (TASK-012) are still unconfirmed.
+- ADR-0016 §6 defaults (TASK-012) were confirmed on 2026-10-01.
 
 ## Status
 - [x] Planned
