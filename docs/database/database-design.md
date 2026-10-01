@@ -1594,7 +1594,7 @@ Added by TASK-014 (`docs/tasks/TASK-014-products-variants.md`, ADR-0019). Migrat
 
 ### `products` (§5, migrated)
 - Fields: `id`, `name_ar`, `name_en`, `slug` (unique; lowercase Latin letters, digits and single hyphens, enforced by a check constraint), `description_ar` nullable, `description_en` nullable, `status` = `DRAFT` | `PUBLISHED` | `ARCHIVED` | `DISABLED` (default `DRAFT`), `created_at`, `updated_at`, `archived_at` nullable.
-- `brand_id` is added by TASK-015 with the `brands` table.
+- `brand_id` is added by TASK-015 with the `brands` table (see "v1.2 TASK-015 Amendments").
 - Index `(status, created_at desc)`.
 
 ### `product_variants` (§5, migrated)
@@ -1608,3 +1608,26 @@ Added by TASK-014 (`docs/tasks/TASK-014-products-variants.md`, ADR-0019). Migrat
 
 ### Uniqueness note
 - §22 lists "product SKU"; per §5 v1.2 SKUs exist only on variants, so only `product_variants.sku` is unique.
+
+## v1.2 TASK-015 Amendments
+
+Added by TASK-015 (`docs/tasks/TASK-015-brands-categories.md`, ADR-0020). Migrated in `prisma/migrations/*_brands_categories`.
+
+### `brands` (§5, migrated)
+- Fields: `id`, `name_ar`, `name_en`, `slug` (unique; same format check as products), `description_ar` nullable, `description_en` nullable, `status` = `ACTIVE` | `INACTIVE` (enum `taxonomy_status`, default `ACTIVE`), `created_at`, `updated_at`.
+- Index `(status, name_en)`.
+
+### `categories` (§5, migrated)
+- Fields: `id`, `name_ar`, `name_en`, `slug` (same format check), `parent_id` nullable (references `categories`, delete restricted; a check constraint forbids a category being its own parent), `status` (`taxonomy_status`), `created_at`, `updated_at`.
+- Slug unique within parent scope (§22): partial unique indexes `categories_top_level_slug_key` on `slug` where `parent_id IS NULL`, and `categories_parent_slug_key` on `(parent_id, slug)` where `parent_id IS NOT NULL`. Index on `parent_id`.
+- At most 3 levels and no loops: enforced by the service, which changes the tree one write at a time.
+
+### `product_categories` (§5, migrated)
+- Fields: `product_id`, `category_id` (both reference their tables, delete restricted), `created_at`. Primary key `(product_id, category_id)`; index on `category_id`.
+- Rows are removed when a category is taken off a product; the product's audit entries keep the history.
+
+### `products.brand_id` (§5, migrated)
+- Nullable, references `brands` (delete restricted). Index on `brand_id`.
+
+### No hard delete
+- The trigger function `catalog_reject_delete` now also rejects `DELETE` on `brands` and `categories` (Q75); they are deactivated instead.

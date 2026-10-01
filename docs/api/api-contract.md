@@ -1016,7 +1016,7 @@ Added by TASK-014 (`docs/tasks/TASK-014-products-variants.md`). Business rules: 
 - `product`: `{ id, nameAr, nameEn, slug, descriptionAr, descriptionEn, status, variants: [variant], createdAt, updatedAt, archivedAt }`.
 - `productSummary`: `{ id, nameAr, nameEn, slug, status, defaultVariant: { id, sku }, activeVariantCount, createdAt, updatedAt }`.
 - `variant`: `{ id, productId, sku, isDefault, nameAr, nameEn, attributes, status: ACTIVE | ARCHIVED, createdAt, updatedAt, archivedAt }`.
-- Prices and costs are not part of these responses yet (TASK-018). Publishing, archiving and disabling products, media, brands and categories come with TASK-015–017.
+- Prices and costs are not part of these responses yet (TASK-018). Publishing, archiving and disabling products and media come with TASK-016–017; brands and categories with TASK-015 (see "TASK-015 Amendments").
 - Audit actions added: `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_VARIANT_CREATED`, `PRODUCT_VARIANT_UPDATED`, `PRODUCT_VARIANT_ARCHIVED` (entity types `PRODUCT`, `PRODUCT_VARIANT`).
 
 ### Errors
@@ -1032,3 +1032,43 @@ Added by TASK-014 (`docs/tasks/TASK-014-products-variants.md`). Business rules: 
 | Archiving the default variant | `409 CONFLICT`, `details.reason = VARIANT_IS_DEFAULT` |
 | More than 100 variants on one product | `409 CONFLICT`, `details.reason = VARIANT_LIMIT` |
 | Unknown or malformed product or variant id | `404 NOT_FOUND` |
+
+## TASK-015 Amendments (brands and categories)
+
+Added by TASK-015 (`docs/tasks/TASK-015-brands-categories.md`). Business rules: Q75, R14, R19. Technical design and defaults: ADR-0020. Same employee session and `Origin` rules as TASK-014. No approval requests (R19).
+
+### Endpoints (§13)
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `GET /admin/brands` | `PRODUCT_VIEW` | query `page`, `pageSize` (max 100), `status`, `search` (names or slug) | `200` `[brand]` by English name + `meta.pagination` |
+| `POST /admin/brands` | `TAXONOMY_MANAGE` | `{ nameAr, nameEn, slug?, descriptionAr?, descriptionEn? }` | `201` `brand` (status `ACTIVE`) |
+| `PATCH /admin/brands/{id}` | `TAXONOMY_MANAGE` | any of `{ nameAr, nameEn, slug, descriptionAr, descriptionEn, status }` | `200` `brand` |
+| `GET /admin/categories` | `PRODUCT_VIEW` | query `status` | `200` `[category]`, the whole tree: each category followed by its subcategories, siblings by English name |
+| `POST /admin/categories` | `TAXONOMY_MANAGE` | `{ nameAr, nameEn, slug?, parentId? }` | `201` `category` (status `ACTIVE`) |
+| `PATCH /admin/categories/{id}` | `TAXONOMY_MANAGE` | any of `{ nameAr, nameEn, slug, parentId, status }` | `200` `category` |
+
+- `status`: `ACTIVE` or `INACTIVE`. Setting `INACTIVE` deactivates, `ACTIVE` reactivates. Nothing is deleted.
+- `slug`: same format as product slugs; made from `nameEn` when omitted. Brand slugs are unique; category slugs are unique among categories with the same parent. `parentId: null` moves a category to the top level.
+- `brand`: `{ id, nameAr, nameEn, slug, descriptionAr, descriptionEn, status, productCount, createdAt, updatedAt }`.
+- `category`: `{ id, nameAr, nameEn, slug, parentId, depth (1 = top level), status, productCount, createdAt, updatedAt }`.
+- Audit actions added: `BRAND_CREATED`, `BRAND_UPDATED`, `CATEGORY_CREATED`, `CATEGORY_UPDATED` (entity types `BRAND`, `CATEGORY`).
+
+### Product changes
+- `POST /admin/products` also takes `brandId?` and `categoryIds?`; `PATCH /admin/products/{id}` also takes `brandId` (`null` removes it) and `categoryIds` (the full list; `[]` removes all). At most 10 categories; duplicates are ignored.
+- `product` gains `brand: brandRef | null` and `categories: [categoryRef]` (by English name); `productSummary` gains `brand`. `brandRef`: `{ id, nameAr, nameEn, slug, status }`; `categoryRef` adds `parentId`.
+- `GET /admin/products` gains the filters `brandId` and `categoryId` (products listed directly in that category).
+- Product audit snapshots include `brandId` and `categoryIds`.
+
+### Errors
+| Case | Response |
+|---|---|
+| Invalid body or query | `400 VALIDATION_ERROR` |
+| No slug given and the English name has no Latin letter or digit | `400 VALIDATION_ERROR`, issue `slug` / `slug_required` |
+| Unknown `parentId`, `brandId` or category id in the body | `400 VALIDATION_ERROR`, issue code `category_not_found` / `brand_not_found` |
+| Slug used by another brand, or by a sibling category | `409 CONFLICT`, `details.reason = SLUG_TAKEN` (+ `slug`) |
+| Category deeper than 3 levels, by creating or moving | `409 CONFLICT`, `details.reason = CATEGORY_DEPTH_LIMIT` |
+| Moving a category under itself or one of its subcategories | `409 CONFLICT`, `details.reason = CATEGORY_LOOP` |
+| Deactivating a category that has active subcategories | `409 CONFLICT`, `details.reason = CATEGORY_HAS_ACTIVE_CHILDREN` |
+| Creating, moving or reactivating an active category under an inactive parent | `409 CONFLICT`, `details.reason = PARENT_INACTIVE` |
+| Linking a product to an inactive brand or category | `409 CONFLICT`, `details.reason = BRAND_INACTIVE` / `CATEGORY_INACTIVE` |
+| Unknown or malformed brand or category id in the path | `404 NOT_FOUND` |
