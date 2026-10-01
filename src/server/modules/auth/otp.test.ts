@@ -37,7 +37,7 @@ describe("one-time codes", () => {
 
 describe("code emails (R14)", () => {
   it("exist in Arabic and English and carry the code", () => {
-    for (const purpose of ["EMAIL_VERIFICATION", "PASSWORD_RESET"] as const) {
+    for (const purpose of ["EMAIL_VERIFICATION", "PASSWORD_RESET", "EMPLOYEE_LOGIN"] as const) {
       const en = otpEmail(purpose, "en", "sara@example.com", "024680");
       const ar = otpEmail(purpose, "ar", "sara@example.com", "024680");
       expect(en.to).toBe("sara@example.com");
@@ -47,5 +47,16 @@ describe("code emails (R14)", () => {
       expect(ar.subject).toMatch(/[؀-ۿ]/);
       expect(en.text).toContain("5 minutes");
     }
+  });
+
+  it("are bilingual for staff: Arabic first, then English (TASK-011)", () => {
+    const message = otpEmail("EMPLOYEE_LOGIN", "bilingual", "mona@beautyfits.example", "024680");
+    expect(message.subject).toBe(
+      "رمز تسجيل دخول الموظفين في BeautyFits | Your BeautyFits staff sign-in code",
+    );
+    const arabic = message.text.indexOf("رمز تسجيل دخول الموظفين");
+    const english = message.text.indexOf("Your BeautyFits staff sign-in code");
+    expect(arabic).toBeGreaterThanOrEqual(0);
+    expect(english).toBeGreaterThan(arabic);
   });
 });

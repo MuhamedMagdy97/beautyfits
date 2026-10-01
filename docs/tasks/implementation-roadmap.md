@@ -219,10 +219,12 @@ Implement secure guest-order claim flow using OTP; do not rely on phone match al
 
 Implement employee auth, email OTP challenge with 30-day trusted devices for all employees including Owner/Admin (Business Spec R28), session handling with 12 h / 60 min configurable defaults and reset revoking all sessions (R29), and logout.
 
+**Status after TASK-011** (`docs/tasks/TASK-011-employee-auth.md`): employee login, trusted devices, staff sessions, refresh, logout and recovery are done. Employee invitations (`accept-invitation`, Q64) move to TASK-012; the Owner-configurable session lengths use the settings store of TASK-004/TASK-057.
+
 ### TASK-012 — Roles & Granular Permissions
 **Depends on:** TASK-011
 
-Implement Owner/Admin/Manager/Employee hierarchy, custom roles, granular permissions and backend authorization.
+Implement Owner/Admin/Manager/Employee hierarchy, custom roles, granular permissions and backend authorization, including employee invitations and `POST /employee-auth/accept-invitation` (Q64; moved from TASK-011).
 
 ### TASK-013 — Approval Requests & Audit Logs
 **Depends on:** TASK-012

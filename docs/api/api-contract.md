@@ -215,6 +215,7 @@ Stock validation and reservation occur inside a transaction with concurrency-saf
 | POST | `/employee-auth/refresh` | Refresh employee session | Refresh token |
 | POST | `/employee-auth/logout` | Logout employee | Employee |
 | POST | `/employee-auth/logout-all` | Revoke all own employee sessions | Employee |
+| GET | `/employee-auth/session` | Current employee and session limits (TASK-011) | Employee |
 | POST | `/employee-auth/resend-otp` | Resend login OTP | Challenge |
 | POST | `/employee-auth/forgot-password` | Start employee password recovery | Public |
 | POST | `/employee-auth/reset-password` | Set new password after recovery OTP | Recovery flow |
@@ -878,3 +879,40 @@ Added by TASK-008 (`docs/tasks/TASK-008-email-otp-recovery.md`). Business rules:
 | New code within 60 s (Q160), more than 5 codes per hour for a purpose and email, more than 20 code requests per hour from one IP, or 30 wrong codes from one IP in 15 minutes | `429 AUTH_RATE_LIMITED`, `details.retryAfterSeconds` |
 | Email or phone verified by another account first | `409 CONFLICT`, `details.field` = `email` / `phone` |
 | Account suspended or deactivated | `403 FORBIDDEN` |
+
+## TASK-011 Amendments (employee login)
+
+Added by TASK-011 (`docs/tasks/TASK-011-employee-auth.md`). Business rules: R15, R24 values, R28, R29, R30, Q158–Q161, Q163. Technical design: ADR-0015. All endpoints accept JSON and apply the `Origin` check of the TASK-007 amendments.
+
+### Transport
+- Same two transports as customers. With `X-Auth-Transport: cookie` the employee tokens are set as `__Host-bfe_at` (access, `Path=/`) and `__Secure-bfe_rt` (refresh, `Path=/api/v1/employee-auth`), separate from the customer cookies, and a trusted device as `__Secure-bfe_dt` (`Path=/api/v1/employee-auth`, 30 days). All are `HttpOnly; Secure; SameSite=Lax`.
+- Bearer clients receive `tokens` and, after a code, `deviceToken` in the body, and send `deviceToken` back in the login body.
+- Access tokens last 15 minutes. A staff session lasts at most 12 hours from login and ends after 60 minutes without activity (R29 defaults, Owner/Admin-configurable). Refreshing does not extend either limit and is not activity.
+
+### Endpoints
+| Endpoint | Request body | Success |
+|---|---|---|
+| `POST /employee-auth/login` | `{ email, password, deviceToken? }` (cookie clients send the device cookie instead) | Trusted device: `200` signed-in body. Otherwise `202` `{ otpRequired: true, codeSent, loginTicket, loginTicketExpiresAt, cooldownSeconds: 60 }` and a code is emailed. |
+| `POST /employee-auth/verify-otp` | `{ loginTicket, code }` | `200` signed-in body plus `deviceTrustedUntil` (and `deviceToken` for Bearer). The device is trusted for 30 days (R28). |
+| `POST /employee-auth/resend-otp` | `{ loginTicket }` | `202` `{ otpRequired: true, loginTicket, loginTicketExpiresAt, cooldownSeconds: 60 }`: a new code and a new ticket; the old ticket stops working. |
+| `POST /employee-auth/refresh` | `{ refreshToken? }` (omit when using the cookie) | `200` signed-in body |
+| `POST /employee-auth/logout` | — | `204`; the device stays trusted |
+| `POST /employee-auth/logout-all` | — | `204` |
+| `GET /employee-auth/session` | — | `200` `{ account, employee, session }` (new endpoint, as `GET /auth/session` for customers) |
+| `POST /employee-auth/forgot-password` | `{ email }` | `202` `{ cooldownSeconds: 60 }`, the same for any email |
+| `POST /employee-auth/reset-password` | `{ email, code, newPassword }` | `204`. Every session of the employee is revoked (R29); the employee signs in again. |
+
+- Signed-in body: `{ account: { id, email, status }, employee: { id, displayName, level, department }, session: { expiresAt, idleTimeoutSeconds }, tokens? }`.
+- The login ticket is valid for 15 minutes after the password check, resends included. `code` is exactly 6 digits; `newPassword` follows the password policy (Q156).
+- `POST /employee-auth/accept-invitation` (Q64) is not implemented yet; it comes with employee invitations (TASK-012).
+
+### Errors
+| Case | Response |
+|---|---|
+| Unknown email or wrong password | `401 AUTH_INVALID_CREDENTIALS` (same response) |
+| Correct password, account or employee not active | `403 FORBIDDEN` |
+| Employee login locked (5 consecutive failures) or IP blocked (30 failures / 15 min); code request within 60 s, more than 5 per hour, more than 20 per hour from one IP; 30 wrong codes from one IP in 15 minutes | `429 AUTH_RATE_LIMITED`, `details.retryAfterSeconds` |
+| Wrong code, unknown or replaced ticket, used ticket | `401 AUTH_OTP_INVALID`; after a counted attempt `details.attemptsRemaining` |
+| Code older than 5 minutes, or ticket older than 15 minutes | `401 AUTH_OTP_EXPIRED` |
+| Missing, invalid, expired, revoked or idle session | `401 UNAUTHENTICATED` |
+| Customer token on an employee endpoint (or the reverse) | `403 FORBIDDEN` |

@@ -46,3 +46,39 @@ export const REGISTER_IP_LIMIT: RateLimitPolicy = {
   windowMs: MS_PER_HOUR,
   blockMs: MS_PER_HOUR,
 };
+
+/**
+ * Employee authentication (TASK-011). Business values cite their rule; the
+ * others are technical parameters recorded in ADR-0015.
+ */
+export const EMPLOYEE_AUTH_POLICY = {
+  /** R28: a device is trusted for 30 days after a successful login code. */
+  trustedDeviceTtlMs: 30 * MS_PER_DAY,
+  /**
+   * Time allowed between the password check and the email code, resends
+   * included; afterwards the employee enters the password again (ADR-0015).
+   */
+  loginTicketTtlMs: 15 * MS_PER_MINUTE,
+} as const;
+
+/**
+ * Staff session lengths (R29, Q163). Owner/Admin-configurable: this is the
+ * shape the settings store (TASK-004 defaults, TASK-057 settings screen)
+ * provides; until then the R29 defaults apply.
+ */
+export interface StaffSessionSettings {
+  /** Absolute session lifetime from login. */
+  maxLifetimeMs: number;
+  /** The session ends after this long without activity. */
+  idleTimeoutMs: number;
+}
+
+/** R29 defaults: 12 hours maximum, 60 minutes idle. */
+export const DEFAULT_STAFF_SESSION_SETTINGS: StaffSessionSettings = {
+  maxLifetimeMs: 12 * MS_PER_HOUR,
+  idleTimeoutMs: 60 * MS_PER_MINUTE,
+};
+
+/** Employee login throttling: the R24 values with employee-only keys (ADR-0015). */
+export const EMPLOYEE_LOGIN_ACCOUNT_LIMIT: RateLimitPolicy = LOGIN_ACCOUNT_LIMIT;
+export const EMPLOYEE_LOGIN_IP_LIMIT: RateLimitPolicy = LOGIN_IP_LIMIT;

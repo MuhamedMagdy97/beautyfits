@@ -17,8 +17,7 @@ import {
   OTP_POLICY,
   OTP_SEND_IP_LIMIT,
   OTP_VERIFY_IP_LIMIT,
-  otpCodeMatches,
-  type OtpEmailPurpose,
+  attemptOtpCode,
 } from "@/server/modules/auth/otp";
 import { createScryptHasher, type PasswordHasher } from "@/server/modules/auth/password-hash";
 import { revokeAccountSessions } from "@/server/modules/auth/sessions";
@@ -58,6 +57,8 @@ export interface ResetGrant {
 
 type AccountWithCustomer = Account & { customer: Customer | null };
 
+type CustomerOtpPurpose = "EMAIL_VERIFICATION" | "PASSWORD_RESET";
+
 function ipKey(prefix: string, ip: string | null): string {
   return `${prefix}:ip:${ip ?? "unknown"}`;
 }
@@ -88,7 +89,7 @@ export function createVerificationService(deps: VerificationServiceDeps) {
 
   /** The account a code of this purpose would go to, or null (answered silently). */
   async function findRecipient(
-    purpose: OtpEmailPurpose,
+    purpose: CustomerOtpPurpose,
     email: string,
     now: Date,
   ): Promise<AccountWithCustomer | null> {
@@ -122,7 +123,7 @@ export function createVerificationService(deps: VerificationServiceDeps) {
    * 60 s cooldown and 5 per hour per purpose and email, 20 per hour per IP.
    */
   async function sendCode(
-    input: { email: string; purpose: OtpEmailPurpose },
+    input: { email: string; purpose: CustomerOtpPurpose },
     meta: RequestMeta,
   ): Promise<{ cooldownSeconds: number }> {
     const now = clock.now();
@@ -147,7 +148,13 @@ export function createVerificationService(deps: VerificationServiceDeps) {
       { accountId: account.id, purpose: input.purpose, destination: account.email, ip: meta.ip },
       now,
     );
-    await deliverOtpEmail(sender, meta.logger, input.purpose, account, issued);
+    await deliverOtpEmail(
+      sender,
+      meta.logger,
+      input.purpose,
+      { accountId: account.id, locale: account.customer?.preferredLocale ?? "ar" },
+      issued,
+    );
     return { cooldownSeconds };
   }
 
@@ -157,7 +164,7 @@ export function createVerificationService(deps: VerificationServiceDeps) {
    * A correct code is consumed and cannot be used again.
    */
   async function consumeCode(
-    purpose: OtpEmailPurpose,
+    purpose: CustomerOtpPurpose,
     email: string,
     code: string,
     meta: RequestMeta,
@@ -172,8 +179,15 @@ export function createVerificationService(deps: VerificationServiceDeps) {
       throw error;
     };
 
+    // Customer codes only: an employee may share the email (R15).
     const challenge = await db.otpChallenge.findFirst({
-      where: { purpose, destination: email, supersededAt: null, consumedAt: null },
+      where: {
+        purpose,
+        destination: email,
+        supersededAt: null,
+        consumedAt: null,
+        account: { accountType: "CUSTOMER" },
+      },
       orderBy: { createdAt: "desc" },
     });
     if (!challenge) {
@@ -182,31 +196,15 @@ export function createVerificationService(deps: VerificationServiceDeps) {
     if (challenge.expiresAt <= now) {
       return fail(expiredCode());
     }
-
-    // Count the attempt atomically; concurrent guesses cannot exceed the limit.
-    const counted = await db.otpChallenge.updateMany({
-      where: {
-        id: challenge.id,
-        consumedAt: null,
-        supersededAt: null,
-        attemptCount: { lt: challenge.maxAttempts },
-      },
-      data: { attemptCount: { increment: 1 } },
-    });
-    if (counted.count === 0) {
-      return fail(invalidCode({ attemptsRemaining: 0 }));
-    }
-    const attemptsUsed = Math.min(challenge.attemptCount + 1, challenge.maxAttempts);
-
-    if (!otpCodeMatches(challenge, code)) {
-      return fail(invalidCode({ attemptsRemaining: challenge.maxAttempts - attemptsUsed }));
-    }
-    const consumed = await db.otpChallenge.updateMany({
-      where: { id: challenge.id, consumedAt: null },
-      data: { consumedAt: now },
-    });
-    if (consumed.count === 0) {
-      return fail(invalidCode());
+    const attempt = await attemptOtpCode(db, challenge, code, now);
+    if (!attempt.ok) {
+      return fail(
+        invalidCode(
+          attempt.attemptsRemaining === undefined
+            ? {}
+            : { attemptsRemaining: attempt.attemptsRemaining },
+        ),
+      );
     }
     return { ...challenge, consumedAt: now };
   }

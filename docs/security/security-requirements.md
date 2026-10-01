@@ -72,6 +72,11 @@ Security is a cross-cutting concern from the beginning, not a post-MVP feature (
 | Staff sessions: default 12 hours maximum and 60 minutes idle; admin-configurable; a staff password reset revokes all sessions | Q163, Business Spec R29 |
 | Email is the only OTP channel in v1 | Business Spec R30 |
 | Employees are invited by work email; access is deactivated, never hard-deleted when history exists | Q64, Q69 |
+| The email code needs the login ticket from the password step (the code alone never signs in); the ticket lasts 15 minutes | ADR-0015 |
+| Trusted-device and login-ticket tokens are 256 random bits stored only as SHA-256; the website keeps the device token in an `HttpOnly; Secure` cookie sent only to the employee auth endpoints | ADR-0015 |
+| An idle staff session is rejected; a token refresh is not activity | R29, ADR-0015 |
+| Employee login throttling: the R24 values with employee-only keys | R24, ADR-0015 |
+| Customer and employee sessions, cookies, codes and code limits never cross, even for a shared email | R15, ADR-0015 |
 
 ## 5. Authorization
 
@@ -150,7 +155,7 @@ Pipeline (Architecture §20): authentication + permission → type/size/dimensio
 ## 12. Open Items
 
 Items the source documents leave to implementation tasks (not business decisions):
-- Session/token mechanism and auth library (Architecture §27). **Architecture decided in TASK-002** (ADR-0008): no auth library, first-party opaque server-side revocable sessions, and Bearer transport. **Customer token lifetimes, rotation and website cookies decided in TASK-007** (ADR-0013). Staff sessions remain for TASK-011.
+- Session/token mechanism and auth library (Architecture §27). **Architecture decided in TASK-002** (ADR-0008): no auth library, first-party opaque server-side revocable sessions, and Bearer transport. **Customer token lifetimes, rotation and website cookies decided in TASK-007** (ADR-0013). **Staff sessions decided in TASK-011** (ADR-0015).
 - Password hashing parameters: **decided in TASK-007** (ADR-0013: scrypt N=2^16, r=8, p=2).
 - Log redaction is implemented by the shared logger (ADR-0006); callers must still avoid logging unnecessary personal data.
 - CSRF for cookie-authenticated requests: **Origin/Referer check decided in TASK-007** (ADR-0013). CORS and the remaining browser-security headers: TASK-061.

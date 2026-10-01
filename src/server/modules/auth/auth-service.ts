@@ -323,7 +323,13 @@ export function createAuthService(deps: AuthServiceDeps) {
     meta.logger.info("customer registered", { accountId: account.id, replacedPending: replaced });
     // After commit: a failed send never undoes the registration (ADR-0014).
     const verificationCodeSent = otp
-      ? await deliverOtpEmail(emailSender, meta.logger, "EMAIL_VERIFICATION", account, otp)
+      ? await deliverOtpEmail(
+          emailSender,
+          meta.logger,
+          "EMAIL_VERIFICATION",
+          { accountId: account.id, locale: account.customer?.preferredLocale ?? "ar" },
+          otp,
+        )
       : false;
     const view = toView(account);
     return {

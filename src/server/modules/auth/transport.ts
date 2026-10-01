@@ -17,6 +17,33 @@ export const REFRESH_COOKIE = "__Secure-bf_rt";
 /** The refresh cookie is only sent to the auth endpoints. */
 export const REFRESH_COOKIE_PATH = "/api/v1/auth";
 
+/** Cookie names and refresh path of one authentication domain. */
+export interface AuthCookieNames {
+  access: string;
+  refresh: string;
+  refreshPath: string;
+}
+
+export const CUSTOMER_COOKIES: AuthCookieNames = {
+  access: ACCESS_COOKIE,
+  refresh: REFRESH_COOKIE,
+  refreshPath: REFRESH_COOKIE_PATH,
+};
+
+/**
+ * Employee cookies (TASK-011, ADR-0015) have their own names, so a person
+ * signed in as both customer and employee on one browser (R15) keeps two
+ * independent sessions.
+ */
+export const EMPLOYEE_COOKIES: AuthCookieNames = {
+  access: "__Host-bfe_at",
+  refresh: "__Secure-bfe_rt",
+  refreshPath: "/api/v1/employee-auth",
+};
+
+/** Employee trusted-device token (R28), only sent to the employee auth endpoints. */
+export const EMPLOYEE_DEVICE_COOKIE = "__Secure-bfe_dt";
+
 export type CredentialSource = "bearer" | "cookie" | "body";
 
 export interface Credential {
@@ -49,13 +76,16 @@ export function parseCookies(header: string | null): Map<string, string> {
  * an (invalid) bearer credential rather than silently falling back to the
  * cookie.
  */
-export function getAccessCredential(request: Request): Credential | null {
+export function getAccessCredential(
+  request: Request,
+  cookies: AuthCookieNames = CUSTOMER_COOKIES,
+): Credential | null {
   const authorization = request.headers.get("authorization");
   if (authorization !== null) {
     const match = /^Bearer\s+(\S+)\s*$/i.exec(authorization);
     return { token: match?.[1] ?? "", source: "bearer" };
   }
-  const cookie = parseCookies(request.headers.get("cookie")).get(ACCESS_COOKIE);
+  const cookie = parseCookies(request.headers.get("cookie")).get(cookies.access);
   return cookie ? { token: cookie, source: "cookie" } : null;
 }
 
@@ -63,11 +93,12 @@ export function getAccessCredential(request: Request): Credential | null {
 export function getRefreshCredential(
   request: Request,
   bodyToken: string | undefined,
+  cookies: AuthCookieNames = CUSTOMER_COOKIES,
 ): Credential | null {
   if (bodyToken !== undefined) {
     return { token: bodyToken, source: "body" };
   }
-  const cookie = parseCookies(request.headers.get("cookie")).get(REFRESH_COOKIE);
+  const cookie = parseCookies(request.headers.get("cookie")).get(cookies.refresh);
   return cookie ? { token: cookie, source: "cookie" } : null;
 }
 
@@ -144,24 +175,43 @@ export interface IssuedTokens {
 }
 
 /** Set-Cookie values carrying a token pair (cookie transport). */
-export function authCookies(tokens: IssuedTokens, now: Date): string[] {
-  const seconds = (until: Date) => Math.floor((until.getTime() - now.getTime()) / 1000);
+function secondsBetween(now: Date, until: Date): number {
+  return Math.floor((until.getTime() - now.getTime()) / 1000);
+}
+
+export function authCookies(
+  tokens: IssuedTokens,
+  now: Date,
+  cookies: AuthCookieNames = CUSTOMER_COOKIES,
+): string[] {
   return [
-    serializeCookie(ACCESS_COOKIE, tokens.accessToken, {
+    serializeCookie(cookies.access, tokens.accessToken, {
       path: "/",
-      maxAgeSeconds: seconds(tokens.accessTokenExpiresAt),
+      maxAgeSeconds: secondsBetween(now, tokens.accessTokenExpiresAt),
     }),
-    serializeCookie(REFRESH_COOKIE, tokens.refreshToken, {
-      path: REFRESH_COOKIE_PATH,
-      maxAgeSeconds: seconds(tokens.refreshTokenExpiresAt),
+    serializeCookie(cookies.refresh, tokens.refreshToken, {
+      path: cookies.refreshPath,
+      maxAgeSeconds: secondsBetween(now, tokens.refreshTokenExpiresAt),
     }),
   ];
 }
 
 /** Set-Cookie values that delete both auth cookies. */
-export function clearedAuthCookies(): string[] {
+export function clearedAuthCookies(cookies: AuthCookieNames = CUSTOMER_COOKIES): string[] {
   return [
-    serializeCookie(ACCESS_COOKIE, "", { path: "/", maxAgeSeconds: 0 }),
-    serializeCookie(REFRESH_COOKIE, "", { path: REFRESH_COOKIE_PATH, maxAgeSeconds: 0 }),
+    serializeCookie(cookies.access, "", { path: "/", maxAgeSeconds: 0 }),
+    serializeCookie(cookies.refresh, "", { path: cookies.refreshPath, maxAgeSeconds: 0 }),
   ];
+}
+
+/** Set-Cookie value carrying an employee trusted-device token until it expires. */
+export function employeeDeviceCookie(token: string, expiresAt: Date, now: Date): string {
+  return serializeCookie(EMPLOYEE_DEVICE_COOKIE, token, {
+    path: EMPLOYEE_COOKIES.refreshPath,
+    maxAgeSeconds: secondsBetween(now, expiresAt),
+  });
+}
+
+export function getEmployeeDeviceCookie(request: Request): string | undefined {
+  return parseCookies(request.headers.get("cookie")).get(EMPLOYEE_DEVICE_COOKIE);
 }

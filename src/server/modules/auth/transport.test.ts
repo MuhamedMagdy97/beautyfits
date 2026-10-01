@@ -6,7 +6,11 @@ import {
   assertAllowedOrigin,
   authCookies,
   clearedAuthCookies,
+  EMPLOYEE_COOKIES,
+  EMPLOYEE_DEVICE_COOKIE,
+  employeeDeviceCookie,
   getAccessCredential,
+  getEmployeeDeviceCookie,
   getRefreshCredential,
   parseCookies,
   REFRESH_COOKIE,
@@ -39,6 +43,12 @@ describe("tokens", () => {
     expect(generateToken("access")).not.toBe(access);
     expect(hashToken(access)).toMatch(/^[0-9a-f]{64}$/);
     expect(hashToken(access)).toBe(hashToken(access));
+  });
+
+  it("have distinct kinds for login tickets and trusted devices (TASK-011)", () => {
+    expect(generateToken("login")).toMatch(/^bfl_[A-Za-z0-9_-]{43}$/);
+    expect(isWellFormedToken("device", generateToken("device"))).toBe(true);
+    expect(isWellFormedToken("device", generateToken("login"))).toBe(false);
   });
 });
 
@@ -81,6 +91,25 @@ describe("credential extraction", () => {
     });
   });
 
+  it("reads only the employee cookies for the employee domain (R15)", () => {
+    const req = request({
+      cookie: `${ACCESS_COOKIE}=customer; ${EMPLOYEE_COOKIES.access}=employee; ${EMPLOYEE_COOKIES.refresh}=r; ${EMPLOYEE_DEVICE_COOKIE}=d`,
+    });
+    expect(getAccessCredential(req)).toEqual({ token: "customer", source: "cookie" });
+    expect(getAccessCredential(req, EMPLOYEE_COOKIES)).toEqual({
+      token: "employee",
+      source: "cookie",
+    });
+    expect(getRefreshCredential(req, undefined, EMPLOYEE_COOKIES)).toEqual({
+      token: "r",
+      source: "cookie",
+    });
+    expect(getEmployeeDeviceCookie(req)).toBe("d");
+    expect(getAccessCredential(request({ cookie: `${ACCESS_COOKIE}=c` }), EMPLOYEE_COOKIES)).toBe(
+      null,
+    );
+  });
+
   it("detects the cookie transport header", () => {
     expect(wantsCookieTransport(request({ "x-auth-transport": "Cookie" }))).toBe(true);
     expect(wantsCookieTransport(request({}))).toBe(false);
@@ -104,6 +133,27 @@ describe("auth cookies", () => {
     );
     expect(refresh).toBe(
       `${REFRESH_COOKIE}=bfr_y; Path=/api/v1/auth; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax`,
+    );
+  });
+
+  it("have employee names and paths; the device cookie lasts 30 days", () => {
+    const now = new Date("2026-09-30T12:00:00.000Z");
+    const [access, refresh] = authCookies(
+      {
+        accessToken: "bfa_x",
+        accessTokenExpiresAt: new Date(now.getTime() + 15 * 60_000),
+        refreshToken: "bfr_y",
+        refreshTokenExpiresAt: new Date(now.getTime() + 12 * 3_600_000),
+      },
+      now,
+      EMPLOYEE_COOKIES,
+    );
+    expect(access).toBe("__Host-bfe_at=bfa_x; Path=/; Max-Age=900; HttpOnly; Secure; SameSite=Lax");
+    expect(refresh).toBe(
+      "__Secure-bfe_rt=bfr_y; Path=/api/v1/employee-auth; Max-Age=43200; HttpOnly; Secure; SameSite=Lax",
+    );
+    expect(employeeDeviceCookie("bfd_z", new Date(now.getTime() + 30 * 86_400_000), now)).toBe(
+      "__Secure-bfe_dt=bfd_z; Path=/api/v1/employee-auth; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax",
     );
   });
 

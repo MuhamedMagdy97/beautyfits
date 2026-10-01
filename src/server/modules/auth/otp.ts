@@ -1,7 +1,6 @@
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import type {
-  Account,
-  Customer,
+  AuthDomain,
   Locale,
   OtpChallenge,
   OtpPurpose,
@@ -58,8 +57,14 @@ export const OTP_VERIFY_IP_LIMIT: RateLimitPolicy = {
   blockMs: 15 * MS_PER_MINUTE,
 };
 
-/** Purposes whose codes TASK-008 sends (more follow in TASK-009/010/011). */
-export type OtpEmailPurpose = "EMAIL_VERIFICATION" | "PASSWORD_RESET";
+/** Purposes whose codes are sent so far (more follow in TASK-009/010). */
+export type OtpEmailPurpose = "EMAIL_VERIFICATION" | "PASSWORD_RESET" | "EMPLOYEE_LOGIN";
+
+/**
+ * Language of a code email: the customer's preferred language (R14), or both
+ * languages for staff, who have no language preference (ADR-0015).
+ */
+export type EmailLocale = Locale | "bilingual";
 
 export function generateOtpCode(): string {
   return String(randomInt(0, 10 ** OTP_POLICY.codeLength)).padStart(OTP_POLICY.codeLength, "0");
@@ -86,16 +91,26 @@ export interface IssuedOtp {
 }
 
 /**
- * Creates a challenge and supersedes every earlier open challenge with the
- * same purpose and destination, so only the newest code works.
+ * Creates a challenge and supersedes every earlier open challenge of the same
+ * account with the same purpose and destination, so only the newest code
+ * works. Scoping by account keeps a customer's and an employee's codes for a
+ * shared email apart (R15). `grant` attaches a single-use token at creation
+ * (the employee login ticket, TASK-011).
  */
 export async function issueOtpChallenge(
   db: Db,
-  input: { accountId: string; purpose: OtpPurpose; destination: string; ip: string | null },
+  input: {
+    accountId: string;
+    purpose: OtpPurpose;
+    destination: string;
+    ip: string | null;
+    grant?: { tokenHash: string; expiresAt: Date };
+  },
   now: Date,
 ): Promise<IssuedOtp> {
   await db.otpChallenge.updateMany({
     where: {
+      accountId: input.accountId,
       purpose: input.purpose,
       destination: input.destination,
       consumedAt: null,
@@ -116,11 +131,50 @@ export async function issueOtpChallenge(
       maxAttempts: OTP_POLICY.maxAttempts,
       expiresAt: new Date(now.getTime() + OTP_POLICY.ttlMs),
       lastSentAt: now,
+      grantTokenHash: input.grant?.tokenHash ?? null,
+      grantExpiresAt: input.grant?.expiresAt ?? null,
       ipAddress: input.ip,
       createdAt: now,
     },
   });
   return { challenge, code };
+}
+
+export type OtpAttempt = { ok: true } | { ok: false; attemptsRemaining?: number };
+
+/**
+ * Checks a code against one open, unexpired challenge (Q158). Every attempt
+ * is counted with a conditional update, so concurrent guesses cannot exceed
+ * the limit; after the last attempt the code is dead. A correct code is
+ * consumed and cannot be used again.
+ */
+export async function attemptOtpCode(
+  db: Db,
+  challenge: OtpChallenge,
+  code: string,
+  now: Date,
+): Promise<OtpAttempt> {
+  const counted = await db.otpChallenge.updateMany({
+    where: {
+      id: challenge.id,
+      consumedAt: null,
+      supersededAt: null,
+      attemptCount: { lt: challenge.maxAttempts },
+    },
+    data: { attemptCount: { increment: 1 } },
+  });
+  if (counted.count === 0) {
+    return { ok: false, attemptsRemaining: 0 };
+  }
+  const attemptsUsed = Math.min(challenge.attemptCount + 1, challenge.maxAttempts);
+  if (!otpCodeMatches(challenge, code)) {
+    return { ok: false, attemptsRemaining: challenge.maxAttempts - attemptsUsed };
+  }
+  const consumed = await db.otpChallenge.updateMany({
+    where: { id: challenge.id, consumedAt: null },
+    data: { consumedAt: now },
+  });
+  return consumed.count === 0 ? { ok: false } : { ok: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -129,7 +183,7 @@ export async function issueOtpChallenge(
 const MINUTES = OTP_POLICY.ttlMs / MS_PER_MINUTE;
 
 const TEMPLATES: Record<
-  "EMAIL_VERIFICATION" | "PASSWORD_RESET",
+  OtpEmailPurpose,
   Record<Locale, (code: string) => { subject: string; text: string }>
 > = {
   EMAIL_VERIFICATION: {
@@ -164,25 +218,53 @@ const TEMPLATES: Record<
         "إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذه الرسالة. لم تتغير كلمة المرور.\n",
     }),
   },
+  EMPLOYEE_LOGIN: {
+    en: (code) => ({
+      subject: "Your BeautyFits staff sign-in code",
+      text:
+        `Your BeautyFits staff sign-in code is ${code}.\n\n` +
+        `It expires in ${MINUTES} minutes. Do not share it with anyone.\n\n` +
+        "If you did not just sign in, change your password and tell the store owner.\n",
+    }),
+    ar: (code) => ({
+      subject: "رمز تسجيل دخول الموظفين في BeautyFits",
+      text:
+        `رمز تسجيل دخول الموظفين الخاص بك في BeautyFits هو ${code}.\n\n` +
+        `ينتهي الرمز خلال ${MINUTES} دقائق. لا تشاركه مع أي شخص.\n\n` +
+        "إذا لم تحاول تسجيل الدخول الآن، غيّر كلمة المرور وأبلغ صاحب المتجر.\n",
+    }),
+  },
 };
 
 export function otpEmail(
-  purpose: "EMAIL_VERIFICATION" | "PASSWORD_RESET",
-  locale: Locale,
+  purpose: OtpEmailPurpose,
+  locale: EmailLocale,
   to: string,
   code: string,
 ): EmailMessage {
-  return { to, ...TEMPLATES[purpose][locale](code) };
+  if (locale !== "bilingual") {
+    return { to, ...TEMPLATES[purpose][locale](code) };
+  }
+  // Arabic first, then English (R14).
+  const ar = TEMPLATES[purpose].ar(code);
+  const en = TEMPLATES[purpose].en(code);
+  return { to, subject: `${ar.subject} | ${en.subject}`, text: `${ar.text}\n---\n\n${en.text}` };
 }
 
 // ---------------------------------------------------------------------------
 // Sending
 
-function sendKeys(purpose: OtpEmailPurpose, email: string) {
+/**
+ * Customer keys are `otp:send:<purpose>:<digest>`; employee keys add the
+ * domain, so a customer and an employee sharing an email (R15) never use
+ * up each other's limits.
+ */
+function sendKeys(domain: AuthDomain, purpose: OtpEmailPurpose, email: string) {
   const digest = emailDigest(email);
+  const scope = domain === "CUSTOMER" ? purpose : `${domain}:${purpose}`;
   return {
-    cooldown: `otp:send:${purpose}:${digest}`,
-    hourly: `otp:send-hour:${purpose}:${digest}`,
+    cooldown: `otp:send:${scope}:${digest}`,
+    hourly: `otp:send-hour:${scope}:${digest}`,
   };
 }
 
@@ -195,21 +277,22 @@ export async function deliverOtpEmail(
   sender: EmailSender,
   logger: Logger,
   purpose: OtpEmailPurpose,
-  account: Account & { customer: Customer | null },
+  recipient: { accountId: string; locale: EmailLocale },
   issued: IssuedOtp,
 ): Promise<boolean> {
-  const locale = account.customer?.preferredLocale ?? "ar";
   try {
-    await sender.send(otpEmail(purpose, locale, issued.challenge.destination, issued.code));
+    await sender.send(
+      otpEmail(purpose, recipient.locale, issued.challenge.destination, issued.code),
+    );
     logger.info("one-time code sent", {
-      accountId: account.id,
+      accountId: recipient.accountId,
       purpose,
       challengeId: issued.challenge.id,
     });
     return true;
   } catch (error) {
     logger.error("one-time code email could not be sent", {
-      accountId: account.id,
+      accountId: recipient.accountId,
       purpose,
       challengeId: issued.challenge.id,
       err: error,
@@ -227,8 +310,9 @@ export async function claimOtpSend(
   purpose: OtpEmailPurpose,
   email: string,
   now: Date,
+  domain: AuthDomain = "CUSTOMER",
 ): Promise<{ allowed: true } | { allowed: false; until: Date }> {
-  const keys = sendKeys(purpose, email);
+  const keys = sendKeys(domain, purpose, email);
   for (const key of [keys.cooldown, keys.hourly]) {
     const until = await getBlockedUntil(db, key, now);
     if (until) {
