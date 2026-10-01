@@ -14,14 +14,23 @@ Security is a cross-cutting concern from the beginning, not a post-MVP feature (
 | Requirement | Source |
 |---|---|
 | Phone is the primary customer identifier; email is also stored and verified | Q41 |
+| Phone is an Egyptian mobile number (010/011/012/015 + 8 digits), stored in E.164 | R27 |
+| Phone verified by WhatsApp OTP at registration; the account is ACTIVE only after email and phone are both verified | R25 |
+| Pending registrations do not reserve email/phone; uniqueness applies to verified identities; a pending account expires after 24 hours | R25 |
+| A customer with an unverified email cannot log in; a verified email with a pending phone gives limited access (session and verification only) | R26 |
 | Email verification by OTP is required at account creation | Q42 |
-| Duplicate email is rejected; the user is directed to login/recovery | Q151 |
+| Duplicate (verified) email is rejected; the user is directed to login/recovery | Q151, R25 |
 | Password: minimum 12 characters, long passphrases allowed, checked against common/breached passwords, no forced composition rules | Q156 |
 | Passwords are stored as hashes only; never plaintext | DB §3.1 |
 | Rate limiting + progressive controls + CAPTCHA when suspicious (CAPTCHA is a layer, not the only control) | Q157 |
+| 5 consecutive failed password attempts block the account's login for 15 minutes (even with the correct password); 30 failed logins from one IP in 15 minutes block that IP for 15 minutes; CAPTCHA in TASK-061 | R24, ADR-0013 |
+| Per-IP limits use the direct connection address; `X-Forwarded-For`/`X-Real-IP` are trusted only from configured proxies (`TRUSTED_PROXIES`) | ADR-0013 |
 | Customer session lifetime: 30 days; sessions remain revocable | Q162 |
 | Customer can log out from all devices (revokes active sessions) | Q164 |
-| Forgot-password uses email OTP; existing sessions handled according to security policy | User Flows §3.2 |
+| Sessions last 30 days from login (absolute); opaque tokens stored only as SHA-256; 15-minute access tokens; refresh-token rotation with reuse detection | Q162, R23, ADR-0013 |
+| Password change keeps the current session and revokes all others | R23 |
+| Website tokens only in `HttpOnly; Secure; SameSite=Lax` cookies; cookie-authenticated state-changing requests require an allowed Origin/Referer (CSRF) | ADR-0013 |
+| Forgot-password uses email OTP; a password reset revokes all of the customer's sessions | User Flows §3.2, R23 |
 
 ### OTP rules
 
@@ -136,9 +145,9 @@ Pipeline (Architecture §20): authentication + permission → type/size/dimensio
 ## 12. Open Items
 
 Items the source documents leave to implementation tasks (not business decisions):
-- Session/token mechanism and auth library (Architecture §27). **Architecture decided in TASK-002** (ADR-0008): no auth library, first-party opaque server-side revocable sessions, and Bearer transport. Token lifetimes/rotation and cookie usage for the Website remain for TASK-007/TASK-011.
-- Password hashing algorithm parameters (ADR-0008 default: Node `crypto.scrypt`; TASK-007).
+- Session/token mechanism and auth library (Architecture §27). **Architecture decided in TASK-002** (ADR-0008): no auth library, first-party opaque server-side revocable sessions, and Bearer transport. **Customer token lifetimes, rotation and website cookies decided in TASK-007** (ADR-0013). Staff sessions remain for TASK-011.
+- Password hashing parameters: **decided in TASK-007** (ADR-0013: scrypt N=2^16, r=8, p=2).
 - Log redaction is implemented by the shared logger (ADR-0006); callers must still avoid logging unnecessary personal data.
-- CSRF/CORS policy (TASK-061).
+- CSRF for cookie-authenticated requests: **Origin/Referer check decided in TASK-007** (ADR-0013). CORS and the remaining browser-security headers: TASK-061.
 - Malware scanning provider (TASK-016).
-- Exact rate-limit thresholds other than the OTP rules above (TASK-007, TASK-061).
+- Rate-limit thresholds for login and registration: **decided in TASK-007** (R24, ADR-0013). Others (checkout, analytics, review/report): TASK-061 and their own tasks.

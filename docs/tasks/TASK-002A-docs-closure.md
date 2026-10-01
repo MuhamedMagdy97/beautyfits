@@ -89,9 +89,9 @@ D-01 to D-04 were answered directly by the owner. D-05 to D-07 were delegated by
 ## Remaining open decisions (not blocking this task's start)
 Recorded as `[BUSINESS DECISION REQUIRED]` in the owning documents until answered:
 1. Employee OTP: mandatory for all employees? Owner/Admin MFA: same email OTP or separate factor? Default staff session length.
-2. Sessions after password reset (revoke all?).
-3. Channel for phone-change OTP and guest-order claim OTP.
-4. Hosting model (long-running server vs serverless) — technical, owner confirms.
+2. Sessions after password reset (revoke all?). **Customers: resolved in TASK-007 (Business Spec R23).** Staff: TASK-011.
+3. Channel for phone-change OTP and guest-order claim OTP. **Resolved in TASK-007: WhatsApp (Business Spec R25).**
+4. Hosting model (long-running server vs serverless) — technical, owner confirms. **Resolved in TASK-007: long-running Node.js server (ADR-0013); provider still open.**
 5. Low-stock threshold per product or per variant.
 6. When stock/wallet reservations are consumed/captured; whether reservations create inventory movements.
 7. Governorate/area as a managed list vs free text.

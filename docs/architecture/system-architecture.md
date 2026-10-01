@@ -931,4 +931,6 @@ The canonical rule text lives in `docs/product/business-spec.md` (R1–R12). Arc
 | Guests (R16) | No guest order-tracking read model; guests only receive transactional messages and the confirm-only COD link. |
 | Customer login (R13) | Email + password; phone stays the business identifier. |
 
-Still deferred (§27): hosting model (long-running Node server vs serverless — affects connection pooling, background workers and the rate-limit store; `[BUSINESS DECISION REQUIRED]` before TASK-007), queue, object storage, email, WhatsApp, shipping providers, monitoring vendor.
+Hosting (TASK-007, ADR-0013): the app runs as a **long-running Node.js server** (`server.mjs`, a thin custom server around Next.js) so the backend sees the real client address; serverless and standalone output are excluded. The rate-limit store is PostgreSQL (`rate_limit_buckets`). The hosting provider itself is still open.
+
+Still deferred (§27): queue, object storage, email, WhatsApp, shipping providers, monitoring vendor.

@@ -24,6 +24,7 @@ describe("AppError", () => {
     expect(new AppError("UNAUTHENTICATED", "Sign in").status).toBe(401);
     expect(new AppError("RATE_LIMITED", "Slow down").status).toBe(429);
     expect(ERROR_HTTP_STATUS.AUTH_RATE_LIMITED).toBe(429);
+    expect(ERROR_HTTP_STATUS.AUTH_EMAIL_NOT_VERIFIED).toBe(403);
   });
 
   it("defaults details to an empty object", () => {

@@ -109,8 +109,8 @@ Found while designing the auth architecture. They do **not** block TASK-002 and 
   - is OTP mandatory for every employee, or optional/configurable for non-Owner/Admin roles?
   - is Owner/Admin MFA the same email OTP, or a separate factor (for example an authenticator app)?
 - **[BUSINESS DECISION REQUIRED] (TASK-011): default staff session lifetime.** Q163 requires "safer defaults than customer sessions" but gives no value.
-- **[BUSINESS DECISION REQUIRED] (TASK-008): password reset and sessions.** User Flows §3.2 says existing sessions are "handled according to security policy", but the policy is not specified (for example, revoke all sessions on reset).
-- **[BUSINESS DECISION REQUIRED] (TASK-009): phone-change OTP channel.** Q153 requires an OTP to the new phone, but SMS is a future channel (R10). The documents don't say whether it is sent via WhatsApp or another channel.
+- **Resolved in TASK-007 (Business Spec R23).** ~~[BUSINESS DECISION REQUIRED] (TASK-008): password reset and sessions.~~ User Flows §3.2 says existing sessions are "handled according to security policy", but the policy is not specified (for example, revoke all sessions on reset).
+- **Resolved in TASK-007 (Business Spec R25: WhatsApp).** ~~[BUSINESS DECISION REQUIRED] (TASK-009): phone-change OTP channel.~~ Q153 requires an OTP to the new phone, but SMS is a future channel (R10). The documents don't say whether it is sent via WhatsApp or another channel.
 - Technical, not business: `npm audit` reports advisories in Prisma CLI tooling dependencies (ADR-0002). Re-check before production.
 
 ## Definition of Done

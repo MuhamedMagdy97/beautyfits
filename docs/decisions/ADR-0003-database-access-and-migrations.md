@@ -25,6 +25,7 @@ Why Prisma: it was the owner's pre-selected ORM. It supports every requirement a
 - CI, staging, and production: `npx prisma migrate deploy` only. `prisma db push` is never used against shared databases.
 - Migrations are forward-only. Destructive changes to historical business tables follow the no-hard-delete rule (AGENTS.md).
 - Constraints that Prisma cannot express (partial unique indexes, CHECK constraints, append-only triggers for `audit_logs`) are hand-edited into the generated SQL migration.
+- Amendment (TASK-007): partial unique indexes are declared in the schema with the `partialIndexes` preview feature (`@@unique([...], where: raw("…"))`) instead of hand-edited SQL, so `migrate dev` sees no drift. First used for the verified-only email/phone uniqueness (`customer_auth_core` migration, ADR-0013 §7).
 - TASK-003 creates the first migration and adds `package.json` scripts for migrate/status. TASK-002 adds no tables.
 
 **Seed strategy (TASK-004):** deterministic seed scripts wired through `migrations.seed` in `prisma.config.ts`, with production bootstrap (permissions, roles, settings, owner bootstrap) kept separate from development sample data.

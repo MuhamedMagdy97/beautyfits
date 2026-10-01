@@ -34,16 +34,21 @@ Customer enters account data
         ↓
 Validate email / phone / password policy
         ↓
-Send Email OTP
+Account created: Pending Verification (expires after 24 hours)
         ↓
-Verify OTP
+Send Email OTP + WhatsApp OTP to the phone
+        ↓
+Verify both OTPs
         ↓
 Account Active
 ```
 
 Rules:
 - Phone is the primary customer identifier; email is also associated with the account.
-- Email verification is required.
+- The phone must be an Egyptian mobile number (Business Spec R27).
+- Email verification (email OTP) and phone verification (WhatsApp OTP) are both required; the account becomes Active only after both (Business Spec R25).
+- A pending registration does not reserve the email or phone; a new registration replaces an unverified pending account (R25).
+- A customer cannot log in until the email is verified; with a verified email and a pending phone, only session and verification actions are allowed (R26).
 - Password policy: at least 12 characters, allow long passphrases, block common/breached passwords; do not require artificial uppercase/lowercase/number composition.
 - OTP expires after 5 minutes.
 - Resend is available after 60 seconds.
@@ -63,7 +68,7 @@ OTP verification
       ↓
 Set new password
       ↓
-Existing sessions handled according to security policy
+All existing sessions are revoked (Business Spec R23)
 ```
 
 ### 3.3 Change Email

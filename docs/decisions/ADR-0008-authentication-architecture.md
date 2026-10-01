@@ -1,6 +1,6 @@
 # ADR-0008 — Authentication architecture (first-party, session-based)
 
-- **Status:** Accepted (TASK-002); implemented by TASK-007, TASK-008, TASK-010, TASK-011
+- **Status:** Accepted (TASK-002); amended by ADR-0013 (TASK-007: tokens, transport, CSRF, throttling store, client IP); implemented by TASK-007, TASK-008, TASK-010, TASK-011
 - **Date:** 2026-09-30
 - **Relates to:** Architecture §6, §27 ("Exact auth library"); API Contract §4, §5, §10; Security Requirements §1–§4, §12; DB Design §3.1
 

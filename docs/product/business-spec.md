@@ -950,6 +950,36 @@ Product-owner decisions made on 2026-09-30 during TASK-005 (`docs/tasks/TASK-005
 ### R22 — HALF-UP on negative amounts
 - HALF-UP rounding (R9) rounds ties **away from zero** for negative amounts too: `2.5 → 3`, `-2.5 → -3`.
 
+## v1.2 TASK-007 Closure Decisions
+
+Product-owner decisions made on 2026-09-30 during TASK-007 (`docs/tasks/TASK-007-customer-auth-core.md`), including the answers given at plan review. Recorded in `docs/decisions/business-rules-ledger.xlsx`, "Closure & Audit Decisions" worksheet.
+
+### R23 — Sessions after password reset and password change
+- A password reset (forgot password) revokes **all** of the customer's sessions (completes User Flows §3.2).
+- A password change while logged in keeps the **current** session and revokes all other sessions.
+- A customer session lasts **30 days from login** (Q162). The lifetime is absolute: refreshing does not extend it.
+
+### R24 — Login throttling
+- **5 consecutive failed password attempts** on an account block that account's login for **15 minutes**. During the block even the correct password is refused. The count resets on a successful login and after the block ends. Wrong current passwords during a password change count too.
+- **Per IP:** 30 failed logins from one IP address within 15 minutes block logins from that IP for 15 minutes (threshold proposed in TASK-007 and approved with the plan; technical details in ADR-0013).
+- CAPTCHA is added later (TASK-061), as a further layer (Q157).
+
+### R25 — Phone verification and account activation
+- At registration the phone is verified by a **WhatsApp OTP** and the email by an email OTP (Q42). The account becomes **ACTIVE only after both** are verified; until then it is `PENDING_VERIFICATION`.
+- Registration requires email, phone, password and full name.
+- WhatsApp is also the OTP channel for **phone change** (Q153) and **guest-order claim** (Q44). This closes TASK-002A open decision 3.
+- **Pending registrations do not reserve identifiers.** Email and phone uniqueness applies only to verified identities; Q151 (reject a duplicate email and direct to login/recovery) applies to a verified email.
+- A `PENDING_VERIFICATION` account **expires 24 hours** after registration.
+- A new registration with the same email or phone **replaces** a pending account whose email and phone are both unverified, or any expired pending account. A pending account that has already verified its email keeps it; it may share its still-unverified phone with a new registration, and whichever account verifies the phone first keeps it.
+
+### R26 — Unverified email cannot log in
+- A customer whose email is not verified cannot log in.
+- A customer whose email is verified but whose phone is not yet verified (a pending account within its 24 hours) can log in with limited access: only session actions and the verification steps. Everything else requires an ACTIVE account.
+
+### R27 — Customer phone format
+- Customer phone numbers are **Egyptian mobile numbers only**: 010, 011, 012 or 015 followed by 8 digits.
+- They are stored normalized in E.164 (`+20…`). Accepted input forms: `01xxxxxxxxx`, `+201xxxxxxxxx`, `00201xxxxxxxxx`.
+
 ## Key non-negotiables
 - Backend is authoritative for price, stock, discount, shipping, permissions and order state.
 - Checkout core DB changes are atomic; external notifications happen after commit.
@@ -970,3 +1000,4 @@ Product-owner decisions made on 2026-09-30 during TASK-005 (`docs/tasks/TASK-005
 - TASK-001 final closure decisions (R6, R7, R9–R12): wishlist reminder cadence and stop conditions, customer-caused 25% refund basis, HALF-UP financial rounding, phone COD confirmation event, cancellation window, variant-level restock subscription route.
 - TASK-002A closure decisions (R13–R19): email login, Arabic + English, shared customer/employee email, no online guest order tracking, permission catalog and default roles, Manager limits, no order-status approvals in v1. Audit Correction 1 shipment lifecycle aligned with R2.
 - TASK-005 closure decisions (R20–R22): Africa/Cairo business timezone, calendar-day return window and 72-hour elapsed COD maximum, HALF-UP ties away from zero for negative amounts.
+- TASK-007 closure decisions (R23–R27): sessions after password reset/change and absolute 30-day sessions, login throttling, WhatsApp phone verification and activation with non-reserving pending registrations, no login with an unverified email, Egyptian mobile numbers only.

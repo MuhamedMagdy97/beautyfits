@@ -59,6 +59,7 @@ Changing email or phone requires re-authentication plus verification of the new 
 
 ```text
 Authorization: Bearer <access-token>
+X-Auth-Transport: cookie
 Content-Type: application/json
 Accept: application/json
 X-Request-Id: <request-id>
@@ -67,7 +68,7 @@ Accept-Language: ar | en
 X-Guest-Cart-Token: <token>
 ```
 
-`Accept-Language` selects the language of localized public responses and messages (Business Spec R14; default `ar`). Admin endpoints return both languages (`nameAr`, `nameEn`, …). `X-Guest-Cart-Token` identifies a guest cart (§14).
+`Accept-Language` selects the language of localized public responses and messages (Business Spec R14; default `ar`). Admin endpoints return both languages (`nameAr`, `nameEn`, …). `X-Guest-Cart-Token` identifies a guest cart (§14). `X-Auth-Transport: cookie` makes login/refresh deliver the tokens as HttpOnly cookies instead of in the body (website; TASK-007 amendments).
 
 `Idempotency-Key` is required for checkout/order creation and other retry-sensitive writes.
 
@@ -128,7 +129,7 @@ Clients should branch on stable error `code` values, not message text.
 |---|---|
 | 400 | `VALIDATION_ERROR` |
 | 401 | `UNAUTHENTICATED`, `AUTH_INVALID_CREDENTIALS`, `AUTH_OTP_INVALID`, `AUTH_OTP_EXPIRED` |
-| 403 | `FORBIDDEN`, `PERMISSION_DENIED` |
+| 403 | `FORBIDDEN`, `PERMISSION_DENIED`, `AUTH_EMAIL_NOT_VERIFIED` |
 | 404 | `NOT_FOUND` |
 | 409 | `CONFLICT`, `IDEMPOTENCY_CONFLICT`, `DUPLICATE_OPERATION`, `STOCK_CHANGED`, `PRICE_CHANGED`, `ORDER_STATE_INVALID`, `RETURN_STATE_INVALID`, `WALLET_RESERVATION_CONFLICT`, `RECONFIRMATION_REQUIRED` |
 | 422 | `OUT_OF_STOCK`, `DISCOUNT_INVALID`, `DISCOUNT_EXPIRED`, `SHIPPING_UNAVAILABLE`, `ORDER_CANCELLATION_NOT_ALLOWED`, `RETURN_WINDOW_EXPIRED`, `WALLET_INSUFFICIENT_FUNDS`, `APPROVAL_REQUIRED` |
@@ -137,6 +138,8 @@ Clients should branch on stable error `code` values, not message text.
 Authentication/authorization semantics (TASK-002A):
 - `UNAUTHENTICATED` (401): no token, or the token is invalid, expired or revoked. Clients sign in again (or refresh).
 - `FORBIDDEN` (403): authenticated in the wrong domain (a customer token on an employee endpoint or the reverse), or an account that is deactivated.
+- `FORBIDDEN` (403) also covers a customer account that is still `PENDING_VERIFICATION` on an endpoint that requires an `ACTIVE` account (`details.reason = "ACCOUNT_PENDING_VERIFICATION"`, Business Spec R26), and a cookie-authenticated request that fails the Origin/Referer check (TASK-007).
+- `AUTH_EMAIL_NOT_VERIFIED` (403): correct credentials, but the email is not verified yet (Business Spec R26). Returned only after the password matched.
 - `PERMISSION_DENIED` (403): an employee lacks the required permission from `docs/security/permission-catalog.md`.
 - A resource the caller does not own (for example another customer's order) returns `NOT_FOUND`, so its existence is not revealed.
 - `RATE_LIMITED` (429) is used by non-authentication endpoints (checkout, analytics, review/report); `AUTH_RATE_LIMITED` stays for login/OTP.
@@ -196,6 +199,8 @@ Stock validation and reservation occur inside a transaction with concurrency-saf
 | POST | `/auth/refresh` | Refresh session | Refresh token |
 | POST | `/auth/logout` | Logout current session | Authenticated |
 | POST | `/auth/logout-all` | Revoke all customer sessions | Authenticated |
+| POST | `/auth/change-password` | Change password; keeps the current session, revokes the others (R23) | Authenticated |
+| GET | `/auth/session` | Current account, customer and session expiry | Authenticated |
 | POST | `/auth/forgot-password` | Start recovery | Public |
 | POST | `/auth/verify-recovery-otp` | Verify recovery OTP | Public |
 | POST | `/auth/reset-password` | Set new password | Recovery flow |
@@ -224,7 +229,7 @@ OTP rules are enforced server-side: expiration, retry count, resend cooldown, an
 | GET | `/me` | Get current customer profile | Customer |
 | PATCH | `/me` | Update editable profile fields | Customer |
 | POST | `/me/change-email` | Change email with re-authentication + new-email OTP | Customer |
-| POST | `/me/change-phone` | Change phone with re-authentication + new-phone OTP (channel: `[BUSINESS DECISION REQUIRED]`) | Customer |
+| POST | `/me/change-phone` | Change phone with re-authentication + new-phone OTP via WhatsApp (Business Spec R25) | Customer |
 | POST | `/me/deactivate` | Deactivate/anonymize own account, keeping required order/audit records (Q154) | Customer (re-authentication) |
 | GET | `/me/addresses` | List addresses | Customer |
 | POST | `/me/addresses` | Create address | Customer |
@@ -248,7 +253,7 @@ Customer profile updates never rewrite historical order snapshots.
 | POST | `/guest/orders/claim` | Start claim process | Authenticated customer |
 | POST | `/guest/orders/claim/verify` | Verify OTP and link eligible guest orders | Authenticated customer |
 
-A matching phone number alone is not sufficient proof of control. OTP channel for the claim: `[BUSINESS DECISION REQUIRED]`.
+A matching phone number alone is not sufficient proof of control. The claim OTP is sent via WhatsApp (Business Spec R25).
 
 # 13. Catalog
 
@@ -595,6 +600,7 @@ UNAUTHENTICATED
 AUTH_INVALID_CREDENTIALS
 AUTH_OTP_INVALID
 AUTH_OTP_EXPIRED
+AUTH_EMAIL_NOT_VERIFIED
 AUTH_RATE_LIMITED
 RATE_LIMITED
 FORBIDDEN
@@ -805,3 +811,41 @@ Not business endpoints. Unauthenticated, and they expose no internal details.
 |---|---|---|---|
 | GET | `/health` | Liveness (no dependency checks) | `200 { data: { status: "ok" }, meta }` |
 | GET | `/health/ready` | Readiness (database reachable within 2 s) | `200 { data: { status: "ready", checks: { database: "up" } }, meta }` or `503` with `status: "not_ready"`, `database: "down"` |
+
+## TASK-007 Amendments (customer authentication core)
+
+Added by TASK-007 (`docs/tasks/TASK-007-customer-auth-core.md`). Business rules: Business Spec R23–R27. Technical design: ADR-0013. Verification, activation and password recovery endpoints are TASK-008.
+
+### Transport
+- **Bearer (default, mobile):** `/auth/login` and `/auth/refresh` return `data.tokens` = `{ accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt }`. Send `Authorization: Bearer <accessToken>`; send `{ "refreshToken": "…" }` to `/auth/refresh`.
+- **Cookie (website):** with `X-Auth-Transport: cookie`, the tokens are set as `__Host-bf_at` (access, `Path=/`) and `__Secure-bf_rt` (refresh, `Path=/api/v1/auth`), both `HttpOnly; Secure; SameSite=Lax`, and `data.tokens` is omitted. `/auth/refresh` with the refresh cookie and an empty body answers with new cookies. `/auth/logout` and `/auth/logout-all` clear the cookies.
+- **CSRF:** state-changing requests authenticated by cookie, and login/refresh in cookie mode, must carry an allowed `Origin` (or `Referer`); otherwise `403 FORBIDDEN`. Any request that carries a foreign `Origin` is rejected the same way. Bearer requests without `Origin` (native apps) are not affected.
+- Access tokens last 15 minutes. A session lasts 30 days from login and refreshing does not extend it (R23). Each refresh returns a new pair; a refresh token that was already used revokes the whole session unless it is presented again within 10 seconds (ADR-0013).
+
+### Endpoints
+| Endpoint | Request body | Success |
+|---|---|---|
+| `POST /auth/register` | `{ email, password, phone, fullName, preferredLocale? }` | `201` `{ accountId, customerId, status: "PENDING_VERIFICATION", emailVerified: false, phoneVerified: false, pendingExpiresAt }`. No tokens. |
+| `POST /auth/login` | `{ email, password }` | `200` `{ account, customer, session: { expiresAt }, tokens? }` |
+| `POST /auth/refresh` | `{ refreshToken? }` (omit when using the cookie) | `200` same shape as login |
+| `POST /auth/logout` | — | `204` |
+| `POST /auth/logout-all` | — | `204` |
+| `POST /auth/change-password` | `{ currentPassword, newPassword }` | `204` |
+| `GET /auth/session` | — | `200` `{ account, customer, session: { expiresAt } }` |
+
+- `account` = `{ id, email, status, emailVerified, phoneVerified }`; `customer` = `{ id, fullName, phone, preferredLocale }`.
+- `preferredLocale` (`ar` | `en`) defaults to `Accept-Language`, then `ar` (R14).
+- `email` is trimmed and lowercased. `phone` must be an Egyptian mobile number (`01xxxxxxxxx`, `+201xxxxxxxxx` or `00201xxxxxxxxx`) and is returned in E.164 (R27). `fullName` is 1–100 characters.
+- `VALIDATION_ERROR` issue codes include `password_too_short`, `password_too_long`, `password_common` (Q156) and `phone_invalid` (R27).
+- `/auth/logout`, `/auth/logout-all`, `/auth/change-password` and `/auth/session` also accept a `PENDING_VERIFICATION` account with a verified email (R26). Every other customer endpoint requires `ACTIVE`.
+
+### Errors
+| Case | Response |
+|---|---|
+| Duplicate **verified** email (Q151) / verified phone | `409 CONFLICT`, `details.field` = `email` / `phone`. An unverified pending registration is replaced instead (R25). |
+| Unknown email or wrong password | `401 AUTH_INVALID_CREDENTIALS` (same response for both) |
+| Correct password, email not verified | `403 AUTH_EMAIL_NOT_VERIFIED` (R26) |
+| Suspended or deactivated account | `403 FORBIDDEN` |
+| Account locked (5 consecutive failures, R24), IP blocked (30 failures / 15 min), or too many registrations from one IP (10 / hour) | `429 AUTH_RATE_LIMITED`, `details.retryAfterSeconds` |
+| Wrong current password on change-password | `401 AUTH_INVALID_CREDENTIALS` (counts toward the R24 lock) |
+| Missing, invalid, expired or revoked token | `401 UNAUTHENTICATED` |

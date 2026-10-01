@@ -1,5 +1,49 @@
+import { isIP } from "node:net";
 import { z } from "zod";
 import { LOG_LEVELS } from "@/server/logging/logger";
+
+/** Comma-separated list; blank entries are ignored. */
+function commaList(item: z.ZodType<string, string>) {
+  return z
+    .string()
+    .default("")
+    .transform((value) =>
+      value
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry !== ""),
+    )
+    .pipe(z.array(item));
+}
+
+/** An IP address or CIDR block, e.g. `10.0.0.1`, `10.0.0.0/8`, `fd00::/8`. */
+const ipOrCidr = z.string().refine(
+  (value) => {
+    const [address, prefix, ...rest] = value.split("/");
+    const version = isIP(address);
+    if (version === 0 || rest.length > 0) {
+      return false;
+    }
+    if (prefix === undefined) {
+      return true;
+    }
+    const bits = Number(prefix);
+    return /^\d{1,3}$/.test(prefix) && bits <= (version === 4 ? 32 : 128);
+  },
+  { message: "must be a comma-separated list of IP addresses or CIDR blocks" },
+);
+
+/** A bare origin such as `https://beautyfits.example` (no path). */
+const origin = z.string().refine(
+  (value) => {
+    try {
+      return new URL(value).origin === value;
+    } catch {
+      return false;
+    }
+  },
+  { message: "must be a comma-separated list of origins like https://example.com" },
+);
 
 /**
  * Server configuration schema (ADR-0007).
@@ -16,6 +60,17 @@ const envSchema = z.object({
       message: "must be a postgres:// or postgresql:// connection string",
     }),
   LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
+  /**
+   * Reverse proxies whose X-Forwarded-For / X-Real-IP headers are trusted
+   * (ADR-0013). Empty (default): forwarding headers are ignored and the
+   * direct connection address is used.
+   */
+  TRUSTED_PROXIES: commaList(ipOrCidr),
+  /**
+   * Browser origins allowed to make cookie-authenticated state-changing
+   * requests (CSRF check, ADR-0013). Empty (default): same origin only.
+   */
+  AUTH_ALLOWED_ORIGINS: commaList(origin),
 });
 
 export type Env = z.infer<typeof envSchema>;
