@@ -20,6 +20,7 @@ export const PATCH = withApi<RouteContext<"/api/v1/admin/employees/[id]">>(
       id,
       input,
       api.logger,
+      api.requestId,
     );
     return ok(api.requestId, updated);
   },

@@ -3,6 +3,7 @@ import { getDb } from "@/server/db/client";
 import { runInTransaction, type Db } from "@/server/db/transaction";
 import { AppError } from "@/server/errors/app-error";
 import type { Logger } from "@/server/logging/logger";
+import { AUDIT_ENTITY_TYPES, employeeActor, recordAudit } from "@/server/modules/audit/audit";
 import { permissionDenied } from "@/server/modules/rbac/authorization";
 import {
   OWNER_ADMIN_ONLY_PERMISSIONS,
@@ -93,6 +94,11 @@ export function permissionCatalogView(): PermissionView[] {
   }));
 }
 
+/** What an audit entry records about a role. */
+function roleSnapshot(role: Pick<RoleView, "name" | "description" | "permissions">) {
+  return { name: role.name, description: role.description, permissions: role.permissions };
+}
+
 function roleNotFound(): AppError {
   return new AppError("NOT_FOUND", "Role not found.");
 }
@@ -165,7 +171,12 @@ export function createRolesService(deps: RolesServiceDeps) {
     return roles.map(toRoleView);
   }
 
-  async function createRole(actor: RoleActor, input: RoleInput, logger: Logger): Promise<RoleView> {
+  async function createRole(
+    actor: RoleActor,
+    input: RoleInput,
+    logger: Logger,
+    correlationId: string | null = null,
+  ): Promise<RoleView> {
     assertAssignablePermissions(input.permissions);
     const now = clock.now();
     const role = await runInTransaction(
@@ -183,6 +194,15 @@ export function createRolesService(deps: RolesServiceDeps) {
             permissions: { create: ids.map((permissionId) => ({ permissionId })) },
           },
           include: roleInclude,
+        });
+        await recordAudit(tx, {
+          actor: employeeActor(actor.employeeId),
+          action: "ROLE_CREATED",
+          entityType: AUDIT_ENTITY_TYPES.role,
+          entityId: created.id,
+          next: roleSnapshot(toRoleView(created)),
+          correlationId,
+          createdAt: now,
         });
         return created;
       },
@@ -202,6 +222,7 @@ export function createRolesService(deps: RolesServiceDeps) {
     roleId: string,
     input: Partial<RoleInput>,
     logger: Logger,
+    correlationId: string | null = null,
   ): Promise<RoleView> {
     if (input.permissions) {
       assertAssignablePermissions(input.permissions);
@@ -236,7 +257,18 @@ export function createRolesService(deps: RolesServiceDeps) {
           },
           include: roleInclude,
         });
-        return { role: updated, before: toRoleView(existing) };
+        const before = toRoleView(existing);
+        await recordAudit(tx, {
+          actor: employeeActor(actor.employeeId),
+          action: "ROLE_UPDATED",
+          entityType: AUDIT_ENTITY_TYPES.role,
+          entityId: roleId,
+          previous: roleSnapshot(before),
+          next: roleSnapshot(toRoleView(updated)),
+          correlationId,
+          createdAt: now,
+        });
+        return { role: updated, before };
       },
       {},
       db,

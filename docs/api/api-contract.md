@@ -959,3 +959,38 @@ Added by TASK-012 (`docs/tasks/TASK-012-roles-permissions.md`). Business rules: 
 | Invitation token unknown, used, revoked, or no longer allowed for its inviter | `401 AUTH_OTP_INVALID` |
 | Invitation expired | `401 AUTH_OTP_EXPIRED` |
 | 30 rejected invitation tokens from one IP in 15 minutes | `429 AUTH_RATE_LIMITED`, `details.retryAfterSeconds` |
+
+## TASK-013 Amendments (approval requests, audit logs)
+
+Added by TASK-013 (`docs/tasks/TASK-013-approvals-audit.md`). Business rules: Q70, Q79, Audit Correction 7, R19, User Flows §17.3 and §18. Technical design and defaults: ADR-0018. Both groups of endpoints use the employee session (Bearer, or the employee cookie with the `Origin` check). `APPROVAL_RESOLVE` and `VIEW_AUDIT_LOGS` are Owner/Admin-only (permission catalog §2): a Manager or Employee gets `403 PERMISSION_DENIED` whatever their roles contain.
+
+### Approval requests (§25)
+Requests are created by the features that need them (R19: purchase orders, over-delivery extras, marketing campaigns, critical settings); there is no endpoint to create one. Those features' own endpoints answer as their tasks define.
+
+| Endpoint | Request | Success |
+|---|---|---|
+| `GET /admin/approval-requests` | query `page`, `pageSize` (max 100), `status` = `PENDING` \| `APPROVED` \| `REJECTED` \| `CANCELLED`, `approvalType`, `entityType`, `entityId` | `200` `[approvalRequest]` newest first + `meta.pagination` |
+| `GET /admin/approval-requests/{id}` | — | `200` `approvalRequest` |
+| `POST /admin/approval-requests/{id}/approve` | optional `{ reason? }` (max 1000 characters) | `200` `approvalRequest`; the feature's pending action is applied in the same transaction |
+| `POST /admin/approval-requests/{id}/reject` | `{ reason }` (required, 1–1000 characters) | `200` `approvalRequest` |
+
+- `approvalRequest`: `{ id, approvalType, entityType, entityId, status, reason, metadata, requestedBy: { id, displayName }, requestedAt, resolvedBy: { id, displayName } | null, resolvedAt, resolutionReason }`. `approvalType` = `PURCHASE_ORDER` \| `PURCHASE_OVER_DELIVERY` \| `MARKETING_CAMPAIGN` \| `CRITICAL_SETTING`. `reason` is the requester's; `resolutionReason` the resolver's. `metadata` is what the feature recorded about the pending action.
+
+| Case | Response |
+|---|---|
+| Request is no longer `PENDING` | `409 CONFLICT`, `details.reason = APPROVAL_NOT_PENDING`, `details.status` |
+| Resolving one's own request | `403 PERMISSION_DENIED`, `details.reason = SELF_APPROVAL` |
+| Reject without a reason | `400 VALIDATION_ERROR` |
+| Unknown or malformed id | `404 NOT_FOUND` |
+| The feature refuses the action (for example, the entity changed since the request) | the feature's error; the request stays `PENDING` |
+| A feature opens a second request for the same type and entity while one is pending | `409 CONFLICT`, `details.reason = APPROVAL_PENDING` (+ `approvalRequestId`) |
+
+### Audit logs (§26)
+| Endpoint | Request | Success |
+|---|---|---|
+| `GET /admin/audit-logs` | query `page`, `pageSize` (max 100), `actorType` = `SYSTEM` \| `EMPLOYEE` \| `CUSTOMER`, `actorId` (uuid), `action`, `entityType`, `entityId`, `from` (inclusive), `to` (exclusive); `from`/`to` are ISO 8601 date-times with an offset | `200` `[auditLog]` newest first + `meta.pagination` |
+
+- `auditLog`: `{ id, actor: { type, id, displayName }, action, entityType, entityId, previousData, newData, reason, correlationId, createdAt }`. `displayName` is the employee's current name for employee actors, otherwise null. `correlationId` is the `X-Request-Id` of the API request that made the change (null for the bootstrap).
+- Actions so far: `OWNER_BOOTSTRAPPED`, `ROLE_SEEDED`, `ROLE_CREATED`, `ROLE_UPDATED`, `EMPLOYEE_INVITED`, `EMPLOYEE_INVITATION_REVOKED`, `EMPLOYEE_INVITATION_ACCEPTED`, `EMPLOYEE_UPDATED`, `EMPLOYEE_DEACTIVATED`, `APPROVAL_REQUESTED`, `APPROVAL_APPROVED`, `APPROVAL_REJECTED`, `APPROVAL_CANCELLED`. Later tasks add their own; codes are never renamed.
+- Entries are read-only: there is no endpoint to change or delete one.
+- Invalid filters (unknown `actorType`, malformed `actorId` or date, `from` not before `to`): `400 VALIDATION_ERROR`.
