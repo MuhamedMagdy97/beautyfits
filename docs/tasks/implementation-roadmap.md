@@ -226,6 +226,8 @@ Implement employee auth, email OTP challenge with 30-day trusted devices for all
 
 Implement Owner/Admin/Manager/Employee hierarchy, custom roles, granular permissions and backend authorization, including employee invitations and `POST /employee-auth/accept-invitation` (Q64; moved from TASK-011).
 
+**Status after TASK-012** (`docs/tasks/TASK-012-roles-permissions.md`): roles, the permission catalog table, `requirePermission`, employee management and invitations (including `accept-invitation`) are done. Role, invitation and employee changes are written to the structured logger until `audit_logs` exists (TASK-013). TASK-004 can now seed the first Owner and the default roles.
+
 ### TASK-013 — Approval Requests & Audit Logs
 **Depends on:** TASK-012
 

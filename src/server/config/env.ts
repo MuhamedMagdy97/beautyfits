@@ -76,6 +76,11 @@ const envSchema = z.object({
    * (ADR-0014). The only email transport until a provider is chosen.
    */
   MAIL_DIR: z.string().min(1).default(".mail"),
+  /**
+   * Origin of the staff dashboard, used for links in staff emails such as
+   * employee invitations (ADR-0016). Default: the local development server.
+   */
+  DASHBOARD_URL: origin.default("http://localhost:3000"),
 });
 
 export type Env = z.infer<typeof envSchema>;

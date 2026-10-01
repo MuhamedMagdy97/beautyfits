@@ -536,6 +536,7 @@ Marketing recipients require explicit marketing consent. Frequency limits are en
 | POST | `/admin/roles` | Create custom role | `ROLE_MANAGE` (Owner/Admin only) |
 | PATCH | `/admin/roles/{id}` | Edit role | `ROLE_MANAGE` (Owner/Admin only) |
 | GET | `/admin/permissions` | Permission catalog | `ROLE_VIEW` |
+| GET | `/admin/employees/invitations` | Invitation list (TASK-012) | `EMPLOYEE_VIEW` |
 | GET | `/admin/approval-requests` | List approval requests | `APPROVAL_RESOLVE` |
 | GET | `/admin/approval-requests/{id}` | Approval request detail | `APPROVAL_RESOLVE` |
 | POST | `/admin/approval-requests/{id}/approve` | Approve pending action | `APPROVAL_RESOLVE` (Owner/Admin only) |
@@ -904,7 +905,7 @@ Added by TASK-011 (`docs/tasks/TASK-011-employee-auth.md`). Business rules: R15,
 
 - Signed-in body: `{ account: { id, email, status }, employee: { id, displayName, level, department }, session: { expiresAt, idleTimeoutSeconds }, tokens? }`.
 - The login ticket is valid for 15 minutes after the password check, resends included. `code` is exactly 6 digits; `newPassword` follows the password policy (Q156).
-- `POST /employee-auth/accept-invitation` (Q64) is not implemented yet; it comes with employee invitations (TASK-012).
+- `POST /employee-auth/accept-invitation` (Q64) is implemented by TASK-012 (see "TASK-012 Amendments").
 
 ### Errors
 | Case | Response |
@@ -916,3 +917,45 @@ Added by TASK-011 (`docs/tasks/TASK-011-employee-auth.md`). Business rules: R15,
 | Code older than 5 minutes, or ticket older than 15 minutes | `401 AUTH_OTP_EXPIRED` |
 | Missing, invalid, expired, revoked or idle session | `401 UNAUTHENTICATED` |
 | Customer token on an employee endpoint (or the reverse) | `403 FORBIDDEN` |
+
+## TASK-012 Amendments (roles, permissions, invitations)
+
+Added by TASK-012 (`docs/tasks/TASK-012-roles-permissions.md`). Business rules: Q64–Q69, R15, R17, R18, User Flows §17, the permission catalog. Technical design and defaults: ADR-0016. Admin endpoints use the employee session of the TASK-011 amendments (Bearer or the employee cookie with the `Origin` check).
+
+### Authorization
+- Owner and Admin hold every permission. Managers and Employees hold the union of their roles' permissions, without the Owner/Admin-only permissions of the catalog §2. Changes apply to the next request.
+- A missing permission: `403 PERMISSION_DENIED`, `details.requiredPermissions`.
+- Hierarchy (Q65): the Owner manages Admins, Managers and Employees; an Admin manages Managers and Employees; a Manager manages Employees and gives or takes away only roles whose permissions they hold; an Employee manages nobody; nobody is made Owner. Violations: `403 PERMISSION_DENIED` with `details.reason` = `HIERARCHY`, `ROLE_OUTSIDE_SCOPE` (+ `roleIds`), `SELF` or `SYSTEM_ROLE`.
+- `GET /employee-auth/session` also returns `permissions`: the employee's effective codes in catalog order.
+
+### Endpoints
+| Endpoint | Request | Success |
+|---|---|---|
+| `GET /admin/permissions` | — | `200` `[{ code, group, description, ownerAdminOnly }]` |
+| `GET /admin/roles` | — | `200` `[role]` |
+| `POST /admin/roles` | `{ name, description?, permissions: [code] }` | `201` `role` |
+| `PATCH /admin/roles/{id}` | any of `{ name, description, permissions }` (`permissions` replaces the set) | `200` `role` |
+| `GET /admin/employees` | query `page`, `pageSize` (max 100), `status`, `level`, `search` (name or email) | `200` `[employee]` + `meta.pagination` |
+| `POST /admin/employees` | `{ email, displayName, department?, level: ADMIN \| MANAGER \| EMPLOYEE, roleIds?: [uuid] }` | `201` `{ invitation, emailSent }` |
+| `PATCH /admin/employees/{id}` | any of `{ displayName, department, level, roleIds }` (`roleIds` replaces the set) | `200` `employee` |
+| `POST /admin/employees/{id}/deactivate` | — | `200` `employee` (sessions and trusted devices revoked) |
+| `GET /admin/employees/invitations` | query `page`, `pageSize`, `status` = `PENDING` \| `ACCEPTED` \| `REVOKED` \| `EXPIRED` | `200` `[invitation]` + `meta.pagination` (new endpoint) |
+| `POST /admin/employees/invitations/{id}/revoke` | — | `200` `invitation` |
+| `POST /employee-auth/accept-invitation` | `{ invitationToken, password }` | `201` `{ account: { id, email, status }, employee: { id, displayName, level, department } }`; not signed in (the first login asks for an email code, R28) |
+
+- `role`: `{ id, name, description, isSystemRole, permissions: [code], employeeCount, createdAt, updatedAt }`.
+- `employee`: `{ id, accountId, email, displayName, level, department, status, roles: [{ id, name }], createdByEmployeeId, createdAt, deactivatedAt }`.
+- `invitation`: `{ id, email, displayName, department, level, roles: [{ id, name }], status, invitedBy: { id, displayName }, expiresAt, createdAt, acceptedAt, revokedAt }`.
+- The invitation email links to `<DASHBOARD_URL>/staff/accept-invitation#token=<invitationToken>`; the dashboard page (TASK-052) reads the token from the fragment. An invitation is valid for 7 days.
+
+### Errors
+| Case | Response |
+|---|---|
+| Unknown role id, system role in `roleIds`, unknown permission code, Owner/Admin-only permission in a role | `400 VALIDATION_ERROR` (issue codes `role_not_found`, `role_system`, `permission_unknown`, `permission_owner_admin_only`) |
+| Role name already used (ignoring case) | `409 CONFLICT`, `details.reason = ROLE_NAME_TAKEN` |
+| Email already an employee, or already has a pending invitation | `409 CONFLICT`, `details.reason` = `EMPLOYEE_EXISTS` / `INVITATION_PENDING` (+ `invitationId`) |
+| Revoking an invitation that is not pending | `409 CONFLICT`, `details.reason = INVITATION_NOT_PENDING` |
+| Unknown or malformed employee, role or invitation id | `404 NOT_FOUND` |
+| Invitation token unknown, used, revoked, or no longer allowed for its inviter | `401 AUTH_OTP_INVALID` |
+| Invitation expired | `401 AUTH_OTP_EXPIRED` |
+| 30 rejected invitation tokens from one IP in 15 minutes | `429 AUTH_RATE_LIMITED`, `details.retryAfterSeconds` |

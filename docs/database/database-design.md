@@ -1506,7 +1506,7 @@ Added by TASK-011 (`docs/tasks/TASK-011-employee-auth.md`, ADR-0015, Business Sp
 ### `employees` (§4, migrated)
 - Fields as in §4: `id`, `account_id` (unique; an `EMPLOYEE` account), `display_name`, `employee_level` = `OWNER` | `ADMIN` | `MANAGER` | `EMPLOYEE`, `department` nullable, `status` = `ACTIVE` | `DEACTIVATED`, `created_by_employee_id` nullable (null for the first Owner), `deactivated_at` nullable, `created_at`, `updated_at`.
 - An employee can sign in only when both `accounts.status` and `employees.status` are `ACTIVE`. Rows are never hard-deleted (Q69).
-- `roles`, `permissions`, `employee_roles`, `role_permissions` and `employee_invitations` are migrated by TASK-012.
+- `roles`, `permissions`, `employee_roles`, `role_permissions` and `employee_invitations` are migrated by TASK-012 (see "v1.2 TASK-012 Amendments").
 
 ### `employee_trusted_devices` (migrated as designed in "v1.2 TASK-007 Amendments")
 - `expires_at` is fixed at `verified_at` + 30 days (R28); use does not extend it. Index on `account_id`.
@@ -1521,6 +1521,27 @@ Added by TASK-011 (`docs/tasks/TASK-011-employee-auth.md`, ADR-0015, Business Sp
 
 ### Rate-limit keys added
 `employee-login:account:<sha256(email)>`, `employee-login:ip:<ip>` (R24 values), and employee code send limits `otp:send:EMPLOYEE:<purpose>:<sha256(email)>`, `otp:send-hour:EMPLOYEE:<purpose>:<sha256(email)>`.
+
+## v1.2 TASK-012 Amendments
+
+Added by TASK-012 (`docs/tasks/TASK-012-roles-permissions.md`, ADR-0016). Migrated in `prisma/migrations/*_roles_permissions`.
+
+### `roles` (§4, migrated)
+- `id`, `name` (unique; also unique ignoring case, checked by the service), `description` nullable, `is_system_role` (default false), `created_by_employee_id` nullable, `created_at`, `updated_at`. Never deleted.
+
+### `permissions` (§4, migrated)
+- `id`, `code` unique, `description`. The migration inserts every code of `docs/security/permission-catalog.md`; later catalog changes need a migration.
+
+### `role_permissions`, `employee_roles` (§4, migrated)
+- `role_permissions`: primary key `role_id + permission_id`; index on `permission_id`.
+- `employee_roles`: primary key `employee_id + role_id`, `assigned_by_employee_id` nullable, `assigned_at`; index on `role_id`.
+
+### `employee_invitations` (v1.2 TASK-002A Amendments, migrated)
+- As designed (`email`, `employee_level`, `role_ids_json`, `invited_by_employee_id`, `token_hash` unique, `expires_at`, `accepted_at`, `revoked_at`, `created_at`), plus `display_name`, `department` nullable (chosen by the inviter), `accepted_employee_id` unique nullable (the employee created by accepting) and `revoked_by_employee_id` nullable. Index on `email`.
+- Status is derived: accepted, revoked, expired (`expires_at` passed) or pending. At most one pending invitation per email (checked under a per-email lock). `token_hash` is the SHA-256 of the emailed token.
+
+### `employees`
+- Index on `(status, employee_level)` for the employee list. Deactivation sets `status = DEACTIVATED` and `deactivated_at`, revokes `auth_sessions` (`revoke_reason = DEACTIVATED`) and sets `employee_trusted_devices.revoked_at`; no row is deleted (Q69).
 
 ## TASK-001 Reconciliation
 

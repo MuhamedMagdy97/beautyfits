@@ -13,6 +13,7 @@ describe("parseEnv", () => {
       TRUSTED_PROXIES: [],
       AUTH_ALLOWED_ORIGINS: [],
       MAIL_DIR: ".mail",
+      DASHBOARD_URL: "http://localhost:3000",
     });
   });
 
