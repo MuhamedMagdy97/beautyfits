@@ -1,6 +1,6 @@
 # ADR-0020 — Brands and categories
 
-- **Status:** Accepted (TASK-015); the defaults in §4 await the product owner's confirmation
+- **Status:** Accepted (TASK-015); the defaults in §4 confirmed by the product owner on 2026-10-01
 - **Date:** 2026-10-01
 - **Relates to:** ADR-0019 (products and variants), ADR-0016 (permissions), ADR-0018 (audit logs); Business Spec Q75, R14, R19; DB Design §5, §22; API Contract §13 and "TASK-015 Amendments"; permission catalog §1, §3
 
@@ -24,7 +24,7 @@
 - Linking a product takes `FOR SHARE` on the brand and newly added categories; deactivating takes `FOR UPDATE` on the row. A link and a deactivation at the same moment run one after the other, so a product is never newly linked to a brand or category that was already inactive.
 - Slug uniqueness is checked first for a clear error and enforced by the unique indexes; a lost race gets the same `409`.
 
-## 4. Defaults where the documents are silent (to confirm)
+## 4. Defaults where the documents are silent (confirmed by the product owner, 2026-10-01)
 
 1. **Brand is optional** on a product, at most one. Whether a published product must have one is left to TASK-017's publish checks.
 2. **Up to 10 categories per product**, at any level of the tree (a product can sit in "Makeup" and in "Makeup › Lips").

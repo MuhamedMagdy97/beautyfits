@@ -69,7 +69,7 @@ Migration `brands_categories`. DB Design "v1.2 TASK-015 Amendments".
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-Defaults where the documents are silent (ADR-0020 §4), awaiting the product owner's confirmation:
+Defaults where the documents are silent (ADR-0020 §4), confirmed by the product owner on 2026-10-01:
 1. A product's brand is optional (at most one); publish rules are TASK-017.
 2. Up to 10 categories per product, at any level.
 3. Categories at most 3 levels deep.
