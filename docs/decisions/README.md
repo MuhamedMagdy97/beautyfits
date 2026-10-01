@@ -19,5 +19,6 @@
 | [ADR-0012](ADR-0012-formatting-and-ci.md) | Formatting (Prettier) and CI (GitHub Actions) | TASK-006 |
 | [ADR-0013](ADR-0013-customer-auth-sessions-throttling.md) | Customer auth: tokens, transport, CSRF, throttling and client IP (amends ADR-0008) | TASK-007 |
 | [ADR-0014](ADR-0014-email-otp-and-recovery.md) | One-time codes, local email delivery and password recovery | TASK-008 |
+| [ADR-0015](ADR-0015-employee-auth.md) | Employee login: email codes, trusted devices and staff sessions | TASK-011 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

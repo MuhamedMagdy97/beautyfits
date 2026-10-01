@@ -1499,6 +1499,29 @@ Removed from the earlier design: `locked_until` (a code is dead after 5 attempts
 
 Rate-limit keys added: `otp:send:<purpose>:<sha256(email)>`, `otp:send-hour:<purpose>:<sha256(email)>`, `otp:send:ip:<ip>`, `otp:verify:ip:<ip>`.
 
+## v1.2 TASK-011 Amendments
+
+Added by TASK-011 (`docs/tasks/TASK-011-employee-auth.md`, ADR-0015, Business Spec R28, R29). Migrated in `prisma/migrations/*_employee_auth`.
+
+### `employees` (§4, migrated)
+- Fields as in §4: `id`, `account_id` (unique; an `EMPLOYEE` account), `display_name`, `employee_level` = `OWNER` | `ADMIN` | `MANAGER` | `EMPLOYEE`, `department` nullable, `status` = `ACTIVE` | `DEACTIVATED`, `created_by_employee_id` nullable (null for the first Owner), `deactivated_at` nullable, `created_at`, `updated_at`.
+- An employee can sign in only when both `accounts.status` and `employees.status` are `ACTIVE`. Rows are never hard-deleted (Q69).
+- `roles`, `permissions`, `employee_roles`, `role_permissions` and `employee_invitations` are migrated by TASK-012.
+
+### `employee_trusted_devices` (migrated as designed in "v1.2 TASK-007 Amendments")
+- `expires_at` is fixed at `verified_at` + 30 days (R28); use does not extend it. Index on `account_id`.
+- Logout, logout-all and password reset leave devices trusted; revocation (`revoked_at`) is used by employee management (TASK-012).
+
+### `auth_sessions` for employees
+- `domain = EMPLOYEE`. `expires_at` = login + the configured maximum (default 12 hours, R29). The session is also rejected when `last_used_at` is older than the configured idle timeout (default 60 minutes); a token refresh does not update `last_used_at` (ADR-0015).
+
+### `otp_challenges`
+- `grant_token_hash` / `grant_expires_at` / `grant_used_at` also hold the **employee login ticket** for `EMPLOYEE_LOGIN` codes: issued with the code after the password check, valid 15 minutes, single use (ADR-0015).
+- A new code supersedes only open codes of the **same account**, purpose and destination, so a customer and an employee sharing an email (R15) keep separate codes.
+
+### Rate-limit keys added
+`employee-login:account:<sha256(email)>`, `employee-login:ip:<ip>` (R24 values), and employee code send limits `otp:send:EMPLOYEE:<purpose>:<sha256(email)>`, `otp:send-hour:EMPLOYEE:<purpose>:<sha256(email)>`.
+
 ## TASK-001 Reconciliation
 
 The canonical rule text lives in `docs/product/business-spec.md` (R1–R12). Schema implications:

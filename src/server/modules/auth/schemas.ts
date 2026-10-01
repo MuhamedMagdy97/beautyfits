@@ -92,3 +92,22 @@ export const resetPasswordSchema = z.object({
   resetToken: z.string().min(1).max(256),
   newPassword,
 });
+
+// Employee auth (TASK-011, API contract "TASK-011 Amendments").
+
+const opaqueToken = z.string().min(1).max(256);
+
+export const employeeLoginSchema = z.object({
+  email,
+  password: existingPassword,
+  /** Trusted-device token from an earlier email code (Bearer clients; R28). */
+  deviceToken: opaqueToken.optional(),
+});
+
+export const employeeVerifyOtpSchema = z.object({ loginTicket: opaqueToken, code: otpCode });
+
+export const employeeResendOtpSchema = z.object({ loginTicket: opaqueToken });
+
+export const employeeForgotPasswordSchema = z.object({ email });
+
+export const employeeResetPasswordSchema = z.object({ email, code: otpCode, newPassword });

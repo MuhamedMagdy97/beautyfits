@@ -144,9 +144,11 @@ model Account {
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  customer      Customer?
-  sessions      AuthSession[]
-  otpChallenges OtpChallenge[]
+  customer       Customer?
+  employee       Employee?
+  sessions       AuthSession[]
+  otpChallenges  OtpChallenge[]
+  trustedDevices EmployeeTrustedDevice[]
 
   @@unique([accountType, email], map: "accounts_verified_email_key", where: raw("email_verified_at IS NOT NULL"))
   @@index([accountType, email])
@@ -268,7 +270,9 @@ model OtpChallenge {
   lastSentAt     DateTime   @map("last_sent_at") @db.Timestamptz(3)
   consumedAt     DateTime?  @map("consumed_at") @db.Timestamptz(3)
   supersededAt   DateTime?  @map("superseded_at") @db.Timestamptz(3)
-  /// Password reset only: single-use grant issued when the code is verified.
+  /// Single-use grant tied to the code. PASSWORD_RESET: the reset token issued
+  /// when the code is verified. EMPLOYEE_LOGIN: the login ticket issued with
+  /// the code after the password check (TASK-011).
   grantTokenHash String?    @unique @map("grant_token_hash")
   grantExpiresAt DateTime?  @map("grant_expires_at") @db.Timestamptz(3)
   grantUsedAt    DateTime?  @map("grant_used_at") @db.Timestamptz(3)
@@ -280,4 +284,66 @@ model OtpChallenge {
   @@index([purpose, destination, createdAt])
   @@index([accountId])
   @@map("otp_challenges")
+}
+
+// ---------------------------------------------------------------------------
+// Employees and employee authentication (DB design §4 + "v1.2 TASK-011
+// Amendments"; TASK-011, ADR-0015). Roles and permissions: TASK-012.
+// ---------------------------------------------------------------------------
+
+enum EmployeeLevel {
+  OWNER
+  ADMIN
+  MANAGER
+  EMPLOYEE
+
+  @@map("employee_level")
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  DEACTIVATED
+
+  @@map("employee_status")
+}
+
+/// Staff profile (DB design §4). Never hard-deleted once it has business
+/// history; access is removed by deactivation (Q64, Q69).
+model Employee {
+  id                  String         @id @default(uuid(7)) @db.Uuid
+  accountId           String         @unique @map("account_id") @db.Uuid
+  displayName         String         @map("display_name")
+  employeeLevel       EmployeeLevel  @map("employee_level")
+  department          String?
+  status              EmployeeStatus @default(ACTIVE)
+  createdByEmployeeId String?        @map("created_by_employee_id") @db.Uuid
+  deactivatedAt       DateTime?      @map("deactivated_at") @db.Timestamptz(3)
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  account   Account    @relation(fields: [accountId], references: [id])
+  createdBy Employee?  @relation("EmployeeCreatedBy", fields: [createdByEmployeeId], references: [id])
+  created   Employee[] @relation("EmployeeCreatedBy")
+
+  @@map("employees")
+}
+
+/// A device on which an employee completed the login email code (Business
+/// Spec R28). Logins on it skip the code until `expires_at` (30 days after
+/// the code). Only a SHA-256 hash of the device token is stored.
+model EmployeeTrustedDevice {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  accountId       String    @map("account_id") @db.Uuid
+  deviceTokenHash String    @unique @map("device_token_hash")
+  verifiedAt      DateTime  @map("verified_at") @db.Timestamptz(3)
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(3)
+  ipAddress       String?   @map("ip_address")
+  userAgent       String?   @map("user_agent")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
+  @@map("employee_trusted_devices")
 }
