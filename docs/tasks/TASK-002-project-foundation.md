@@ -104,13 +104,13 @@ Unit tests (Vitest, 31 tests). No database required:
 ## Open Items
 Found while designing the auth architecture. They do **not** block TASK-002 and are recorded here per AGENTS.md; each must be answered before its owning task is implemented.
 
-- **[BUSINESS DECISION REQUIRED] (TASK-007): customer login identifier.** Phone is the "primary identifier" (Q41) and email is "used for recovery/communication", but the documents do not say whether customers log in with phone + password, email + password, or either.
-- **[BUSINESS DECISION REQUIRED] (TASK-011): employee second factor.** Q165 says "Email + password + OTP; Owner/Admin also require MFA". Two points are open:
+- **Resolved (Business Spec R13: email + password).** ~~[BUSINESS DECISION REQUIRED] (TASK-007): customer login identifier.~~ Phone is the "primary identifier" (Q41) and email is "used for recovery/communication", but the documents do not say whether customers log in with phone + password, email + password, or either.
+- **Resolved (Business Spec R28: email OTP for all staff, 30-day trusted device).** ~~[BUSINESS DECISION REQUIRED] (TASK-011): employee second factor.~~ Q165 says "Email + password + OTP; Owner/Admin also require MFA". Two points are open:
   - is OTP mandatory for every employee, or optional/configurable for non-Owner/Admin roles?
   - is Owner/Admin MFA the same email OTP, or a separate factor (for example an authenticator app)?
-- **[BUSINESS DECISION REQUIRED] (TASK-011): default staff session lifetime.** Q163 requires "safer defaults than customer sessions" but gives no value.
+- **Resolved (Business Spec R29: 12 h maximum, 60 min idle).** ~~[BUSINESS DECISION REQUIRED] (TASK-011): default staff session lifetime.~~ Q163 requires "safer defaults than customer sessions" but gives no value.
 - **Resolved in TASK-007 (Business Spec R23).** ~~[BUSINESS DECISION REQUIRED] (TASK-008): password reset and sessions.~~ User Flows §3.2 says existing sessions are "handled according to security policy", but the policy is not specified (for example, revoke all sessions on reset).
-- **Resolved in TASK-007 (Business Spec R25: WhatsApp).** ~~[BUSINESS DECISION REQUIRED] (TASK-009): phone-change OTP channel.~~ Q153 requires an OTP to the new phone, but SMS is a future channel (R10). The documents don't say whether it is sent via WhatsApp or another channel.
+- **Resolved in TASK-007 (Business Spec R25: WhatsApp); changed to email by R30 (2026-10-01).** ~~[BUSINESS DECISION REQUIRED] (TASK-009): phone-change OTP channel.~~ Q153 requires an OTP to the new phone, but SMS is a future channel (R10). The documents don't say whether it is sent via WhatsApp or another channel.
 - Technical, not business: `npm audit` reports advisories in Prisma CLI tooling dependencies (ADR-0002). Re-check before production.
 
 ## Definition of Done

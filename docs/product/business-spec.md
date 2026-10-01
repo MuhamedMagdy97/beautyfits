@@ -616,7 +616,7 @@ Business Specification → User Flows / State Machines → Architecture → Data
 
 ### Q153 — Authentication
 **Final decision:** Custom — Re-authenticate, OTP to new phone, send notification to verified email
-**Rule / notes:** Phone is the primary identifier; stronger change flow required.
+**Rule / notes:** Phone is the primary identifier; stronger change flow required. **Amended by R30 (v1):** the OTP is sent to the account's verified email, not to the new phone.
 
 ### Q154 — Customer Account
 **Final decision:** B — Deactivate/Anonymize while retaining necessary order/audit/legal records
@@ -656,7 +656,7 @@ Business Specification → User Flows / State Machines → Architecture → Data
 
 ### Q163 — Authentication / Sessions
 **Final decision:** C — Admin/configurable with safer defaults than customer sessions
-**Rule / notes:** Sensitive staff sessions should be shorter/stricter.
+**Rule / notes:** Sensitive staff sessions should be shorter/stricter. Default values: R29.
 
 ### Q164 — Authentication / Sessions
 **Final decision:** A — Yes
@@ -664,7 +664,7 @@ Business Specification → User Flows / State Machines → Architecture → Data
 
 ### Q165 — Authentication / MFA
 **Final decision:** B — Email + password + OTP; Owner/Admin also require MFA
-**Rule / notes:** High-privilege accounts get mandatory MFA.
+**Rule / notes:** High-privilege accounts get mandatory MFA. **Amended by R28 (v1):** every employee, Owner/Admin included, uses the same email OTP, re-verified once per device every 30 days; no separate factor in v1.
 
 ### Q166 — Wallet
 **Final decision:** A — Yes
@@ -822,7 +822,7 @@ These decisions supersede earlier ambiguous or conflicting interpretations and a
 
 10. **Security-sensitive account changes**
    - Email/phone changes require re-authentication plus verification of the new destination.
-   - Owner/Admin accounts require MFA.
+   - Owner/Admin accounts require MFA. (In v1 this is the same email OTP as all staff; see R28.)
 
 ## v1.1 TASK-001 Reconciliation (Documentation Consistency)
 
@@ -980,6 +980,30 @@ Product-owner decisions made on 2026-09-30 during TASK-007 (`docs/tasks/TASK-007
 - Customer phone numbers are **Egyptian mobile numbers only**: 010, 011, 012 or 015 followed by 8 digits.
 - They are stored normalized in E.164 (`+20…`). Accepted input forms: `01xxxxxxxxx`, `+201xxxxxxxxx`, `00201xxxxxxxxx`.
 
+## v1.3 Phase 1 Staff and OTP Decisions
+
+Product-owner decisions made on 2026-10-01 (project thread "Settle Phase 1 business decisions"). They answer the remaining staff items of `docs/tasks/TASK-002-project-foundation.md` and TASK-002A open decisions 1–2, and change the OTP channel set in R25. Recorded in `docs/decisions/business-rules-ledger.xlsx`, "Closure & Audit Decisions" worksheet.
+
+### R28 — Employee second factor (amends Q165)
+- Every employee account (Owner, Admin, Manager and other employees) logs in with **email + password + email OTP**.
+- After a successful OTP, that device is trusted for **30 days**; within those 30 days the employee logs in on that device with email + password only. After 30 days, or on a new device, the email OTP is required again.
+- Owner/Admin follow the same rule. No separate MFA factor (for example an authenticator app) in v1.
+
+### R29 — Staff sessions
+- Default staff session: **12 hours maximum**, ended after **60 minutes without activity**. Both values are configurable by the Owner/Admin (Q163).
+- A staff password reset revokes **all** of the employee's sessions, as for customers (R23).
+
+### R30 — Email as the only OTP channel (amends Q153 and R25)
+- **Email is the only OTP channel in v1**, for customers and employees. SMS and WhatsApp OTP cost more and may be added later.
+- **Phone change:** re-authenticate, then an OTP is sent to the account's **verified email** (not to the new phone), then the phone is changed and the verified email is notified. The new phone number is not proven by OTP in v1.
+- **Email change:** unchanged (Q152): OTP to the new email, notify the previous email.
+- **Registration phone verification** (R25 sets a WhatsApp OTP): `[BUSINESS DECISION REQUIRED]` — how the phone is verified, or whether activation requires it, now that WhatsApp OTP is not used.
+
+### R31 — Guest order claim OTP (Q43, Q44; replaces the WhatsApp channel of R25)
+- The claim OTP is sent by **email to the `guest_email` stored on the guest order(s)**.
+- Only guest orders whose phone **and** email both match the account are linked; a phone match alone is never sufficient (User Flows §3.5).
+- Guest orders with a different or missing email are linked only through support.
+
 ## Key non-negotiables
 - Backend is authoritative for price, stock, discount, shipping, permissions and order state.
 - Checkout core DB changes are atomic; external notifications happen after commit.
@@ -1000,4 +1024,5 @@ Product-owner decisions made on 2026-09-30 during TASK-007 (`docs/tasks/TASK-007
 - TASK-001 final closure decisions (R6, R7, R9–R12): wishlist reminder cadence and stop conditions, customer-caused 25% refund basis, HALF-UP financial rounding, phone COD confirmation event, cancellation window, variant-level restock subscription route.
 - TASK-002A closure decisions (R13–R19): email login, Arabic + English, shared customer/employee email, no online guest order tracking, permission catalog and default roles, Manager limits, no order-status approvals in v1. Audit Correction 1 shipment lifecycle aligned with R2.
 - TASK-005 closure decisions (R20–R22): Africa/Cairo business timezone, calendar-day return window and 72-hour elapsed COD maximum, HALF-UP ties away from zero for negative amounts.
+- v1.3 Phase 1 staff and OTP decisions (R28–R31): email OTP for all staff with 30-day trusted devices, 12 h / 60 min staff session defaults and staff reset revoking all sessions, email as the only OTP channel (phone change OTP to the verified email), guest order claim OTP to the order's email.
 - TASK-007 closure decisions (R23–R27): sessions after password reset/change and absolute 30-day sessions, login throttling, WhatsApp phone verification and activation with non-reserving pending registrations, no login with an unverified email, Egyptian mobile numbers only.

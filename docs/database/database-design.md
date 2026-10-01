@@ -1311,9 +1311,9 @@ Added by TASK-002A (`docs/tasks/TASK-002A-docs-closure.md`). Technical entities 
 - `revoked_at` nullable, `revoke_reason` nullable (`LOGOUT` | `LOGOUT_ALL` | `PASSWORD_RESET` | `DEACTIVATED` | `ROTATED` | `REUSE_DETECTED`)
 - `ip_address`, `user_agent` (coarse metadata)
 
-Customer lifetime 30 days (Q162). Staff lifetime and password-reset behaviour: `[BUSINESS DECISION REQUIRED]` (TASK-002A open decisions 1–2).
+Customer lifetime 30 days (Q162). Staff default lifetime 12 hours maximum with a 60-minute idle timeout, Owner/Admin-configurable; a staff password reset revokes all sessions (Business Spec R29).
 
-**Superseded by "v1.2 TASK-007 Amendments":** the token columns moved to `auth_session_tokens`; customer password-reset behaviour is R23. Staff lifetime remains open for TASK-011.
+**Superseded by "v1.2 TASK-007 Amendments":** the token columns moved to `auth_session_tokens`; customer password-reset behaviour is R23; staff lifetime and reset are R29.
 
 #### `otp_challenges`
 - `id`
@@ -1328,7 +1328,7 @@ Customer lifetime 30 days (Q162). Staff lifetime and password-reset behaviour: `
 - `ip_address`, `device_id` nullable (Q161)
 - `created_at`
 
-Channel for `PHONE_CHANGE` and `GUEST_ORDER_CLAIM`: **WhatsApp** (Business Spec R25, TASK-007). SMS remains a future channel (R10). Purpose `PHONE_VERIFICATION` added in TASK-007 (see "v1.2 TASK-007 Amendments").
+Channel for `PHONE_CHANGE` and `GUEST_ORDER_CLAIM`: **email** (Business Spec R30, R31; replaces the WhatsApp channel of R25). `PHONE_CHANGE` goes to the account's verified email; `GUEST_ORDER_CLAIM` goes to the `guest_email` of the guest order(s). SMS and WhatsApp remain future channels. Purpose `PHONE_VERIFICATION` added in TASK-007 (see "v1.2 TASK-007 Amendments").
 
 #### `employee_invitations` (Q64)
 - `id`, `email`, `employee_level`, `role_ids_json`
@@ -1462,7 +1462,19 @@ Throttling counters shared by all app instances (ADR-0013 §4).
 
 ### `otp_challenges` (design only; migrated in TASK-008)
 - `purpose` adds `PHONE_VERIFICATION` (registration, R25).
-- `channel`: `EMAIL` for `EMAIL_VERIFICATION`, `PASSWORD_RESET`, `EMAIL_CHANGE`; `WHATSAPP` for `PHONE_VERIFICATION`, `PHONE_CHANGE`, `GUEST_ORDER_CLAIM` (R25); employee login per TASK-011.
+- `channel`: `EMAIL` for every purpose in v1 (Business Spec R30, R31), including `EMPLOYEE_LOGIN` (R28). `PHONE_VERIFICATION` at registration: `[BUSINESS DECISION REQUIRED]` (R30). `WHATSAPP` stays in the enum for later.
+
+#### `employee_trusted_devices` (Business Spec R28)
+- `id`
+- `account_id` (employee account)
+- `device_token_hash` unique (SHA-256 of an opaque device token held by the client; the token itself is never stored)
+- `verified_at` (time of the successful `EMPLOYEE_LOGIN` OTP)
+- `expires_at` = `verified_at` + 30 days
+- `revoked_at` nullable
+- `ip_address`, `user_agent` (coarse metadata)
+- `created_at`
+
+An employee login on a device with an unexpired, unrevoked row skips the `EMPLOYEE_LOGIN` OTP; otherwise the OTP is required and a new row is written on success. Applies to every employee level, Owner/Admin included.
 - Limits (Q158–Q161) reuse `rate_limit_buckets`.
 
 ## TASK-001 Reconciliation

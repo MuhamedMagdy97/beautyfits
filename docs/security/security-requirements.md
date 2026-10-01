@@ -63,9 +63,10 @@ Security is a cross-cutting concern from the beginning, not a post-MVP feature (
 | Requirement | Source |
 |---|---|
 | Employee authorization domain is separate from customers | Architecture §6 |
-| Employee login: email + password + OTP | Q165 |
-| Owner/Admin: mandatory MFA | Q165, Audit Correction 10 |
-| Staff sessions: admin-configurable with safer (shorter/stricter) defaults than customer sessions | Q163 |
+| Employee login: email + password + email OTP; a successful OTP trusts the device for 30 days | Q165, Business Spec R28 |
+| Owner/Admin: same email OTP rule in v1 (no separate MFA factor yet) | Q165, Audit Correction 10, Business Spec R28 |
+| Staff sessions: default 12 hours maximum and 60 minutes idle; admin-configurable; a staff password reset revokes all sessions | Q163, Business Spec R29 |
+| Email is the only OTP channel in v1 | Business Spec R30 |
 | Employees are invited by work email; access is deactivated, never hard-deleted when history exists | Q64, Q69 |
 
 ## 5. Authorization

@@ -49,7 +49,7 @@ Guests can browse, manage a guest cart, and complete COD checkout. Guests have *
 
 ### Employee
 
-Employees use a separate employee authorization domain with password + OTP/MFA. Owner/Admin accounts require mandatory MFA.
+Employees use a separate employee authorization domain with email + password + email OTP. After a successful OTP the device is trusted for 30 days; then, or on a new device, the OTP is required again. Owner/Admin follow the same rule in v1 (Business Spec R28). Default staff session: 12 hours maximum, 60 minutes idle, Owner/Admin-configurable (R29).
 
 ### Sensitive Changes
 
@@ -211,7 +211,7 @@ Stock validation and reservation occur inside a transaction with concurrency-saf
 | Method | Endpoint | Purpose | Auth |
 |---|---|---|---|
 | POST | `/employee-auth/login` | Employee login | Public |
-| POST | `/employee-auth/verify-otp` | Complete employee MFA | Challenge |
+| POST | `/employee-auth/verify-otp` | Complete the employee email OTP; trusts the device for 30 days (R28) | Challenge |
 | POST | `/employee-auth/refresh` | Refresh employee session | Refresh token |
 | POST | `/employee-auth/logout` | Logout employee | Employee |
 | POST | `/employee-auth/logout-all` | Revoke all own employee sessions | Employee |
@@ -229,7 +229,7 @@ OTP rules are enforced server-side: expiration, retry count, resend cooldown, an
 | GET | `/me` | Get current customer profile | Customer |
 | PATCH | `/me` | Update editable profile fields | Customer |
 | POST | `/me/change-email` | Change email with re-authentication + new-email OTP | Customer |
-| POST | `/me/change-phone` | Change phone with re-authentication + new-phone OTP via WhatsApp (Business Spec R25) | Customer |
+| POST | `/me/change-phone` | Change phone with re-authentication + OTP to the verified account email (Business Spec R30) | Customer |
 | POST | `/me/deactivate` | Deactivate/anonymize own account, keeping required order/audit records (Q154) | Customer (re-authentication) |
 | GET | `/me/addresses` | List addresses | Customer |
 | POST | `/me/addresses` | Create address | Customer |
@@ -253,7 +253,7 @@ Customer profile updates never rewrite historical order snapshots.
 | POST | `/guest/orders/claim` | Start claim process | Authenticated customer |
 | POST | `/guest/orders/claim/verify` | Verify OTP and link eligible guest orders | Authenticated customer |
 
-A matching phone number alone is not sufficient proof of control. The claim OTP is sent via WhatsApp (Business Spec R25).
+A matching phone number alone is not sufficient proof of control. The claim OTP is emailed to the `guest_email` on the guest order(s); only orders whose phone and email both match are linked. Other guest orders are linked through support (Business Spec R31).
 
 # 13. Catalog
 

@@ -215,7 +215,7 @@ Implement secure guest-order claim flow using OTP; do not rely on phone match al
 ### TASK-011 — Employee Authentication & MFA
 **Depends on:** TASK-006
 
-Implement employee auth, MFA challenge, session handling, logout and mandatory MFA for Owner/Admin.
+Implement employee auth, email OTP challenge with 30-day trusted devices for all employees including Owner/Admin (Business Spec R28), session handling with 12 h / 60 min configurable defaults and reset revoking all sessions (R29), and logout.
 
 ### TASK-012 — Roles & Granular Permissions
 **Depends on:** TASK-011

@@ -98,7 +98,7 @@ Re-authenticate
       ↓
 Enter new phone
       ↓
-OTP to new phone
+OTP to the verified account email (Business Spec R30; email is the only OTP channel in v1)
       ↓
 Verify
       ↓
@@ -116,12 +116,14 @@ Customer later creates account
       ↓
 Same phone detected
       ↓
+OTP sent to the email stored on the guest order(s)
+      ↓
 OTP verification
       ↓
-Eligible historical guest orders linked to account
+Guest orders whose phone and email both match are linked to the account
 ```
 
-Phone match alone is never sufficient to claim historical guest orders.
+Phone match alone is never sufficient to claim historical guest orders. Guest orders with a different or missing email are linked only through support (Business Spec R31).
 
 ---
 
