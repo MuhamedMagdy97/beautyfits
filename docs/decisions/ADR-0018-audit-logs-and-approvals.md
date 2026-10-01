@@ -1,6 +1,6 @@
 # ADR-0018 — Audit logs and approval requests
 
-- **Status:** Accepted (TASK-013); the defaults in §4 await product-owner confirmation
+- **Status:** Accepted (TASK-013); the defaults in §4 confirmed by the product owner on 2026-10-01
 - **Date:** 2026-10-01
 - **Relates to:** ADR-0010 (transactions), ADR-0016 (roles), ADR-0017 (bootstrap); Business Spec Q70, Q76, Q79, Q113, Q116, Q142, Q180, Q181, R19, Audit Correction 7; User Flows §17.3, §18; Architecture §19 and "Approval subsystem"; DB Design §20, v1.1 `approval_requests` and "v1.2 TASK-013 Amendments"; API Contract §25, §26 and "TASK-013 Amendments"; Security Requirements §8; Test Strategy invariant 15
 
@@ -34,9 +34,9 @@ Until now role, staff and bootstrap changes went only to the structured logger (
 - `setting_history` and settings changes (TASK-057).
 - Customer anonymization (Q154) of personal data inside audit snapshots: no customer action is audited yet; the task that adds the first one must keep customer personal data out of snapshots or define how it is redacted (§4 item 6).
 
-## 4. Defaults where the documents are silent ([BUSINESS DECISION REQUIRED] for confirmation)
+## 4. Defaults where the documents are silent (confirmed by the product owner, 2026-10-01)
 
-1. **Nobody approves or rejects their own request, Owner and Admin included** ("four eyes"). Whether an Owner/Admin's own change needs a request at all (for example a critical setting changed by the Owner) is decided by each feature task; if it does, a single Owner cannot approve it alone.
+1. **Nobody approves or rejects their own request, Owner and Admin included** ("four eyes"). Whether an Owner/Admin's own change needs a request at all (for example a critical setting changed by the Owner) is decided by each feature task; a feature may let the Owner's own changes skip approval so a single Owner is never blocked.
 2. **A rejection must give a reason; an approval may.** The reason is stored on the request and in the audit entry.
 3. **Only one pending request per type and entity.** A second one is refused until the first is resolved or cancelled.
 4. **Requests do not expire.** They stay pending until resolved or cancelled.

@@ -72,7 +72,7 @@ Both endpoint groups are Owner/Admin-only permissions; a Manager role listing th
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-[BUSINESS DECISION REQUIRED] — safe defaults implemented (ADR-0018 §4), to be confirmed by the product owner:
+Defaults where the documents are silent (ADR-0018 §4), confirmed by the product owner on 2026-10-01:
 1. Nobody approves or rejects their own request, Owner and Admin included.
 2. A rejection must give a reason; an approval may.
 3. Only one pending request per type and entity at a time.
