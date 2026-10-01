@@ -81,7 +81,7 @@ Migration `product_media`. DB Design "v1.2 TASK-016 Amendments".
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-Defaults where the documents are silent (ADR-0021 §5), awaiting the product owner's confirmation:
+Defaults where the documents are silent (ADR-0021 §5), confirmed by the product owner on 2026-10-01:
 1. Files are stored in a local folder (`.media/`) until a storage provider is chosen before launch.
 2. JPEG, PNG and WebP only.
 3. At most 5 MB per file.

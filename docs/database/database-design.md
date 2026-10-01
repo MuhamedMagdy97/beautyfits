@@ -257,7 +257,7 @@ Fields:
 - `created_at`
 
 Rules:
-- main image required for publishable product (Q178). Whether a Draft may exist without one: `[BUSINESS DECISION REQUIRED]` (User Flows §4.1 says "every product")
+- main image required for publishable product (Q178). A Draft may exist without one (decided 2026-10-01, ADR-0021 §5 item 6; User Flows §4.1 "every product" applies from publishing on)
 - media management requires explicit permission
 
 ---
@@ -1645,7 +1645,7 @@ Added by TASK-016 (`docs/tasks/TASK-016-product-media.md`, ADR-0021). Migrated i
 - Fields of §5: `id`, `product_id`, `variant_id` nullable, `media_asset_id` (all reference their tables, delete restricted), `sort_order` (not negative), `is_main`, `alt_text_ar`, `alt_text_en`, `created_at`. Added: `updated_at`, `removed_at` nullable.
 - At most one current main image per product (partial unique index `product_media_one_main_key` on `product_id` where `is_main AND removed_at IS NULL`); a removed image is never main (check constraint). A file is on a product at most once at a time (`product_media_asset_once_key`). Indexes `(product_id, sort_order)`, `media_asset_id`, `variant_id`.
 - The variant belongs to the same product: enforced by the service.
-- Draft without a main image (the §5 `[BUSINESS DECISION REQUIRED]`): proposed default in ADR-0021 §5 item 6, awaiting the product owner's confirmation. A draft may have none; publishing requires one (TASK-017).
+- Draft without a main image (the §5 `[BUSINESS DECISION REQUIRED]`): decided in ADR-0021 §5 item 6, confirmed by the product owner on 2026-10-01: a draft may have none; publishing requires one (TASK-017).
 
 ### No hard delete
 - The trigger function `catalog_reject_delete` now also rejects `DELETE` on `media_assets` and `product_media`. Removing an image sets `removed_at`; the file is kept for order history (Q184) and audit.

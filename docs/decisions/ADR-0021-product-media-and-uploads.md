@@ -1,6 +1,6 @@
 # ADR-0021 — Product media and secure uploads
 
-- **Status:** Accepted (TASK-016); the defaults in §5 await confirmation by the product owner
+- **Status:** Accepted (TASK-016); the defaults in §5 confirmed by the product owner on 2026-10-01
 - **Date:** 2026-10-01
 - **Relates to:** ADR-0014 (local email transport, the same "local until a provider is chosen" pattern), ADR-0016 (permissions), ADR-0017 (settings), ADR-0018 (audit logs), ADR-0019 (products and variants); Business Spec Q175–Q178, Q184, R19; User Flows §4.1; Architecture §20; DB Design §5 "product_media", §6 "media_assets"; API Contract §13, §28 and "TASK-016 Amendments"; Security Requirements §7; permission catalog §1, §3
 
@@ -42,7 +42,7 @@ The backend checks every file; nothing from the client is trusted (Q176).
 - **Concurrency.** Every product image change locks the product row (as variant changes do), so two images added at once still give one main image and consecutive positions.
 - **Abuse guard.** One employee can start at most 300 uploads per hour (`429 RATE_LIMITED`, PostgreSQL buckets of ADR-0013).
 
-## 5. Defaults where the documents are silent (awaiting the product owner's confirmation)
+## 5. Defaults where the documents are silent (confirmed by the product owner, 2026-10-01)
 
 1. **Storage:** files are kept in a local folder (`.media/`) until a storage provider is chosen before launch, like emails in `.mail/`.
 2. **Accepted types:** JPEG, PNG and WebP only.
