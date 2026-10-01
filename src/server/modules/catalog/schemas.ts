@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { pageQuery } from "@/server/modules/rbac/schemas";
 
-/** Request schemas of the admin product and variant endpoints (TASK-014, API §13, ADR-0019). */
+/**
+ * Request schemas of the admin catalog endpoints: products and variants
+ * (TASK-014, ADR-0019), brands and categories (TASK-015, ADR-0020); API §13.
+ */
 
 export const PRODUCT_NAME_MAX = 200;
 export const DESCRIPTION_MAX = 10_000;
@@ -11,6 +14,9 @@ export const VARIANT_NAME_MAX = 120;
 export const MAX_ATTRIBUTES = 20;
 export const ATTRIBUTE_KEY_MAX = 50;
 export const ATTRIBUTE_VALUE_MAX = 100;
+export const TAXONOMY_NAME_MAX = 120;
+/** A product is listed in at most this many categories (ADR-0020). */
+export const MAX_CATEGORIES_PER_PRODUCT = 10;
 
 export const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SKU_PATTERN = /^[A-Z0-9]+([._-][A-Z0-9]+)*$/;
@@ -102,6 +108,17 @@ export const createVariantSchema = z.object(variantFields).superRefine((value, c
   }
 });
 
+/** `null` removes the brand. */
+const brandId = z.uuid().nullable();
+
+/** The full list of categories the product is listed in; duplicates are ignored. */
+const categoryIds = z
+  .array(z.uuid())
+  .transform((ids) => [...new Set(ids.map((id) => id.toLowerCase()))])
+  .refine((ids) => ids.length <= MAX_CATEGORIES_PER_PRODUCT, {
+    message: `At most ${MAX_CATEGORIES_PER_PRODUCT} categories.`,
+  });
+
 export const createProductSchema = z.object({
   nameAr: productName,
   nameEn: productName,
@@ -109,6 +126,8 @@ export const createProductSchema = z.object({
   slug: slug.optional(),
   descriptionAr: description.optional(),
   descriptionEn: description.optional(),
+  brandId: brandId.optional(),
+  categoryIds: categoryIds.optional(),
   /** The product's default variant (C6). */
   defaultVariant: createVariantSchema,
 });
@@ -124,6 +143,9 @@ export const updateProductSchema = z
     slug: slug.optional(),
     descriptionAr: description.optional(),
     descriptionEn: description.optional(),
+    brandId: brandId.optional(),
+    /** Replaces the product's categories; `[]` removes them all. */
+    categoryIds: categoryIds.optional(),
   })
   .refine(atLeastOne, { message: "Provide at least one field to change." });
 
@@ -148,4 +170,68 @@ export const listProductsQuerySchema = z.object({
   status: productStatusSchema.optional(),
   /** Matches either name, the slug or a variant SKU. */
   search: z.string().trim().min(1).max(100).optional(),
+  brandId: z.uuid().optional(),
+  /** Products listed directly in this category (not its subcategories). */
+  categoryId: z.uuid().optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Brands and categories (TASK-015, ADR-0020)
+// ---------------------------------------------------------------------------
+
+const taxonomyName = z.string().trim().min(1).max(TAXONOMY_NAME_MAX);
+
+export const taxonomyStatusSchema = z.enum(["ACTIVE", "INACTIVE"]);
+
+export const createBrandSchema = z.object({
+  nameAr: taxonomyName,
+  nameEn: taxonomyName,
+  /** Derived from `nameEn` when omitted. */
+  slug: slug.optional(),
+  descriptionAr: description.optional(),
+  descriptionEn: description.optional(),
+});
+
+export const updateBrandSchema = z
+  .object({
+    nameAr: taxonomyName.optional(),
+    nameEn: taxonomyName.optional(),
+    slug: slug.optional(),
+    descriptionAr: description.optional(),
+    descriptionEn: description.optional(),
+    /** `INACTIVE` deactivates the brand, `ACTIVE` brings it back. */
+    status: taxonomyStatusSchema.optional(),
+  })
+  .refine(atLeastOne, { message: "Provide at least one field to change." });
+
+export const listBrandsQuerySchema = z.object({
+  ...pageQuery,
+  status: taxonomyStatusSchema.optional(),
+  /** Matches either name or the slug. */
+  search: z.string().trim().min(1).max(100).optional(),
+});
+
+export const createCategorySchema = z.object({
+  nameAr: taxonomyName,
+  nameEn: taxonomyName,
+  /** Derived from `nameEn` when omitted; unique among its siblings. */
+  slug: slug.optional(),
+  /** Omitted or `null`: a top-level category. */
+  parentId: z.uuid().nullable().optional(),
+});
+
+export const updateCategorySchema = z
+  .object({
+    nameAr: taxonomyName.optional(),
+    nameEn: taxonomyName.optional(),
+    slug: slug.optional(),
+    /** Moves the category; `null` makes it top-level. */
+    parentId: z.uuid().nullable().optional(),
+    /** `INACTIVE` deactivates the category, `ACTIVE` brings it back. */
+    status: taxonomyStatusSchema.optional(),
+  })
+  .refine(atLeastOne, { message: "Provide at least one field to change." });
+
+export const listCategoriesQuerySchema = z.object({
+  status: taxonomyStatusSchema.optional(),
 });

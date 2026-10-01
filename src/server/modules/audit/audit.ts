@@ -39,6 +39,11 @@ export const AUDIT_ACTIONS = [
   "PRODUCT_VARIANT_CREATED",
   "PRODUCT_VARIANT_UPDATED",
   "PRODUCT_VARIANT_ARCHIVED",
+  // Brands and categories (TASK-015)
+  "BRAND_CREATED",
+  "BRAND_UPDATED",
+  "CATEGORY_CREATED",
+  "CATEGORY_UPDATED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -51,6 +56,8 @@ export const AUDIT_ENTITY_TYPES = {
   approvalRequest: "APPROVAL_REQUEST",
   product: "PRODUCT",
   productVariant: "PRODUCT_VARIANT",
+  brand: "BRAND",
+  category: "CATEGORY",
 } as const;
 
 export interface AuditActor {

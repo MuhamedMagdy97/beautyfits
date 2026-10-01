@@ -604,14 +604,19 @@ model Product {
   slug          String        @unique
   descriptionAr String?       @map("description_ar")
   descriptionEn String?       @map("description_en")
+  /// Optional; a product has at most one brand (TASK-015).
+  brandId       String?       @map("brand_id") @db.Uuid
   status        ProductStatus @default(DRAFT)
   createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime      @default(now()) @map("updated_at") @db.Timestamptz(3)
   archivedAt    DateTime?     @map("archived_at") @db.Timestamptz(3)
 
-  variants ProductVariant[]
+  brand      Brand?            @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  variants   ProductVariant[]
+  categories ProductCategory[]
 
   @@index([status, createdAt(sort: Desc)])
+  @@index([brandId])
   @@map("products")
 }
 
@@ -639,4 +644,69 @@ model ProductVariant {
   @@unique([productId], map: "product_variants_one_default_key", where: raw("is_default"))
   @@index([productId, createdAt])
   @@map("product_variants")
+}
+
+// ---------------------------------------------------------------------------
+// Brands and categories (TASK-015, DB design §5, ADR-0020)
+// ---------------------------------------------------------------------------
+
+enum TaxonomyStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("taxonomy_status")
+}
+
+model Brand {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  nameAr        String         @map("name_ar")
+  nameEn        String         @map("name_en")
+  /// Unique, lowercase Latin letters, digits and hyphens.
+  slug          String         @unique
+  descriptionAr String?        @map("description_ar")
+  descriptionEn String?        @map("description_en")
+  status        TaxonomyStatus @default(ACTIVE)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  products Product[]
+
+  @@index([status, nameEn])
+  @@map("brands")
+}
+
+model Category {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  nameAr    String         @map("name_ar")
+  nameEn    String         @map("name_en")
+  /// Lowercase Latin letters, digits and hyphens; unique among siblings.
+  slug      String
+  /// Null for a top-level category.
+  parentId  String?        @map("parent_id") @db.Uuid
+  status    TaxonomyStatus @default(ACTIVE)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  parent   Category?         @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[]        @relation("CategoryTree")
+  products ProductCategory[]
+
+  @@unique([slug], map: "categories_top_level_slug_key", where: raw("parent_id IS NULL"))
+  @@unique([parentId, slug], map: "categories_parent_slug_key", where: raw("parent_id IS NOT NULL"))
+  @@index([parentId])
+  @@map("categories")
+}
+
+/// Which categories a product is listed in (many-to-many).
+model ProductCategory {
+  productId  String   @map("product_id") @db.Uuid
+  categoryId String   @map("category_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
+  @@map("product_categories")
 }

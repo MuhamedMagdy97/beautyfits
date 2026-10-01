@@ -1,10 +1,16 @@
-import { Prisma, type PrismaClient, type ProductStatus } from "@/generated/prisma/client";
+import {
+  Prisma,
+  type PrismaClient,
+  type ProductStatus,
+  type TaxonomyStatus,
+} from "@/generated/prisma/client";
 import { getDb } from "@/server/db/client";
 import { runInTransaction, type Db } from "@/server/db/transaction";
 import { AppError } from "@/server/errors/app-error";
 import type { Pagination } from "@/server/http/response";
 import type { Logger } from "@/server/logging/logger";
 import { AUDIT_ENTITY_TYPES, employeeActor, recordAudit } from "@/server/modules/audit/audit";
+import { conflict, isUniqueViolation, validationError } from "@/server/modules/catalog/errors";
 import { slugFromName } from "@/server/modules/catalog/schemas";
 import { systemClock, type Clock } from "@/server/time/time";
 
@@ -22,6 +28,11 @@ import { systemClock, type Clock } from "@/server/time/time";
  * - Every change writes an audit entry in its transaction. Product changes
  *   need no approval request (Business Spec R19 limits approvals to purchase
  *   orders, over-delivery, campaigns and critical settings).
+ *
+ * - A product has at most one brand and is listed in up to
+ *   `MAX_CATEGORIES_PER_PRODUCT` categories (TASK-015, ADR-0020). Only active
+ *   brands and categories can be newly linked; existing links stay when a
+ *   brand or category is deactivated.
  *
  * New products are DRAFT; publishing, archiving and disabling products are
  * TASK-017. Prices and costs are TASK-018.
@@ -47,6 +58,8 @@ export interface ProductInput {
   slug?: string;
   descriptionAr?: string | null;
   descriptionEn?: string | null;
+  brandId?: string | null;
+  categoryIds?: string[];
   defaultVariant: VariantInput;
 }
 
@@ -68,6 +81,19 @@ export interface VariantView {
   archivedAt: string | null;
 }
 
+/** A brand or category as shown on a product. */
+export interface TaxonomyRef {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  slug: string;
+  status: TaxonomyStatus;
+}
+
+export interface CategoryRef extends TaxonomyRef {
+  parentId: string | null;
+}
+
 export interface ProductView {
   id: string;
   nameAr: string;
@@ -76,6 +102,8 @@ export interface ProductView {
   descriptionAr: string | null;
   descriptionEn: string | null;
   status: ProductStatus;
+  brand: TaxonomyRef | null;
+  categories: CategoryRef[];
   variants: VariantView[];
   createdAt: string;
   updatedAt: string;
@@ -88,6 +116,7 @@ export interface ProductSummaryView {
   nameEn: string;
   slug: string;
   status: ProductStatus;
+  brand: TaxonomyRef | null;
   defaultVariant: { id: string; sku: string } | null;
   activeVariantCount: number;
   createdAt: string;
@@ -99,6 +128,8 @@ export interface ProductListQuery {
   pageSize: number;
   status?: ProductStatus;
   search?: string;
+  brandId?: string;
+  categoryId?: string;
 }
 
 export interface ProductsServiceDeps {
@@ -108,6 +139,15 @@ export interface ProductsServiceDeps {
 
 type VariantRow = Prisma.ProductVariantGetPayload<object>;
 type ProductRow = Prisma.ProductGetPayload<object>;
+type BrandRow = Prisma.BrandGetPayload<object>;
+type CategoryRow = Prisma.CategoryGetPayload<object>;
+
+/** A product row with what its view shows besides the variants. */
+interface ProductWithTaxonomy {
+  product: ProductRow;
+  brand: BrandRow | null;
+  categories: CategoryRow[];
+}
 
 const variantOrder = [{ createdAt: "asc" }, { id: "asc" }] as const;
 
@@ -127,7 +167,21 @@ function toVariantView(row: VariantRow): VariantView {
   };
 }
 
-function toProductView(row: ProductRow, variants: VariantRow[]): ProductView {
+function toTaxonomyRef(row: BrandRow | CategoryRow): TaxonomyRef {
+  return { id: row.id, nameAr: row.nameAr, nameEn: row.nameEn, slug: row.slug, status: row.status };
+}
+
+function toCategoryRef(row: CategoryRow): CategoryRef {
+  return { ...toTaxonomyRef(row), parentId: row.parentId };
+}
+
+const byEnglishName = (a: { nameEn: string; id: string }, b: { nameEn: string; id: string }) =>
+  a.nameEn.localeCompare(b.nameEn) || a.id.localeCompare(b.id);
+
+function toProductView(
+  { product: row, brand, categories }: ProductWithTaxonomy,
+  variants: VariantRow[],
+): ProductView {
   return {
     id: row.id,
     nameAr: row.nameAr,
@@ -136,6 +190,8 @@ function toProductView(row: ProductRow, variants: VariantRow[]): ProductView {
     descriptionAr: row.descriptionAr,
     descriptionEn: row.descriptionEn,
     status: row.status,
+    brand: brand ? toTaxonomyRef(brand) : null,
+    categories: [...categories].sort(byEnglishName).map(toCategoryRef),
     variants: variants.map(toVariantView),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -144,7 +200,7 @@ function toProductView(row: ProductRow, variants: VariantRow[]): ProductView {
 }
 
 /** What an audit entry records about a product. */
-function productSnapshot(product: ProductRow) {
+function productSnapshot(product: ProductRow, categoryIds: string[]) {
   return {
     nameAr: product.nameAr,
     nameEn: product.nameEn,
@@ -152,6 +208,8 @@ function productSnapshot(product: ProductRow) {
     descriptionAr: product.descriptionAr,
     descriptionEn: product.descriptionEn,
     status: product.status,
+    brandId: product.brandId,
+    categoryIds: [...categoryIds].sort(),
   };
 }
 
@@ -168,16 +226,50 @@ function variantSnapshot(variant: VariantRow) {
   };
 }
 
+/**
+ * Checks a brand about to be linked to a product: it must exist and be
+ * active. `FOR SHARE` makes a concurrent deactivation wait for this
+ * transaction, so the link is made against the status it checked.
+ */
+async function assertBrandLinkable(tx: Db, brandId: string): Promise<void> {
+  const rows = await tx.$queryRaw<{ status: TaxonomyStatus }[]>`
+    SELECT status FROM brands WHERE id = ${brandId}::uuid FOR SHARE`;
+  if (rows.length === 0) {
+    throw validationError("brandId", "brand_not_found", "The brand does not exist.");
+  }
+  if (rows[0].status !== "ACTIVE") {
+    throw conflict("The brand is inactive.", { reason: "BRAND_INACTIVE", brandId });
+  }
+}
+
+/** Like `assertBrandLinkable`, for categories newly added to a product. */
+async function assertCategoriesLinkable(tx: Db, categoryIds: string[]): Promise<void> {
+  if (categoryIds.length === 0) {
+    return;
+  }
+  const rows = await tx.$queryRaw<{ id: string; status: TaxonomyStatus }[]>`
+    SELECT id::text AS id, status FROM categories
+    WHERE id = ANY(${categoryIds}::uuid[]) ORDER BY id FOR SHARE`;
+  const found = new Map(rows.map((row) => [row.id, row.status]));
+  const missing = categoryIds.find((id) => !found.has(id));
+  if (missing) {
+    throw validationError("categoryIds", "category_not_found", "A category does not exist.");
+  }
+  const inactive = categoryIds.find((id) => found.get(id) !== "ACTIVE");
+  if (inactive) {
+    throw conflict("The category is inactive.", {
+      reason: "CATEGORY_INACTIVE",
+      categoryId: inactive,
+    });
+  }
+}
+
 function productNotFound(): AppError {
   return new AppError("NOT_FOUND", "Product not found.");
 }
 
 function variantNotFound(): AppError {
   return new AppError("NOT_FOUND", "Variant not found.");
-}
-
-function conflict(message: string, details: Record<string, unknown>): AppError {
-  return new AppError("CONFLICT", message, { details });
 }
 
 function slugTaken(slug: string): AppError {
@@ -188,12 +280,6 @@ function skuTaken(sku: string): AppError {
   return conflict("Another variant already uses this SKU.", { reason: "SKU_TAKEN", sku });
 }
 
-function validationError(path: string, code: string, message: string): AppError {
-  return new AppError("VALIDATION_ERROR", "Request validation failed.", {
-    details: { issues: [{ path, code, message }] },
-  });
-}
-
 function assertNamePair(nameAr: string | null, nameEn: string | null, path: string): void {
   if ((nameAr === null) !== (nameEn === null)) {
     throw validationError(
@@ -202,13 +288,6 @@ function assertNamePair(nameAr: string | null, nameEn: string | null, path: stri
       "Give the variant name in both Arabic and English, or in neither.",
     );
   }
-}
-
-function isUniqueViolation(error: unknown, column: string): boolean {
-  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
-    return false;
-  }
-  return JSON.stringify(error.meta ?? {}).includes(column);
 }
 
 /** Maps a unique-index race (P2002) to the matching conflict. */
@@ -269,7 +348,10 @@ export function createProductsService(deps: ProductsServiceDeps) {
   const { db, clock } = deps;
 
   async function loadProductView(tx: Db, productId: string): Promise<ProductView> {
-    const product = await tx.product.findUnique({ where: { id: productId } });
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+      include: { brand: true, categories: { include: { category: true } } },
+    });
     if (!product) {
       throw productNotFound();
     }
@@ -277,7 +359,11 @@ export function createProductsService(deps: ProductsServiceDeps) {
       where: { productId },
       orderBy: [...variantOrder],
     });
-    return toProductView(product, variants);
+    const { brand, categories, ...row } = product;
+    return toProductView(
+      { product: row, brand, categories: categories.map((link) => link.category) },
+      variants,
+    );
   }
 
   async function createProduct(
@@ -295,11 +381,17 @@ export function createProductsService(deps: ProductsServiceDeps) {
       );
     }
     const variantInput = input.defaultVariant;
+    const brandId = input.brandId ?? null;
+    const categoryIds = input.categoryIds ?? [];
     const now = clock.now();
     const product = await runInTransaction(
       async (tx) => {
         await assertSlugFree(tx, slug);
         await assertSkuFree(tx, variantInput.sku);
+        if (brandId !== null) {
+          await assertBrandLinkable(tx, brandId);
+        }
+        await assertCategoriesLinkable(tx, categoryIds);
         let created: ProductRow;
         let variant: VariantRow;
         try {
@@ -310,11 +402,21 @@ export function createProductsService(deps: ProductsServiceDeps) {
               slug,
               descriptionAr: input.descriptionAr ?? null,
               descriptionEn: input.descriptionEn ?? null,
+              brandId,
               status: "DRAFT",
               createdAt: now,
               updatedAt: now,
             },
           });
+          if (categoryIds.length > 0) {
+            await tx.productCategory.createMany({
+              data: categoryIds.map((categoryId) => ({
+                productId: created.id,
+                categoryId,
+                createdAt: now,
+              })),
+            });
+          }
           variant = await tx.productVariant.create({
             data: {
               productId: created.id,
@@ -336,11 +438,14 @@ export function createProductsService(deps: ProductsServiceDeps) {
           action: "PRODUCT_CREATED",
           entityType: AUDIT_ENTITY_TYPES.product,
           entityId: created.id,
-          next: { ...productSnapshot(created), defaultVariant: variantSnapshot(variant) },
+          next: {
+            ...productSnapshot(created, categoryIds),
+            defaultVariant: variantSnapshot(variant),
+          },
           correlationId,
           createdAt: now,
         });
-        return toProductView(created, [variant]);
+        return loadProductView(tx, created.id);
       },
       {},
       db,
@@ -362,6 +467,8 @@ export function createProductsService(deps: ProductsServiceDeps) {
     const search = query.search;
     const where: Prisma.ProductWhereInput = {
       ...(query.status ? { status: query.status } : {}),
+      ...(query.brandId ? { brandId: query.brandId } : {}),
+      ...(query.categoryId ? { categories: { some: { categoryId: query.categoryId } } } : {}),
       ...(search
         ? {
             OR: [
@@ -381,6 +488,7 @@ export function createProductsService(deps: ProductsServiceDeps) {
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
         include: {
+          brand: true,
           variants: { where: { isDefault: true }, select: { id: true, sku: true } },
           _count: { select: { variants: { where: { status: "ACTIVE" } } } },
         },
@@ -393,6 +501,7 @@ export function createProductsService(deps: ProductsServiceDeps) {
         nameEn: row.nameEn,
         slug: row.slug,
         status: row.status,
+        brand: row.brand ? toTaxonomyRef(row.brand) : null,
         defaultVariant: row.variants[0] ?? null,
         activeVariantCount: row._count.variants,
         createdAt: row.createdAt.toISOString(),
@@ -419,7 +528,25 @@ export function createProductsService(deps: ProductsServiceDeps) {
       async (tx) => {
         const existing = await lockProduct(tx, productId);
         assertProductChangeable(existing);
-        const data: Prisma.ProductUpdateInput = {};
+        const existingCategoryIds = (
+          await tx.productCategory.findMany({
+            where: { productId },
+            select: { categoryId: true },
+          })
+        ).map((link) => link.categoryId);
+        const data: Prisma.ProductUncheckedUpdateInput = {};
+        if (input.brandId !== undefined && input.brandId !== existing.brandId) {
+          if (input.brandId !== null) {
+            await assertBrandLinkable(tx, input.brandId);
+          }
+          data.brandId = input.brandId;
+        }
+        const nextCategoryIds = input.categoryIds ?? existingCategoryIds;
+        const addedCategoryIds = nextCategoryIds.filter((id) => !existingCategoryIds.includes(id));
+        const removedCategoryIds = existingCategoryIds.filter(
+          (id) => !nextCategoryIds.includes(id),
+        );
+        await assertCategoriesLinkable(tx, addedCategoryIds);
         if (input.nameAr !== undefined && input.nameAr !== existing.nameAr) {
           data.nameAr = input.nameAr;
         }
@@ -443,8 +570,19 @@ export function createProductsService(deps: ProductsServiceDeps) {
           await assertSlugFree(tx, input.slug, productId);
           data.slug = input.slug;
         }
-        if (Object.keys(data).length === 0) {
+        const categoriesChange = addedCategoryIds.length > 0 || removedCategoryIds.length > 0;
+        if (Object.keys(data).length === 0 && !categoriesChange) {
           return { view: await loadProductView(tx, productId), changed: false };
+        }
+        if (removedCategoryIds.length > 0) {
+          await tx.productCategory.deleteMany({
+            where: { productId, categoryId: { in: removedCategoryIds } },
+          });
+        }
+        if (addedCategoryIds.length > 0) {
+          await tx.productCategory.createMany({
+            data: addedCategoryIds.map((categoryId) => ({ productId, categoryId, createdAt: now })),
+          });
         }
         let updated: ProductRow;
         try {
@@ -460,8 +598,8 @@ export function createProductsService(deps: ProductsServiceDeps) {
           action: "PRODUCT_UPDATED",
           entityType: AUDIT_ENTITY_TYPES.product,
           entityId: productId,
-          previous: productSnapshot(existing),
-          next: productSnapshot(updated),
+          previous: productSnapshot(existing, existingCategoryIds),
+          next: productSnapshot(updated, nextCategoryIds),
           correlationId,
           createdAt: now,
         });

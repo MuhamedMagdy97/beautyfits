@@ -24,5 +24,6 @@
 | [ADR-0017](ADR-0017-bootstrap-and-settings.md) | Bootstrap, default roles and the settings table | TASK-004 |
 | [ADR-0018](ADR-0018-audit-logs-and-approvals.md) | Audit logs and approval requests | TASK-013 |
 | [ADR-0019](ADR-0019-products-and-variants.md) | Products and variants | TASK-014 |
+| [ADR-0020](ADR-0020-brands-and-categories.md) | Brands and categories | TASK-015 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.
