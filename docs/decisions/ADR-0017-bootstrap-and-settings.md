@@ -1,6 +1,6 @@
 # ADR-0017 — Bootstrap, default roles and the settings table
 
-- **Status:** Accepted (TASK-004); the defaults in §5 await product-owner confirmation
+- **Status:** Accepted (TASK-004); the defaults in §5 confirmed by the product owner on 2026-10-01
 - **Date:** 2026-10-01
 - **Relates to:** ADR-0003 (seed strategy), ADR-0015 (staff session settings), ADR-0016 (roles); Business Spec Q163, Q179–Q181, R15, R28, R29; permission catalog §3 (D-05); DB Design §4, §20 and "v1.2 TASK-004 Amendments"
 
@@ -38,7 +38,7 @@ A fresh database had no Owner, no roles and no settings, and nothing could creat
 - The account is `EMPLOYEE`, `ACTIVE`, email marked verified; the employee is `OWNER`, `created_by_employee_id` null (DB Design "v1.2 TASK-011 Amendments"). The first login still sends an email code before the device is trusted (R28).
 - A customer account with the same email is allowed (R15); another employee account with that email stops the bootstrap.
 
-## 5. Defaults where the documents are silent ([BUSINESS DECISION REQUIRED] for confirmation)
+## 5. Defaults where the documents are silent (confirmed by the product owner, 2026-10-01)
 
 1. **The Owner's email is marked verified by the bootstrap.** The person running it chose the address, and the first login proves it with an email code (R28).
 2. **Default roles are created once.** Later runs never restore a default role the Owner edited, renamed or emptied.
