@@ -1,11 +1,19 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { readdir, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
 import { POST as changePassword } from "@/app/api/v1/auth/change-password/route";
+import { POST as forgotPassword } from "@/app/api/v1/auth/forgot-password/route";
 import { POST as login } from "@/app/api/v1/auth/login/route";
 import { POST as logoutAll } from "@/app/api/v1/auth/logout-all/route";
 import { POST as logout } from "@/app/api/v1/auth/logout/route";
 import { POST as refresh } from "@/app/api/v1/auth/refresh/route";
 import { POST as register } from "@/app/api/v1/auth/register/route";
+import { POST as resendOtp } from "@/app/api/v1/auth/resend-otp/route";
+import { POST as resetPassword } from "@/app/api/v1/auth/reset-password/route";
 import { GET as session } from "@/app/api/v1/auth/session/route";
+import { POST as verifyEmailOtp } from "@/app/api/v1/auth/verify-email-otp/route";
+import { POST as verifyRecoveryOtp } from "@/app/api/v1/auth/verify-recovery-otp/route";
+import { getEnv } from "@/server/config/env";
 import { getDb } from "@/server/db/client";
 import { CUSTOM_SERVER_MARKER, DIRECT_ADDRESS_HEADER } from "@/server/http/client-ip";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/server/modules/auth/transport";
@@ -77,8 +85,27 @@ async function registerCustomer(
   return data as { accountId: string };
 }
 
+/** The 6-digit code in the newest `.eml` file sent to `to` (local mailbox, ADR-0014). */
+async function mailedCode(to: string): Promise<string> {
+  const dir = getEnv().MAIL_DIR;
+  const files = (await readdir(dir)).filter((name) => name.endsWith(".eml")).sort();
+  for (const name of files.reverse()) {
+    const eml = await readFile(join(dir, name), "utf8");
+    if (!eml.includes(`\r\nTo: ${to}\r\n`)) {
+      continue;
+    }
+    const body = Buffer.from(eml.split("\r\n\r\n")[1].replace(/\s/g, ""), "base64");
+    const match = /\b(\d{6})\b/.exec(body.toString("utf8"));
+    if (match) {
+      return match[1];
+    }
+  }
+  throw new Error(`no code mailed to ${to}`);
+}
+
 beforeEach(async () => {
   await resetDatabase();
+  await rm(getEnv().MAIL_DIR, { recursive: true, force: true });
 });
 
 afterAll(async () => {
@@ -340,4 +367,95 @@ describe("per-IP login limit and forged forwarding headers", () => {
       await db.rateLimitBucket.count({ where: { key: { startsWith: "login:ip:198." } } }),
     ).toBe(0);
   }, 60_000);
+});
+
+describe("email codes and password recovery (TASK-008)", () => {
+  const email = "nour@example.com";
+
+  it("verifies the email with the mailed code, then recovers the password", async () => {
+    const registered = await call(register, "/register", {
+      body: { email, password: PASSWORD, phone: "01112345678", fullName: "Nour Hassan" },
+    });
+    expect(registered.status).toBe(201);
+    expect((await registered.json()).data.verificationCodeSent).toBe(true);
+
+    const verified = await call(verifyEmailOtp, "/verify-email-otp", {
+      body: { email: "Nour@Example.com", code: await mailedCode(email) },
+    });
+    expect(verified.status).toBe(200);
+    expect((await verified.json()).data).toMatchObject({ status: "ACTIVE", emailVerified: true });
+
+    const signedIn = await call(login, "/login", {
+      body: { email, password: PASSWORD },
+    });
+    expect(signedIn.status).toBe(200);
+    const { accessToken } = (await signedIn.json()).data.tokens;
+
+    const forgot = await call(forgotPassword, "/forgot-password", { body: { email } });
+    expect(forgot.status).toBe(202);
+    expect((await forgot.json()).data).toEqual({ cooldownSeconds: 60 });
+
+    const recovery = await call(verifyRecoveryOtp, "/verify-recovery-otp", {
+      body: { email, code: await mailedCode(email) },
+    });
+    expect(recovery.status).toBe(200);
+    const { resetToken } = (await recovery.json()).data;
+
+    const reset = await call(resetPassword, "/reset-password", {
+      body: { resetToken, newPassword: "violet kettle on the balcony" },
+    });
+    expect(reset.status).toBe(204);
+
+    const old = await call(session, "/session", {
+      method: "GET",
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(old.status).toBe(401);
+  });
+
+  it("returns AUTH_OTP_INVALID for a wrong code and AUTH_RATE_LIMITED on an early resend", async () => {
+    await call(register, "/register", {
+      body: { email, password: PASSWORD, phone: "01112345678", fullName: "Nour Hassan" },
+    });
+    const code = await mailedCode(email);
+    const wrong = await call(verifyEmailOtp, "/verify-email-otp", {
+      body: { email, code: code === "000000" ? "111111" : "000000" },
+    });
+    expect(wrong.status).toBe(401);
+    expect((await wrong.json()).error).toMatchObject({
+      code: "AUTH_OTP_INVALID",
+      details: { attemptsRemaining: 4 },
+    });
+
+    const resend = await call(resendOtp, "/resend-otp", {
+      body: { email, purpose: "EMAIL_VERIFICATION" },
+    });
+    expect(resend.status).toBe(429);
+    expect((await resend.json()).error).toMatchObject({
+      code: "AUTH_RATE_LIMITED",
+      details: { retryAfterSeconds: 60 },
+    });
+  });
+
+  it("answers forgot-password the same for an unknown email", async () => {
+    const response = await call(forgotPassword, "/forgot-password", {
+      body: { email: "nobody@example.com" },
+    });
+    expect(response.status).toBe(202);
+    expect((await response.json()).data).toEqual({ cooldownSeconds: 60 });
+  });
+
+  it("rejects a malformed code and a cross-site Origin", async () => {
+    const malformed = await call(verifyEmailOtp, "/verify-email-otp", {
+      body: { email, code: "12ab56" },
+    });
+    expect(malformed.status).toBe(400);
+    expect((await malformed.json()).error.code).toBe("VALIDATION_ERROR");
+
+    const crossSite = await call(forgotPassword, "/forgot-password", {
+      headers: { origin: "https://evil.example" },
+      body: { email },
+    });
+    expect(crossSite.status).toBe(403);
+  });
 });

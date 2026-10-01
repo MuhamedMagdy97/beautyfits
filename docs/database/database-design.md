@@ -1460,7 +1460,7 @@ Throttling counters shared by all app instances (ADR-0013 §4).
 - `key` primary key (e.g. `login:account:<sha256(email)>`, `login:ip:<ip>`, `register:ip:<ip>`)
 - `count`, `window_started_at`, `blocked_until` nullable, `updated_at` (indexed, for cleanup)
 
-### `otp_challenges` (design only; migrated in TASK-008)
+### `otp_challenges` (migrated in TASK-008; see "v1.2 TASK-008 Amendments")
 - `purpose` adds `PHONE_VERIFICATION` (registration, R25). Not used in v1: R30 removed the registration phone OTP.
 - `channel`: `EMAIL` for every purpose in v1 (Business Spec R30, R31), including `EMPLOYEE_LOGIN` (R28). `WHATSAPP` stays in the enum for later.
 
@@ -1476,6 +1476,28 @@ Throttling counters shared by all app instances (ADR-0013 §4).
 
 An employee login on a device with an unexpired, unrevoked row skips the `EMPLOYEE_LOGIN` OTP; otherwise the OTP is required and a new row is written on success. Applies to every employee level, Owner/Admin included.
 - Limits (Q158–Q161) reuse `rate_limit_buckets`.
+
+## v1.2 TASK-008 Amendments
+
+Added by TASK-008 (`docs/tasks/TASK-008-email-otp-recovery.md`, ADR-0014). Migrated in `prisma/migrations/*_otp_challenges`.
+
+### `otp_challenges` (final v1 shape; replaces the §3 field list)
+One row per code sent.
+- `id`, `account_id` nullable (cascade delete with the account; null reserved for codes sent before an account exists, e.g. guest claims)
+- `purpose` = `EMAIL_VERIFICATION` | `PASSWORD_RESET` | `EMPLOYEE_LOGIN` | `EMAIL_CHANGE` | `PHONE_CHANGE` | `PHONE_VERIFICATION` | `GUEST_ORDER_CLAIM`
+- `channel` = `EMAIL` | `WHATSAPP` (`EMAIL` for every purpose in v1, R30/R31)
+- `destination` (normalized email)
+- `code_hash` (SHA-256 of `<id>:<code>`)
+- `attempt_count`, `max_attempts` (5, Q158)
+- `expires_at` (5 minutes, Q159), `last_sent_at`
+- `consumed_at` nullable, `superseded_at` nullable (set when a newer code is sent for the same purpose and destination)
+- `grant_token_hash` unique nullable, `grant_expires_at` nullable, `grant_used_at` nullable: the single-use password-reset token issued by a verified `PASSWORD_RESET` code (10 minutes)
+- `ip_address` nullable, `created_at`
+- Indexes `(purpose, destination, created_at)` and `(account_id)`.
+
+Removed from the earlier design: `locked_until` (a code is dead after 5 attempts; waits come from the send limits in `rate_limit_buckets`) and `device_id` (Q161 limits use email and IP; employee devices are `employee_trusted_devices`, TASK-011).
+
+Rate-limit keys added: `otp:send:<purpose>:<sha256(email)>`, `otp:send-hour:<purpose>:<sha256(email)>`, `otp:send:ip:<ip>`, `otp:verify:ip:<ip>`.
 
 ## TASK-001 Reconciliation
 

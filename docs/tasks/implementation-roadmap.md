@@ -202,6 +202,8 @@ Implement customer registration/login/session lifecycle.
 
 Implement email verification, forgot-password OTP, resend cooldown, expiry and retry limits.
 
+**Status:** implemented in `docs/tasks/TASK-008-email-otp-recovery.md` (ADR-0014). Emails go to a local `.eml` mailbox until a provider is chosen.
+
 ### TASK-009 — Customer Profile & Addresses
 **Depends on:** TASK-007
 

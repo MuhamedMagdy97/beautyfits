@@ -814,7 +814,7 @@ Not business endpoints. Unauthenticated, and they expose no internal details.
 
 ## TASK-007 Amendments (customer authentication core)
 
-Added by TASK-007 (`docs/tasks/TASK-007-customer-auth-core.md`). Business rules: Business Spec R23–R27. Technical design: ADR-0013. Verification, activation and password recovery endpoints are TASK-008.
+Added by TASK-007 (`docs/tasks/TASK-007-customer-auth-core.md`). Business rules: Business Spec R23–R27. Technical design: ADR-0013. Verification, activation and password recovery endpoints are in "TASK-008 Amendments".
 
 ### Transport
 - **Bearer (default, mobile):** `/auth/login` and `/auth/refresh` return `data.tokens` = `{ accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt }`. Send `Authorization: Bearer <accessToken>`; send `{ "refreshToken": "…" }` to `/auth/refresh`.
@@ -849,3 +849,32 @@ Added by TASK-007 (`docs/tasks/TASK-007-customer-auth-core.md`). Business rules:
 | Account locked (5 consecutive failures, R24), IP blocked (30 failures / 15 min), or too many registrations from one IP (10 / hour) | `429 AUTH_RATE_LIMITED`, `details.retryAfterSeconds` |
 | Wrong current password on change-password | `401 AUTH_INVALID_CREDENTIALS` (counts toward the R24 lock) |
 | Missing, invalid, expired or revoked token | `401 UNAUTHENTICATED` |
+
+## TASK-008 Amendments (email codes and password recovery)
+
+Added by TASK-008 (`docs/tasks/TASK-008-email-otp-recovery.md`). Business rules: Q42, Q158–Q161, R23, R30. Technical design: ADR-0014. All endpoints below are public (no token), accept JSON, and apply the `Origin` check of the TASK-007 amendments.
+
+### Endpoints
+| Endpoint | Request body | Success |
+|---|---|---|
+| `POST /auth/register` | unchanged | `201`, adds `verificationCodeSent: boolean` (false when the email's send limit was reached or the email could not be sent) |
+| `POST /auth/verify-email-otp` | `{ email, code }` | `200` `{ accountId, status: "ACTIVE", emailVerified: true }`. No tokens; the client logs in next. |
+| `POST /auth/resend-otp` | `{ email, purpose }`, `purpose` = `EMAIL_VERIFICATION` or `PASSWORD_RESET` | `202` `{ cooldownSeconds: 60 }` |
+| `POST /auth/forgot-password` | `{ email }` | `202` `{ cooldownSeconds: 60 }` |
+| `POST /auth/verify-recovery-otp` | `{ email, code }` | `200` `{ resetToken, resetTokenExpiresAt }` (single use, 10 minutes) |
+| `POST /auth/reset-password` | `{ resetToken, newPassword }` | `204`. Every session of the account is revoked (R23); the customer logs in again. |
+
+- `code` is exactly 6 digits. `email` is normalized as for login. `newPassword` follows the password policy (Q156).
+- Codes are emailed in the customer's `preferredLocale`. A new code replaces the previous one for the same purpose and email.
+- `resend-otp` and `forgot-password` answer `202` the same way whether or not an eligible account exists. A verification code goes only to an unexpired `PENDING_VERIFICATION` account with that unverified email; a reset code only to an `ACTIVE` account with that verified email.
+
+### Errors
+| Case | Response |
+|---|---|
+| Wrong code, no open code, or a used/superseded code | `401 AUTH_OTP_INVALID`; after a counted attempt `details.attemptsRemaining` (0 once the 5 attempts are used, Q158) |
+| Code older than 5 minutes (Q159), or pending account expired | `401 AUTH_OTP_EXPIRED` |
+| Unknown or already used reset token | `401 AUTH_OTP_INVALID` |
+| Reset token older than 10 minutes | `401 AUTH_OTP_EXPIRED` |
+| New code within 60 s (Q160), more than 5 codes per hour for a purpose and email, more than 20 code requests per hour from one IP, or 30 wrong codes from one IP in 15 minutes | `429 AUTH_RATE_LIMITED`, `details.retryAfterSeconds` |
+| Email or phone verified by another account first | `409 CONFLICT`, `details.field` = `email` / `phone` |
+| Account suspended or deactivated | `403 FORBIDDEN` |

@@ -144,8 +144,9 @@ model Account {
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  customer Customer?
-  sessions AuthSession[]
+  customer      Customer?
+  sessions      AuthSession[]
+  otpChallenges OtpChallenge[]
 
   @@unique([accountType, email], map: "accounts_verified_email_key", where: raw("email_verified_at IS NOT NULL"))
   @@index([accountType, email])
@@ -223,4 +224,60 @@ model RateLimitBucket {
 
   @@index([updatedAt])
   @@map("rate_limit_buckets")
+}
+
+// ---------------------------------------------------------------------------
+// One-time codes (DB design v1.2 "otp_challenges" + "TASK-008 Amendments";
+// TASK-008, ADR-0014)
+// ---------------------------------------------------------------------------
+
+enum OtpPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  EMPLOYEE_LOGIN
+  EMAIL_CHANGE
+  PHONE_CHANGE
+  PHONE_VERIFICATION
+  GUEST_ORDER_CLAIM
+
+  @@map("otp_purpose")
+}
+
+enum OtpChannel {
+  EMAIL
+  WHATSAPP
+
+  @@map("otp_channel")
+}
+
+/// One issued one-time code. Only a hash of the code is stored. A challenge
+/// is usable once, until `expires_at`, for at most `max_attempts` wrong
+/// guesses; issuing a new code for the same purpose supersedes it.
+model OtpChallenge {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  accountId      String?    @map("account_id") @db.Uuid
+  purpose        OtpPurpose
+  channel        OtpChannel
+  /// Normalized email (or phone for future channels).
+  destination    String
+  /// SHA-256 of "<id>:<code>".
+  codeHash       String     @map("code_hash")
+  attemptCount   Int        @default(0) @map("attempt_count")
+  maxAttempts    Int        @map("max_attempts")
+  expiresAt      DateTime   @map("expires_at") @db.Timestamptz(3)
+  lastSentAt     DateTime   @map("last_sent_at") @db.Timestamptz(3)
+  consumedAt     DateTime?  @map("consumed_at") @db.Timestamptz(3)
+  supersededAt   DateTime?  @map("superseded_at") @db.Timestamptz(3)
+  /// Password reset only: single-use grant issued when the code is verified.
+  grantTokenHash String?    @unique @map("grant_token_hash")
+  grantExpiresAt DateTime?  @map("grant_expires_at") @db.Timestamptz(3)
+  grantUsedAt    DateTime?  @map("grant_used_at") @db.Timestamptz(3)
+  ipAddress      String?    @map("ip_address")
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  account Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([purpose, destination, createdAt])
+  @@index([accountId])
+  @@map("otp_challenges")
 }

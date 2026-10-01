@@ -2,8 +2,15 @@ import { createHash } from "node:crypto";
 import type { Account, Customer, Locale, PrismaClient } from "@/generated/prisma/client";
 import { getDb } from "@/server/db/client";
 import { runInTransaction, type Db } from "@/server/db/transaction";
+import { getEmailSender, type EmailSender } from "@/server/email/email";
 import { AppError } from "@/server/errors/app-error";
 import type { Logger } from "@/server/logging/logger";
+import {
+  claimOtpSend,
+  deliverOtpEmail,
+  issueOtpChallenge,
+  type IssuedOtp,
+} from "@/server/modules/auth/otp";
 import { createScryptHasher, type PasswordHasher } from "@/server/modules/auth/password-hash";
 import {
   AUTH_POLICY,
@@ -87,14 +94,21 @@ export interface Registered {
   status: Account["status"];
   emailVerified: boolean;
   phoneVerified: boolean;
-  /** The pending account expires at this time unless verification completes (TASK-008). */
+  /** The pending account expires at this time unless the email is verified (TASK-008). */
   pendingExpiresAt: Date;
+  /**
+   * Whether an email verification code was sent. False when the email's code
+   * limits are reached (60 s cooldown, 5 per hour); the client offers resend.
+   */
+  verificationCodeSent: boolean;
 }
 
 export interface AuthServiceDeps {
   db: PrismaClient;
   clock: Clock;
   hasher: PasswordHasher;
+  /** Defaults to the configured sender (ADR-0014). */
+  email?: EmailSender;
 }
 
 type AccountWithCustomer = Account & { customer: Customer | null };
@@ -181,6 +195,7 @@ function accountAccess(
 
 export function createAuthService(deps: AuthServiceDeps) {
   const { db, clock, hasher } = deps;
+  const emailSender = deps.email ?? getEmailSender();
 
   async function assertNotBlocked(keys: string[], now: Date): Promise<void> {
     for (const key of keys) {
@@ -195,7 +210,7 @@ export function createAuthService(deps: AuthServiceDeps) {
    * Registration (User Flows §3.1): creates a PENDING_VERIFICATION account.
    * Only verified identifiers are reserved; a fully unverified pending account
    * (or any expired pending account) using the same email or phone is
-   * replaced. Verification and activation are TASK-008.
+   * replaced. The email verification code is sent after commit (TASK-008).
    */
   async function register(input: RegisterInput, meta: RequestMeta): Promise<Registered> {
     const now = clock.now();
@@ -204,8 +219,10 @@ export function createAuthService(deps: AuthServiceDeps) {
     await recordHit(db, registerIpKey, REGISTER_IP_LIMIT, now);
 
     const passwordHash = await hasher.hash(input.password);
+    // Q42: registration sends the email verification code, within the email's send limits.
+    const sendClaim = await claimOtpSend(db, "EMAIL_VERIFICATION", input.email, now);
 
-    const { account, replaced } = await runInTransaction(
+    const { account, replaced, otp } = await runInTransaction(
       async (tx) => {
         // Serialize registrations for the same email / phone.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`register:email:${input.email}`}))`;
@@ -284,13 +301,30 @@ export function createAuthService(deps: AuthServiceDeps) {
           },
           include: { customer: true },
         });
-        return { account: created, replaced: toReplace.size };
+        let otp: IssuedOtp | null = null;
+        if (sendClaim.allowed) {
+          otp = await issueOtpChallenge(
+            tx,
+            {
+              accountId: created.id,
+              purpose: "EMAIL_VERIFICATION",
+              destination: input.email,
+              ip: meta.ip,
+            },
+            now,
+          );
+        }
+        return { account: created, replaced: toReplace.size, otp };
       },
       {},
       db,
     );
 
     meta.logger.info("customer registered", { accountId: account.id, replacedPending: replaced });
+    // After commit: a failed send never undoes the registration (ADR-0014).
+    const verificationCodeSent = otp
+      ? await deliverOtpEmail(emailSender, meta.logger, "EMAIL_VERIFICATION", account, otp)
+      : false;
     const view = toView(account);
     return {
       accountId: account.id,
@@ -299,6 +333,7 @@ export function createAuthService(deps: AuthServiceDeps) {
       emailVerified: false,
       phoneVerified: false,
       pendingExpiresAt: new Date(now.getTime() + AUTH_POLICY.pendingAccountTtlMs),
+      verificationCodeSent,
     };
   }
 

@@ -14,5 +14,8 @@ prisma/migrations/
 # Markdown documents (source of truth) are not reformatted yet (TASK-006 decision).
 *.md
 
+# Local mailbox (MAIL_DIR).
+.mail/
+
 # Local environment files.
 .env*
