@@ -41,6 +41,10 @@ Security is a cross-cutting concern from the beginning, not a post-MVP feature (
 | 5 attempts, then temporary wait/lock; abuse events logged | Q158 |
 | Rate limit by email + IP + device where possible | Q161 |
 | Enforced server-side: expiration, retry count, resend cooldown, abuse limits | API §10 |
+| Codes are 6 random digits stored only as SHA-256 hashes bound to the challenge id, compared in constant time; a new code replaces the previous one; a used code cannot be reused | ADR-0014 |
+| Send limits: 5 codes per hour per purpose and email, 20 code requests per hour per IP; 30 wrong codes from one IP in 15 minutes block that IP for 15 minutes | Q161, ADR-0014 |
+| Resend and forgot-password answer the same whether or not the email has an account | ADR-0014 |
+| The password-reset token is single use, valid for 10 minutes, stored only as SHA-256 | ADR-0014 |
 
 ## 2. Sensitive Account Changes
 

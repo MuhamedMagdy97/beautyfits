@@ -12,6 +12,7 @@ describe("parseEnv", () => {
       LOG_LEVEL: "info",
       TRUSTED_PROXIES: [],
       AUTH_ALLOWED_ORIGINS: [],
+      MAIL_DIR: ".mail",
     });
   });
 

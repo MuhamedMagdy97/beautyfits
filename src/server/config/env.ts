@@ -71,6 +71,11 @@ const envSchema = z.object({
    * requests (CSRF check, ADR-0013). Empty (default): same origin only.
    */
   AUTH_ALLOWED_ORIGINS: commaList(origin),
+  /**
+   * Local mailbox directory: outgoing emails are written there as .eml files
+   * (ADR-0014). The only email transport until a provider is chosen.
+   */
+  MAIL_DIR: z.string().min(1).default(".mail"),
 });
 
 export type Env = z.infer<typeof envSchema>;

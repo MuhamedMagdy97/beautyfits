@@ -70,3 +70,25 @@ export const changePasswordSchema = z.object({
   currentPassword: existingPassword,
   newPassword,
 });
+
+/** A one-time code: 6 digits (TASK-008). Surrounding spaces are ignored. */
+const otpCode = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, { message: "Enter the 6-digit code." });
+
+export const verifyEmailSchema = z.object({ email, code: otpCode });
+
+export const resendOtpSchema = z.object({
+  email,
+  purpose: z.enum(["EMAIL_VERIFICATION", "PASSWORD_RESET"]),
+});
+
+export const forgotPasswordSchema = z.object({ email });
+
+export const verifyRecoverySchema = z.object({ email, code: otpCode });
+
+export const resetPasswordSchema = z.object({
+  resetToken: z.string().min(1).max(256),
+  newPassword,
+});

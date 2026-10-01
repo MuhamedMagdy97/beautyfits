@@ -9,7 +9,7 @@
 - **Loading.** Next.js loads `.env*` files for `next dev`/`next start`/`next build`. The Prisma CLI loads `.env` via `process.loadEnvFile` in `prisma.config.ts`. Real environments (CI, staging, production) inject variables directly; no `.env` file is deployed.
 - **Single access point.** Server code reads configuration only through `getEnv()` in `src/server/config/env.ts`, never through `process.env.X`. The one exception is `LOG_LEVEL` in the logger, which must work even when other config is invalid.
 - **Validation.** A zod schema validates the variables on first use (lazily, so `next build` does not need runtime secrets). Invalid config throws `EnvValidationError`, which lists the variable names and problems but **never their values**.
-- **Current variables:** `DATABASE_URL` (required, postgres URL), `LOG_LEVEL` (optional), and `NODE_ENV` (set by Next.js/tooling). Only variables that are actually used are added, each at the same time as its schema entry and its line in `.env.example`.
+- **Current variables:** `DATABASE_URL` (required, postgres URL), `LOG_LEVEL` (optional), and `NODE_ENV` (set by Next.js/tooling); `TRUSTED_PROXIES` and `AUTH_ALLOWED_ORIGINS` (TASK-007, ADR-0013); `MAIL_DIR` (TASK-008, ADR-0014, local mailbox directory, default `.mail`). Only variables that are actually used are added, each at the same time as its schema entry and its line in `.env.example`.
 - **`.env.example`** is committed with safe local-development placeholders only. `.gitignore` ignores `.env*` except `.env.example`.
 - **No `NEXT_PUBLIC_` secrets.** Variables prefixed `NEXT_PUBLIC_` are inlined into client bundles and must never hold secrets. None exist yet.
 

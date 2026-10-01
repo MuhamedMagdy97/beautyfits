@@ -1,4 +1,6 @@
 import { existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
@@ -28,6 +30,8 @@ export default defineConfig({
       LOG_LEVEL: "error",
       // The application code under test connects to the test database.
       DATABASE_URL: process.env.TEST_DATABASE_URL ?? "",
+      // Outgoing test emails go to a throwaway mailbox, never the local .mail/.
+      MAIL_DIR: join(tmpdir(), `beautyfits-test-mail-${process.pid}`),
     },
   },
 });

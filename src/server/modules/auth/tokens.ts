@@ -5,12 +5,14 @@ import { createHash, randomBytes } from "node:crypto";
  * with a prefix naming the kind. Only the SHA-256 hash is stored, so a
  * database leak does not yield usable tokens.
  */
-export type TokenKind = "access" | "refresh";
+export type TokenKind = "access" | "refresh" | "reset";
 
-const PREFIX: Record<TokenKind, string> = { access: "bfa_", refresh: "bfr_" };
+/** `reset`: the single-use password-reset grant (TASK-008, ADR-0014). */
+const PREFIX: Record<TokenKind, string> = { access: "bfa_", refresh: "bfr_", reset: "bfp_" };
 const TOKEN_FORMAT: Record<TokenKind, RegExp> = {
   access: /^bfa_[A-Za-z0-9_-]{43}$/,
   refresh: /^bfr_[A-Za-z0-9_-]{43}$/,
+  reset: /^bfp_[A-Za-z0-9_-]{43}$/,
 };
 
 export function generateToken(kind: TokenKind): string {
