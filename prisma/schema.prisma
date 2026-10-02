@@ -660,10 +660,11 @@ model ProductVariant {
   /// Overrides the product's low-stock threshold (TASK-019, ADR-0024).
   lowStockThreshold   Int?                 @map("low_stock_threshold")
 
-  product            Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
-  media              ProductMedia[]
-  inventoryBalance   InventoryBalance?
-  inventoryMovements InventoryMovement[]
+  product               Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  media                 ProductMedia[]
+  inventoryBalance      InventoryBalance?
+  inventoryMovements    InventoryMovement[]
+  inventoryReservations InventoryReservation[]
 
   @@unique([productId], map: "product_variants_one_default_key", where: raw("is_default"))
   @@index([productId, createdAt])
@@ -854,6 +855,12 @@ enum InventoryMovementType {
   DAMAGE
   /// Damaged stock written off.
   DAMAGE_WRITE_OFF
+  /// Available held for an order: Available → Reserved (TASK-020, Q9, Q28).
+  RESERVATION
+  /// An order's hold given back: Reserved → Available (cancelled/expired).
+  RELEASE_RESERVATION
+  /// An order's hold consumed at Shipped: Reserved out (ADR-0025).
+  CUSTOMER_ORDER_COMMIT
 
   @@map("inventory_movement_type")
 }
@@ -881,4 +888,36 @@ model InventoryMovement {
 
   @@index([productVariantId, createdAt(sort: Desc)])
   @@map("inventory_movements")
+}
+
+enum InventoryReservationStatus {
+  /// Holding stock in Reserved.
+  ACTIVE
+  /// Given back to Available (order cancelled or expired).
+  RELEASED
+  /// Consumed when the order shipped.
+  CONVERTED
+
+  @@map("inventory_reservation_status")
+}
+
+/// Stock held for an order (TASK-020, DB design §10, ADR-0025). Every status
+/// change writes its inventory movement in the same transaction.
+model InventoryReservation {
+  id               String                     @id @default(uuid(7)) @db.Uuid
+  /// The order (TASK-030 adds the foreign key when `orders` exists).
+  orderId          String                     @map("order_id") @db.Uuid
+  productVariantId String                     @map("product_variant_id") @db.Uuid
+  quantity         Int
+  status           InventoryReservationStatus @default(ACTIVE)
+  reservedAt       DateTime                   @map("reserved_at") @db.Timestamptz(3)
+  releasedAt       DateTime?                  @map("released_at") @db.Timestamptz(3)
+  convertedAt      DateTime?                  @map("converted_at") @db.Timestamptz(3)
+
+  variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, productVariantId], map: "inventory_reservations_one_active_key", where: raw("status = 'ACTIVE'"))
+  @@index([productVariantId, status])
+  @@index([orderId])
+  @@map("inventory_reservations")
 }

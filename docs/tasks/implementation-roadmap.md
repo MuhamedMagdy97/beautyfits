@@ -286,6 +286,8 @@ Implement Available, Reserved, Damaged and Inventory Movement ledger.
 
 Implement atomic reservation, release, concurrency-safe updates and oversell prevention.
 
+**Status after TASK-020** (`docs/tasks/TASK-020-inventory-reservations.md`): `reserveForOrder`, `releaseForOrder` and `commitForOrder` in `src/server/modules/inventory/reservations.ts` run inside the caller's transaction (ADR-0025). Reserving is all or nothing (`STOCK_CHANGED`), locks balances in variant id order and writes `RESERVATION` movements; release (cancel/expiry) and commit (at `SHIPPED`, owner decision) are idempotent. TASK-029 reserves in the checkout transaction; TASK-031/TASK-033 release; the shipping task commits; TASK-030 adds the `inventory_reservations.order_id` foreign key.
+
 ### TASK-021 — Suppliers
 **Depends on:** TASK-012
 
