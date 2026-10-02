@@ -28,13 +28,15 @@ describe("transitionOutcome", () => {
 });
 
 describe("publish requirements", () => {
-  const named = (id: string) => ({ id, nameAr: "وردي", nameEn: "Rose" });
-  const unnamed = (id: string) => ({ id, nameAr: null, nameEn: null });
+  const PRICE = BigInt(19_999);
+  const named = (id: string) => ({ id, nameAr: "وردي", nameEn: "Rose", sellingPrice: PRICE });
+  const unnamed = (id: string) => ({ id, nameAr: null, nameEn: null, sellingPrice: PRICE });
 
   it("accepts a product with a main image and one unnamed variant", () => {
     expect(checkPublishable({ hasMainImage: true, activeVariants: [unnamed("a")] })).toEqual({
       missing: [],
       unnamedVariantIds: [],
+      unpricedVariantIds: [],
     });
   });
 
@@ -50,12 +52,23 @@ describe("publish requirements", () => {
         hasMainImage: false,
         activeVariants: [unnamed("a"), named("b"), unnamed("c")],
       }),
-    ).toEqual({ missing: ["MAIN_IMAGE", "VARIANT_NAMES"], unnamedVariantIds: ["a", "c"] });
+    ).toEqual({
+      missing: ["MAIN_IMAGE", "VARIANT_NAMES"],
+      unnamedVariantIds: ["a", "c"],
+      unpricedVariantIds: [],
+    });
+  });
+
+  it("needs a selling price on every active variant (ADR-0023)", () => {
+    expect(
+      checkPublishable({
+        hasMainImage: true,
+        activeVariants: [named("a"), { ...named("b"), sellingPrice: null }],
+      }),
+    ).toEqual({ missing: ["SELLING_PRICE"], unnamedVariantIds: [], unpricedVariantIds: ["b"] });
   });
 
   it("treats a half-named variant as unnamed", () => {
-    expect(unnamedVariantIds([named("a"), { id: "b", nameAr: "وردي", nameEn: null }])).toEqual([
-      "b",
-    ]);
+    expect(unnamedVariantIds([named("a"), { ...named("b"), nameEn: null }])).toEqual(["b"]);
   });
 });

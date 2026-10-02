@@ -1,6 +1,7 @@
 import { ok } from "@/server/http/response";
 import { withApi } from "@/server/http/route-handler";
 import { parseJsonBody } from "@/server/http/validation";
+import { presentProduct } from "@/server/modules/catalog/presentation";
 import { getProductsService } from "@/server/modules/catalog/products-service";
 import { updateProductSchema } from "@/server/modules/catalog/schemas";
 import { requirePermission } from "@/server/modules/rbac/authorization";
@@ -9,9 +10,10 @@ import { pathId } from "@/server/modules/rbac/http";
 /** GET /api/v1/admin/products/{id} — product detail with its variants (`PRODUCT_VIEW`). */
 export const GET = withApi<RouteContext<"/api/v1/admin/products/[id]">>(
   async (request, api, context) => {
-    await requirePermission(request, "PRODUCT_VIEW");
+    const employee = await requirePermission(request, "PRODUCT_VIEW");
     const id = pathId((await context.params).id, "Product");
-    return ok(api.requestId, await getProductsService().getProduct(id));
+    const product = await getProductsService().getProduct(id);
+    return ok(api.requestId, presentProduct(product, employee.permissions));
   },
 );
 
@@ -28,6 +30,6 @@ export const PATCH = withApi<RouteContext<"/api/v1/admin/products/[id]">>(
       api.logger,
       api.requestId,
     );
-    return ok(api.requestId, product);
+    return ok(api.requestId, presentProduct(product, employee.permissions));
   },
 );

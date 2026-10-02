@@ -1664,3 +1664,19 @@ Added by TASK-017 (`docs/tasks/TASK-017-product-publishing.md`, ADR-0022). Migra
 - Trigger `products_archive_final`: once `ARCHIVED`, the status never changes again (archiving is final in v1, ADR-0022 §4 item 1).
 - Status changes are recorded in `audit_logs` (`PRODUCT_PUBLISHED`, `PRODUCT_UNPUBLISHED`, `PRODUCT_DISABLED`, `PRODUCT_ARCHIVED`); there is no separate status history table.
 - Archiving a product leaves its variants' status unchanged; the product status alone decides whether they are purchasable.
+
+## v1.2 TASK-018 Amendments
+
+Added by TASK-018 (`docs/tasks/TASK-018-pricing-cost.md`, ADR-0023). Migrated in `prisma/migrations/*_variant_pricing`.
+
+### `product_variants` (§5, migrated)
+- New columns, integer piastres (principle 3): `selling_price` nullable (tax-inclusive, C1), `latest_purchase_cost` nullable, `weighted_average_cost` nullable, `currency` (`CHAR(3)`, default `EGP`).
+- New column `first_goods_receipt_at` nullable: set by the first goods receipt (TASK-023); from then on costs are not typed by hand (ADR-0023 §4 item 4).
+- Check constraints: `product_variants_selling_price_check` (price null or positive), `product_variants_costs_check` (costs null or not negative), `product_variants_currency_check` (`EGP` only).
+- Trigger `product_variants_price_kept`: a selling price, once set, is never cleared.
+- A `PUBLISHED` product's active variants all have a selling price: enforced by the service under the product lock (publish check, new variants need a price).
+- Price and cost changes are recorded in `audit_logs` (`PRODUCT_VARIANT_PRICE_CHANGED`, `PRODUCT_VARIANT_COST_CHANGED`; §12 "price changes"); there is no separate price history table.
+- `low_stock_threshold` is still added by the inventory tasks.
+
+### Settings
+- New key `pricing.min_margin_basis_points` (INTEGER 0–9999, default 1000 = 10%; Q102, Q111), inserted by the bootstrap. Selling-price reviews warn below it.

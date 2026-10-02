@@ -1,6 +1,7 @@
 import { ok } from "@/server/http/response";
 import { withApi } from "@/server/http/route-handler";
 import { parseOptionalJsonBody } from "@/server/http/validation";
+import { presentProduct } from "@/server/modules/catalog/presentation";
 import { getProductsService } from "@/server/modules/catalog/products-service";
 import { productStatusChangeSchema } from "@/server/modules/catalog/schemas";
 import { requirePermission } from "@/server/modules/rbac/authorization";
@@ -23,6 +24,6 @@ export const POST = withApi<RouteContext<"/api/v1/admin/products/[id]/archive">>
       api.logger,
       api.requestId,
     );
-    return ok(api.requestId, product);
+    return ok(api.requestId, presentProduct(product, employee.permissions));
   },
 );

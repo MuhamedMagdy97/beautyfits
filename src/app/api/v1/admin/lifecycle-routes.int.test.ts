@@ -167,7 +167,7 @@ async function newProduct(token: string) {
       body: {
         nameAr: "أحمر شفاه",
         nameEn: `Matte Lipstick ${counter}`,
-        defaultVariant: { sku: `SKU-${counter}` },
+        defaultVariant: { sku: `SKU-${counter}`, sellingPrice: 19_999 },
       },
     }),
     201,
@@ -401,7 +401,7 @@ describe("publish requirements", () => {
       await call(createVariant, `/admin/products/${product.id}/variants`, {
         method: "POST",
         token: owner.token,
-        body: { sku: "LIP-ROSE", nameAr: "وردي", nameEn: "Rose" },
+        body: { sku: "LIP-ROSE", nameAr: "وردي", nameEn: "Rose", sellingPrice: 19_999 },
         params: { id: product.id },
       }),
       201,
@@ -412,6 +412,7 @@ describe("publish requirements", () => {
       reason: "PUBLISH_REQUIREMENTS_NOT_MET",
       missing: ["MAIN_IMAGE", "VARIANT_NAMES"],
       unnamedVariantIds: [product.variants[0].id],
+      unpricedVariantIds: [],
     });
     expect(await db.auditLog.count({ where: { action: "PRODUCT_PUBLISHED" } })).toBe(0);
 
@@ -461,7 +462,7 @@ describe("a published product stays publishable", () => {
       call(createVariant, `/admin/products/${product.id}/variants`, {
         method: "POST",
         token: owner.token,
-        body,
+        body: { sellingPrice: 19_999, ...body },
         params: { id: product.id },
       });
 
