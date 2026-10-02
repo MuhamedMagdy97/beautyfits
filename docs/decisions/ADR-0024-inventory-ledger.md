@@ -1,6 +1,6 @@
 # ADR-0024 — Inventory ledger and balances
 
-- **Status:** Accepted (TASK-019); the decisions in §4 taken by the product owner on 2026-10-02
+- **Status:** Accepted (TASK-019); the decisions in §4 taken and the defaults in §5 confirmed by the product owner on 2026-10-02
 - **Date:** 2026-10-02
 - **Relates to:** ADR-0018 (audit logs), ADR-0019 (variants), ADR-0023 (costs); Business Spec Q21, Q71, Q72, Q108, Q109, Q110, C6; User Flows §13; Architecture §8; DB Design §10 and "v1.2 TASK-019 Amendments"; API Contract §22 and "TASK-019 Amendments"; permission catalog §1
 
@@ -37,7 +37,7 @@ Each adjustment writes one movement (with the reason) and one audit entry `INVEN
 2. **Low-stock threshold:** an optional threshold on the product applies to all its variants; a variant may override it. No threshold, no alert. Settles DB Design §5 `[BUSINESS DECISION REQUIRED]` (Q21 vs C6).
 3. **No approval:** an adjustment applies directly for `ADJUST_INVENTORY` holders; the reason, movement and audit entry are the control.
 
-## 5. Technical defaults
+## 5. Technical defaults (confirmed by the product owner, 2026-10-02)
 
 1. Low stock is `available_quantity <= threshold`, for active variants of non-archived products (API §22 "at or below").
 2. Thresholds are set through the existing `PATCH /admin/products/{id}` and `PATCH /admin/variants/{id}` (`PRODUCT_EDIT`, audited with the product/variant); `null` removes one. 0 to 1,000,000.
