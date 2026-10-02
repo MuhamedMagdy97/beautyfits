@@ -79,7 +79,9 @@ Decided by the product owner on 2026-10-02 (ADR-0024 §4):
 2. **Low-stock threshold**: optional on the product, overridable per variant; none means no alert.
 3. **Approval**: none; reason, movement and audit entry are the control.
 
-Still open for TASK-020 (DB Design §10): when a reservation is consumed (`CONVERTED`). Technical defaults: ADR-0024 §5.
+Technical defaults (ADR-0024 §5), confirmed by the product owner on 2026-10-02.
+
+Still open for TASK-020 (DB Design §10): when a reservation is consumed (`CONVERTED`).
 
 ## Status
 - [x] Planned
