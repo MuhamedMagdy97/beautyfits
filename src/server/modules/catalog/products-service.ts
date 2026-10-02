@@ -19,6 +19,13 @@ import {
   toProductMediaView,
 } from "@/server/modules/catalog/media-service";
 import {
+  checkPublishable,
+  type ProductTransition,
+  TRANSITION_TARGET,
+  transitionOutcome,
+  unnamedVariantIds,
+} from "@/server/modules/catalog/lifecycle";
+import {
   assertProductChangeable,
   lockProduct,
   productNotFound,
@@ -49,8 +56,11 @@ import { systemClock, type Clock } from "@/server/time/time";
  * - Product views include the current images (TASK-016,
  *   `media-service.ts`); lists show the main image.
  *
- * New products are DRAFT; publishing, archiving and disabling products are
- * TASK-017. Prices and costs are TASK-018.
+ * - New products are DRAFT. Publishing, unpublishing, disabling and archiving
+ *   follow `lifecycle.ts` (TASK-017, ADR-0022); a published product is kept
+ *   publishable (named variants here, a main image in `media-service.ts`).
+ *
+ * Prices and costs are TASK-018.
  */
 
 /** A technical guard against runaway option lists (ADR-0019). */
@@ -125,6 +135,8 @@ export interface ProductView {
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
+  /** When the product was first published; the slug is locked from then on (TASK-017). */
+  firstPublishedAt: string | null;
 }
 
 export interface ProductSummaryView {
@@ -218,6 +230,7 @@ function toProductView(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     archivedAt: row.archivedAt?.toISOString() ?? null,
+    firstPublishedAt: row.firstPublishedAt?.toISOString() ?? null,
   };
 }
 
@@ -339,6 +352,48 @@ function sameAttributes(
 ): boolean {
   return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 }
+
+/**
+ * Keeps a published product publishable (ADR-0022 §2): a variant about to be
+ * added (`id: null`) or renamed may not leave several active variants with
+ * an unnamed one. Draft and disabled products are re-checked on publish.
+ */
+async function assertVariantNamesKept(
+  tx: Db,
+  product: ProductRow,
+  changed: { id: string | null; nameAr: string | null; nameEn: string | null },
+): Promise<void> {
+  if (product.status !== "PUBLISHED") {
+    return;
+  }
+  const active = await tx.productVariant.findMany({
+    where: { productId: product.id, status: "ACTIVE" },
+    select: { id: true, variantNameAr: true, variantNameEn: true },
+  });
+  const after = active
+    .filter((variant) => variant.id !== changed.id)
+    .map((variant) => ({
+      id: variant.id,
+      nameAr: variant.variantNameAr,
+      nameEn: variant.variantNameEn,
+    }));
+  after.push({ id: changed.id ?? "", nameAr: changed.nameAr, nameEn: changed.nameEn });
+  const unnamed = unnamedVariantIds(after);
+  if (unnamed.length > 0) {
+    throw conflict(
+      "A published product with several variants needs a name on every active variant.",
+      { reason: "VARIANT_NAMES_REQUIRED", unnamedVariantIds: unnamed.filter((id) => id !== "") },
+    );
+  }
+}
+
+/** Audit action of each lifecycle transition (TASK-017). */
+const TRANSITION_ACTION = {
+  publish: "PRODUCT_PUBLISHED",
+  unpublish: "PRODUCT_UNPUBLISHED",
+  disable: "PRODUCT_DISABLED",
+  archive: "PRODUCT_ARCHIVED",
+} as const satisfies Record<ProductTransition, string>;
 
 export function createProductsService(deps: ProductsServiceDeps) {
   const { db, clock } = deps;
@@ -559,12 +614,14 @@ export function createProductsService(deps: ProductsServiceDeps) {
           data.descriptionEn = input.descriptionEn;
         }
         if (input.slug !== undefined && input.slug !== existing.slug) {
-          // Links and search results point at the slug once customers can see
-          // the product, so it changes only while the product is a draft.
-          if (existing.status !== "DRAFT") {
-            throw conflict("The slug can only change while the product is a draft.", {
-              reason: "SLUG_LOCKED",
-            });
+          // Links and search results point at the slug once customers have
+          // seen the product, so it changes only while the product is a draft
+          // that was never published (ADR-0022 §4 item 3).
+          if (existing.status !== "DRAFT" || existing.firstPublishedAt !== null) {
+            throw conflict(
+              "The slug can only change while the product is a draft that was never published.",
+              { reason: "SLUG_LOCKED" },
+            );
           }
           await assertSlugFree(tx, input.slug, productId);
           data.slug = input.slug;
@@ -645,6 +702,11 @@ export function createProductsService(deps: ProductsServiceDeps) {
           });
         }
         await assertSkuFree(tx, input.sku);
+        await assertVariantNamesKept(tx, product, {
+          id: null,
+          nameAr: input.nameAr ?? null,
+          nameEn: input.nameEn ?? null,
+        });
         let created: VariantRow;
         try {
           created = await tx.productVariant.create({
@@ -745,6 +807,9 @@ export function createProductsService(deps: ProductsServiceDeps) {
         if (input.sku !== undefined && input.sku !== variant.sku) {
           await assertSkuFree(tx, input.sku, variantId);
           data.sku = input.sku;
+        }
+        if (nameAr !== variant.variantNameAr || nameEn !== variant.variantNameEn) {
+          await assertVariantNamesKept(tx, product, { id: variantId, nameAr, nameEn });
         }
         const movesDefault = input.isDefault === true && !variant.isDefault;
         if (Object.keys(data).length === 0 && !movesDefault) {
@@ -847,11 +912,109 @@ export function createProductsService(deps: ProductsServiceDeps) {
     return view;
   }
 
+  /**
+   * Publishes, unpublishes, disables or archives a product (ADR-0022).
+   * Repeating a transition returns the product unchanged without an audit
+   * entry. Publishing re-checks the publish requirements under the product
+   * lock, so a concurrent image removal or variant change cannot slip past.
+   */
+  async function changeProductStatus(
+    actor: CatalogActor,
+    productId: string,
+    transition: ProductTransition,
+    input: { reason?: string | null },
+    logger: Logger,
+    correlationId: string | null = null,
+  ): Promise<ProductView> {
+    const now = clock.now();
+    const target = TRANSITION_TARGET[transition];
+    const { view, changed, from } = await runInTransaction(
+      async (tx) => {
+        const product = await lockProduct(tx, productId);
+        const outcome = transitionOutcome(product.status, transition);
+        if (outcome === "repeat") {
+          return {
+            view: await loadProductView(tx, productId),
+            changed: false,
+            from: product.status,
+          };
+        }
+        if (outcome === "refused") {
+          assertProductChangeable(product);
+          throw conflict(`Cannot ${transition} a product whose status is ${product.status}.`, {
+            reason: "PRODUCT_STATUS_INVALID",
+            status: product.status,
+          });
+        }
+        if (transition === "publish") {
+          const [mainImages, activeVariants] = await Promise.all([
+            tx.productMedia.count({ where: { productId, isMain: true, removedAt: null } }),
+            tx.productVariant.findMany({
+              where: { productId, status: "ACTIVE" },
+              orderBy: [...variantOrder],
+              select: { id: true, variantNameAr: true, variantNameEn: true },
+            }),
+          ]);
+          const check = checkPublishable({
+            hasMainImage: mainImages > 0,
+            activeVariants: activeVariants.map((variant) => ({
+              id: variant.id,
+              nameAr: variant.variantNameAr,
+              nameEn: variant.variantNameEn,
+            })),
+          });
+          if (check.missing.length > 0) {
+            throw conflict("The product is not ready to be published.", {
+              reason: "PUBLISH_REQUIREMENTS_NOT_MET",
+              missing: check.missing,
+              unnamedVariantIds: check.unnamedVariantIds,
+            });
+          }
+        }
+        const updated = await tx.product.update({
+          where: { id: productId },
+          data: {
+            status: target,
+            updatedAt: now,
+            ...(transition === "archive" ? { archivedAt: now } : {}),
+            ...(transition === "publish" && product.firstPublishedAt === null
+              ? { firstPublishedAt: now }
+              : {}),
+          },
+        });
+        await recordAudit(tx, {
+          actor: employeeActor(actor.employeeId),
+          action: TRANSITION_ACTION[transition],
+          entityType: AUDIT_ENTITY_TYPES.product,
+          entityId: productId,
+          previous: { status: product.status },
+          next: { status: updated.status },
+          reason: input.reason ?? null,
+          correlationId,
+          createdAt: now,
+        });
+        return { view: await loadProductView(tx, productId), changed: true, from: product.status };
+      },
+      {},
+      db,
+    );
+    if (changed) {
+      logger.info("product status changed", {
+        productId,
+        from,
+        to: target,
+        actorEmployeeId: actor.employeeId,
+      });
+    }
+    return view;
+  }
+
   return {
     createProduct,
     getProduct,
     listProducts,
     updateProduct,
+    changeProductStatus,
     listVariants,
     createVariant,
     updateVariant,

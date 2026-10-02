@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/server/db/client";
 import { createLogger } from "@/server/logging/logger";
+import { createProductMediaService } from "@/server/modules/catalog/media-service";
 import {
   createProductsService,
   MAX_VARIANTS_PER_PRODUCT,
@@ -12,6 +13,7 @@ import { resetDatabase } from "@/test/integration/database";
 
 const db = getDb();
 const service = createProductsService({ db, clock: systemClock });
+const mediaService = createProductMediaService({ db, clock: systemClock });
 const logger = createLogger({ level: "error" });
 
 async function employeeId(): Promise<string> {
@@ -79,6 +81,92 @@ describe("history is kept", () => {
     await expect(
       db.product.create({ data: { nameAr: "a", nameEn: "b", slug: "Upper Case" } }),
     ).rejects.toThrow();
+  });
+});
+
+/** A checked (`SAFE`) image file, attached as the product's main image. */
+async function withMainImage(actorId: string, productId: string): Promise<string> {
+  const now = new Date();
+  const asset = await db.mediaAsset.create({
+    data: {
+      storageProvider: "LOCAL",
+      objectKey: `test/${Math.random().toString(36).slice(2)}.png`,
+      originalFilename: "a.png",
+      mimeType: "image/png",
+      sizeBytes: 100,
+      width: 600,
+      height: 600,
+      checksum: "0".repeat(64),
+      scanStatus: "SAFE",
+      purpose: "PRODUCT_MEDIA",
+      uploadExpiresAt: now,
+      completedAt: now,
+      createdByEmployeeId: actorId,
+    },
+  });
+  const media = await mediaService.addMedia(
+    { employeeId: actorId },
+    productId,
+    { mediaAssetId: asset.id },
+    logger,
+  );
+  return media.id;
+}
+
+describe("product lifecycle in the database (TASK-017)", () => {
+  it("never lets an archived product change status again", async () => {
+    const actor = await employeeId();
+    const product = await newProduct(actor);
+    await service.changeProductStatus({ employeeId: actor }, product.id, "archive", {}, logger);
+    await expect(
+      db.product.update({
+        where: { id: product.id },
+        data: { status: "DRAFT", archivedAt: null },
+      }),
+    ).rejects.toThrow();
+    // Other columns may still be written (e.g. by later maintenance); only the status is final.
+    await db.product.update({ where: { id: product.id }, data: { updatedAt: new Date() } });
+    expect((await db.product.findUniqueOrThrow({ where: { id: product.id } })).status).toBe(
+      "ARCHIVED",
+    );
+  });
+
+  it("keeps archived_at and first_published_at consistent with the status", async () => {
+    const product = await newProduct(await employeeId());
+    await expect(
+      db.product.update({ where: { id: product.id }, data: { status: "ARCHIVED" } }),
+    ).rejects.toThrow();
+    await expect(
+      db.product.update({ where: { id: product.id }, data: { archivedAt: new Date() } }),
+    ).rejects.toThrow();
+    await expect(
+      db.product.update({ where: { id: product.id }, data: { status: "PUBLISHED" } }),
+    ).rejects.toThrow();
+  });
+
+  it("serializes a publish and the removal of the last image: never published without one", async () => {
+    for (let round = 0; round < 5; round += 1) {
+      await resetDatabase();
+      const actor = await employeeId();
+      const product = await newProduct(actor);
+      const mediaId = await withMainImage(actor, product.id);
+      const [published, removed] = await Promise.allSettled([
+        service.changeProductStatus({ employeeId: actor }, product.id, "publish", {}, logger),
+        mediaService.removeMedia({ employeeId: actor }, product.id, mediaId, logger),
+      ]);
+      // Exactly one wins: either the image is gone and the publish was
+      // refused, or the product is published and keeps its image.
+      expect([published.status, removed.status].sort()).toEqual(["fulfilled", "rejected"]);
+      const row = await db.product.findUniqueOrThrow({ where: { id: product.id } });
+      const images = await db.productMedia.count({
+        where: { productId: product.id, removedAt: null },
+      });
+      expect({ status: row.status, images }).toEqual(
+        published.status === "fulfilled"
+          ? { status: "PUBLISHED", images: 1 }
+          : { status: "DRAFT", images: 0 },
+      );
+    }
   });
 });
 

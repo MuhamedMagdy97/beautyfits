@@ -2,14 +2,14 @@ import { AppError } from "@/server/errors/app-error";
 import { withApi } from "@/server/http/route-handler";
 import { REQUEST_ID_HEADER } from "@/server/http/request-id";
 import { getDb } from "@/server/db/client";
-import { isPublishedProductImage } from "@/server/modules/catalog/media-service";
+import { isPublicProductImage } from "@/server/modules/catalog/media-service";
 import { canViewPurpose, getUploadsService } from "@/server/modules/media/uploads-service";
 import { requireStaff } from "@/server/modules/rbac/authorization";
 import { uuidParam } from "@/server/modules/rbac/schemas";
 
 /**
  * GET /api/v1/files/{id}/content — the bytes of a checked (`SAFE`) file.
- * Images of published products are public; every other file needs a staff
+ * Images of published and archived products are public; every other file needs a staff
  * session allowed to see files of its purpose (`PRODUCT_VIEW` or
  * `MANAGE_PRODUCT_MEDIA` for product images).
  */
@@ -23,7 +23,7 @@ export const GET = withApi<RouteContext<"/api/v1/files/[id]/content">>(
     const isPublic =
       asset !== null &&
       asset.purpose === "PRODUCT_MEDIA" &&
-      (await isPublishedProductImage(getDb(), asset.id));
+      (await isPublicProductImage(getDb(), asset.id));
     if (!isPublic) {
       // Unknown and private files answer alike to anyone without a session.
       const employee = await requireStaff(request);

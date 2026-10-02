@@ -49,6 +49,11 @@ export const AUDIT_ACTIONS = [
   "PRODUCT_MEDIA_UPDATED",
   "PRODUCT_MEDIA_REMOVED",
   "PRODUCT_MEDIA_REORDERED",
+  // Product lifecycle (TASK-017)
+  "PRODUCT_PUBLISHED",
+  "PRODUCT_UNPUBLISHED",
+  "PRODUCT_DISABLED",
+  "PRODUCT_ARCHIVED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -432,14 +432,20 @@ describe("GET/PATCH /admin/products/{id}", () => {
     expect(taken.status).toBe(409);
     expect((await taken.json()).error.details.reason).toBe("SLUG_TAKEN");
 
-    // Publishing is TASK-017; set the state directly.
-    await db.product.update({ where: { id: product.id }, data: { status: "PUBLISHED" } });
+    // Set the state directly; the lifecycle endpoints are tested in lifecycle-routes.
+    await db.product.update({
+      where: { id: product.id },
+      data: { status: "PUBLISHED", firstPublishedAt: new Date() },
+    });
     const locked = await edit({ slug: "new-slug" });
     expect(locked.status).toBe(409);
     expect((await locked.json()).error.details.reason).toBe("SLUG_LOCKED");
     expect((await edit({ nameEn: "Renamed" })).status).toBe(200);
 
-    await db.product.update({ where: { id: product.id }, data: { status: "ARCHIVED" } });
+    await db.product.update({
+      where: { id: product.id },
+      data: { status: "ARCHIVED", archivedAt: new Date() },
+    });
     const archived = await edit({ nameEn: "Again" });
     expect(archived.status).toBe(409);
     expect((await archived.json()).error.details.reason).toBe("PRODUCT_ARCHIVED");
@@ -576,7 +582,10 @@ describe("variants", () => {
 
   it("refuses variant changes on an archived product", async () => {
     const { product, defaultVariant, add, patch } = await setup();
-    await db.product.update({ where: { id: product.id }, data: { status: "ARCHIVED" } });
+    await db.product.update({
+      where: { id: product.id },
+      data: { status: "ARCHIVED", archivedAt: new Date() },
+    });
     for (const res of [await add({ sku: "LIP-9" }), await patch(defaultVariant.id, { sku: "Y" })]) {
       expect(res.status).toBe(409);
       expect((await res.json()).error.details.reason).toBe("PRODUCT_ARCHIVED");
