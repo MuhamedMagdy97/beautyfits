@@ -1223,3 +1223,40 @@ Request:
 | Costs typed by hand after a goods receipt | `409 CONFLICT`, `details.reason = COSTS_LOCKED` |
 | New variant of a `PUBLISHED` product without a price | `409 CONFLICT`, `details.reason = SELLING_PRICE_REQUIRED` |
 | Unknown or malformed product / variant id | `404 NOT_FOUND` |
+
+## TASK-019 Amendments (inventory ledger and balances)
+
+Added by TASK-019 (`docs/tasks/TASK-019-inventory-ledger.md`). Business rules: Q21, Q71, Q72, Q108, Q109, Q110. Technical design and the product owner's decisions of 2026-10-02: ADR-0024. Same employee session and `Origin` rules as TASK-014. No approval requests.
+
+### Inventory item
+`GET /admin/inventory`, `GET /admin/inventory/low-stock` (lists, paginated with `page`/`pageSize`) and `GET /admin/inventory/{variantId}` return:
+```json
+{
+  "variantId": "…", "sku": "LIP-RED", "variantNameAr": null, "variantNameEn": null, "variantStatus": "ACTIVE",
+  "product": { "id": "…", "nameAr": "…", "nameEn": "Matte Lipstick", "status": "PUBLISHED" },
+  "availableQuantity": 12, "reservedQuantity": 2, "damagedQuantity": 1,
+  "lowStockThreshold": 5, "lowStock": false, "updatedAt": "…"
+}
+```
+- `lowStockThreshold` is the variant's own threshold, else the product's, else `null`. `lowStock` is `availableQuantity <= lowStockThreshold`, only for active variants of non-archived products.
+- `GET /admin/inventory`: every variant, archived included, ordered by SKU; optional `search` (SKU or either product name).
+- `GET /admin/inventory/low-stock`: variants with `lowStock`, lowest `availableQuantity` first.
+
+### `GET /admin/inventory/{variantId}/movements` — `INVENTORY_VIEW`
+Paginated, newest first: `{ id, variantId, type, availableDelta, reservedDelta, damagedDelta, referenceType, referenceId, reason, createdBy: { type, id }, createdAt }`.
+
+### `POST /admin/inventory/{variantId}/adjust` — `ADJUST_INVENTORY`
+- Request: `{ type, quantity, reason }`. `type` `MANUAL_ADJUSTMENT` takes a signed quantity (Available ±); `DAMAGE` (Available → Damaged) and `DAMAGE_WRITE_OFF` (Damaged out) take a positive one. Integer, non-zero, at most 1,000,000 either way. `reason` required, max 1000.
+- Success `200`: `{ inventory, movement }` (the item and the new movement above). Audit action `INVENTORY_ADJUSTED` (entity `PRODUCT_VARIANT`; previous and new quantities, movement id, type, quantity, `reason`).
+- Archived variants and products may be adjusted.
+
+### Thresholds (§13)
+- `PATCH /admin/products/{id}` and `PATCH /admin/variants/{id}` (`PRODUCT_EDIT`) accept `lowStockThreshold` (integer 0–1,000,000, or `null` to remove it); `product` and `variant` responses include it.
+
+### Errors
+| Case | Response |
+|---|---|
+| Invalid body or query (zero/fractional/out-of-range quantity, negative quantity for `DAMAGE`/`DAMAGE_WRITE_OFF`, missing reason, unknown type, bad threshold) | `400 VALIDATION_ERROR` |
+| Missing `INVENTORY_VIEW` / `ADJUST_INVENTORY` | `403 PERMISSION_DENIED` (+ `requiredPermissions`) |
+| The adjustment would take Available or Damaged below zero | `409 CONFLICT`, `details.reason = INSUFFICIENT_STOCK` (+ `quantity`: `available`/`damaged`, `onHand`) |
+| Unknown or malformed variant id | `404 NOT_FOUND` |

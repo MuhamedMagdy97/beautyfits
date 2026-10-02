@@ -28,5 +28,6 @@
 | [ADR-0021](ADR-0021-product-media-and-uploads.md) | Product media and secure uploads | TASK-016 |
 | [ADR-0022](ADR-0022-product-lifecycle.md) | Product publishing and archive lifecycle | TASK-017 |
 | [ADR-0023](ADR-0023-pricing-and-costs.md) | Selling prices and costs | TASK-018 |
+| [ADR-0024](ADR-0024-inventory-ledger.md) | Inventory ledger and balances | TASK-019 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

@@ -97,9 +97,15 @@ export interface ProductInput {
   defaultVariant: VariantInput;
 }
 
-export type ProductChanges = Partial<Omit<ProductInput, "defaultVariant">>;
+/** `lowStockThreshold`: units; null removes it (TASK-019, ADR-0024). */
+export type ProductChanges = Partial<Omit<ProductInput, "defaultVariant">> & {
+  lowStockThreshold?: number | null;
+};
 
-export type VariantChanges = Partial<Omit<VariantInput, "sellingPrice">> & { isDefault?: true };
+export type VariantChanges = Partial<Omit<VariantInput, "sellingPrice">> & {
+  isDefault?: true;
+  lowStockThreshold?: number | null;
+};
 
 /** Cost data of a variant: only for callers with `VIEW_COST_PRICE` (Q74, Q80). */
 export interface VariantCostsView {
@@ -125,6 +131,8 @@ export interface VariantView {
   currency: string;
   /** Removed from responses for callers without `VIEW_COST_PRICE`. */
   costs?: VariantCostsView;
+  /** Overrides the product's low-stock threshold (TASK-019, ADR-0024). */
+  lowStockThreshold: number | null;
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
@@ -161,6 +169,8 @@ export interface ProductView {
   archivedAt: string | null;
   /** When the product was first published; the slug is locked from then on (TASK-017). */
   firstPublishedAt: string | null;
+  /** Low-stock default of its variants (TASK-019, ADR-0024). */
+  lowStockThreshold: number | null;
 }
 
 export interface ProductSummaryView {
@@ -229,6 +239,7 @@ export function toVariantView(row: VariantRow): VariantView {
           : null,
       costsEditable: row.firstGoodsReceiptAt === null,
     },
+    lowStockThreshold: row.lowStockThreshold,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     archivedAt: row.archivedAt?.toISOString() ?? null,
@@ -270,6 +281,7 @@ function toProductView(
     updatedAt: row.updatedAt.toISOString(),
     archivedAt: row.archivedAt?.toISOString() ?? null,
     firstPublishedAt: row.firstPublishedAt?.toISOString() ?? null,
+    lowStockThreshold: row.lowStockThreshold,
   };
 }
 
@@ -284,6 +296,7 @@ function productSnapshot(product: ProductRow, categoryIds: string[]) {
     status: product.status,
     brandId: product.brandId,
     categoryIds: [...categoryIds].sort(),
+    lowStockThreshold: product.lowStockThreshold,
   };
 }
 
@@ -298,6 +311,7 @@ function variantSnapshot(variant: VariantRow) {
     attributes: (variant.attributesJson as Record<string, string> | null) ?? null,
     status: variant.status,
     sellingPrice: optionalJsonNumber(variant.sellingPrice),
+    lowStockThreshold: variant.lowStockThreshold,
   };
 }
 
@@ -662,6 +676,12 @@ export function createProductsService(deps: ProductsServiceDeps) {
         if (input.descriptionEn !== undefined && input.descriptionEn !== existing.descriptionEn) {
           data.descriptionEn = input.descriptionEn;
         }
+        if (
+          input.lowStockThreshold !== undefined &&
+          input.lowStockThreshold !== existing.lowStockThreshold
+        ) {
+          data.lowStockThreshold = input.lowStockThreshold;
+        }
         if (input.slug !== undefined && input.slug !== existing.slug) {
           // Links and search results point at the slug once customers have
           // seen the product, so it changes only while the product is a draft
@@ -833,6 +853,12 @@ export function createProductsService(deps: ProductsServiceDeps) {
         if (input.sku !== undefined && input.sku !== variant.sku) {
           await assertSkuFree(tx, input.sku, variantId);
           data.sku = input.sku;
+        }
+        if (
+          input.lowStockThreshold !== undefined &&
+          input.lowStockThreshold !== variant.lowStockThreshold
+        ) {
+          data.lowStockThreshold = input.lowStockThreshold;
         }
         if (nameAr !== variant.variantNameAr || nameEn !== variant.variantNameEn) {
           await assertVariantNamesKept(tx, product, { id: variantId, nameAr, nameEn });
