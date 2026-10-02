@@ -1267,3 +1267,25 @@ Added by TASK-020 (`docs/tasks/TASK-020-inventory-reservations.md`, ADR-0025). N
 
 - When any line of an order cannot be reserved, the whole request fails with `409 STOCK_CHANGED` and `details.items = [{ variantId }]`, the short variants only. Available quantities are not exposed (§13 public responses).
 - Admin inventory responses (§22) show held stock in `reservedQuantity`; movement history shows `RESERVATION`, `RELEASE_RESERVATION` and `CUSTOMER_ORDER_COMMIT` movements with `referenceType = "ORDER"`.
+
+## TASK-021 Amendments (suppliers)
+
+Added by TASK-021 (`docs/tasks/TASK-021-suppliers.md`, ADR-0026). Same employee session and `Origin` rules as the other admin endpoints. No approval requests.
+
+### Endpoints (§21)
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `GET /admin/suppliers` | `SUPPLIER_VIEW` | query `page`, `pageSize` (max 100), `status`, `search` (name, phone or email) | `200` `[supplier]` by name + `meta.pagination` |
+| `POST /admin/suppliers` | `SUPPLIER_MANAGE` | `{ name, phone?, email?, address?, notes? }` | `201` `supplier` (status `ACTIVE`) |
+| `PATCH /admin/suppliers/{id}` | `SUPPLIER_MANAGE` | any of `{ name, phone, email, address, notes, status }`; `null` clears an optional field | `200` `supplier` |
+
+- `supplier`: `{ id, name, phone, email, address, notes, status, createdAt, updatedAt }`. `status`: `ACTIVE` or `INACTIVE` (deactivate / reactivate). Nothing is deleted.
+- `phone`: digits with an optional leading `+`, spaces, hyphens and brackets allowed. `email` is returned lowercase.
+- Audit actions added: `SUPPLIER_CREATED`, `SUPPLIER_UPDATED` (entity type `SUPPLIER`).
+
+### Errors
+| Case | Response |
+|---|---|
+| Invalid body or query | `400 VALIDATION_ERROR` |
+| Name used by another supplier (any case) | `409 CONFLICT`, `details.reason = NAME_TAKEN` |
+| Unknown or malformed supplier id | `404 NOT_FOUND` |
