@@ -598,21 +598,24 @@ enum ProductVariantStatus {
 /// The container shown to customers (C6). Never hard-deleted (Q75): a
 /// database trigger rejects DELETE.
 model Product {
-  id               String        @id @default(uuid(7)) @db.Uuid
-  nameAr           String        @map("name_ar")
-  nameEn           String        @map("name_en")
+  id                String        @id @default(uuid(7)) @db.Uuid
+  nameAr            String        @map("name_ar")
+  nameEn            String        @map("name_en")
   /// Unique, lowercase Latin letters, digits and hyphens.
-  slug             String        @unique
-  descriptionAr    String?       @map("description_ar")
-  descriptionEn    String?       @map("description_en")
+  slug              String        @unique
+  descriptionAr     String?       @map("description_ar")
+  descriptionEn     String?       @map("description_en")
   /// Optional; a product has at most one brand (TASK-015).
-  brandId          String?       @map("brand_id") @db.Uuid
-  status           ProductStatus @default(DRAFT)
-  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime      @default(now()) @map("updated_at") @db.Timestamptz(3)
-  archivedAt       DateTime?     @map("archived_at") @db.Timestamptz(3)
+  brandId           String?       @map("brand_id") @db.Uuid
+  status            ProductStatus @default(DRAFT)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime      @default(now()) @map("updated_at") @db.Timestamptz(3)
+  archivedAt        DateTime?     @map("archived_at") @db.Timestamptz(3)
   /// Set by the first publish, never cleared; locks the slug (TASK-017, ADR-0022).
-  firstPublishedAt DateTime?     @map("first_published_at") @db.Timestamptz(3)
+  firstPublishedAt  DateTime?     @map("first_published_at") @db.Timestamptz(3)
+  /// Low-stock alert default for all its variants; a variant may override it
+  /// (Q21, TASK-019, ADR-0024). Null: no alert.
+  lowStockThreshold Int?          @map("low_stock_threshold")
 
   brand      Brand?            @relation(fields: [brandId], references: [id], onDelete: Restrict)
   variants   ProductVariant[]
@@ -654,9 +657,13 @@ model ProductVariant {
   createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime             @default(now()) @map("updated_at") @db.Timestamptz(3)
   archivedAt          DateTime?            @map("archived_at") @db.Timestamptz(3)
+  /// Overrides the product's low-stock threshold (TASK-019, ADR-0024).
+  lowStockThreshold   Int?                 @map("low_stock_threshold")
 
-  product Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
-  media   ProductMedia[]
+  product            Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  media              ProductMedia[]
+  inventoryBalance   InventoryBalance?
+  inventoryMovements InventoryMovement[]
 
   @@unique([productId], map: "product_variants_one_default_key", where: raw("is_default"))
   @@index([productId, createdAt])
@@ -814,4 +821,64 @@ model ProductMedia {
   @@index([mediaAssetId])
   @@index([variantId])
   @@map("product_media")
+}
+
+// ---------------------------------------------------------------------------
+// Inventory (TASK-019, DB design §10, ADR-0024). Ledger-driven: a balance
+// changes only through an inventory movement, applied by a database trigger.
+// ---------------------------------------------------------------------------
+
+/// Stock of one variant (Q109). Created with the variant by a trigger; only
+/// inventory movements change it; no quantity goes below zero.
+model InventoryBalance {
+  productVariantId  String   @id @map("product_variant_id") @db.Uuid
+  /// Sellable stock.
+  availableQuantity Int      @default(0) @map("available_quantity")
+  /// Held for orders (TASK-020); not sellable.
+  reservedQuantity  Int      @default(0) @map("reserved_quantity")
+  /// Damaged / non-sellable.
+  damagedQuantity   Int      @default(0) @map("damaged_quantity")
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@map("inventory_balances")
+}
+
+/// Why stock changed (Q108). Later tasks add theirs (purchase receipt,
+/// reservation, returns, ...).
+enum InventoryMovementType {
+  /// Available stock corrected by hand, up or down (Q71, Q72).
+  MANUAL_ADJUSTMENT
+  /// Available stock found damaged: moved to Damaged.
+  DAMAGE
+  /// Damaged stock written off.
+  DAMAGE_WRITE_OFF
+
+  @@map("inventory_movement_type")
+}
+
+/// The inventory ledger (Q108): append-only; inserting a row applies its
+/// deltas to the variant's balance.
+model InventoryMovement {
+  id               String                @id @default(uuid(7)) @db.Uuid
+  productVariantId String                @map("product_variant_id") @db.Uuid
+  movementType     InventoryMovementType @map("movement_type")
+  availableDelta   Int                   @default(0) @map("available_delta")
+  reservedDelta    Int                   @default(0) @map("reserved_delta")
+  damagedDelta     Int                   @default(0) @map("damaged_delta")
+  /// The business record behind the movement (goods receipt, order, ...).
+  referenceType    String?               @map("reference_type")
+  referenceId      String?               @map("reference_id") @db.Uuid
+  /// Piastres per unit, for movements that bring stock in (TASK-023).
+  unitCost         BigInt?               @map("unit_cost")
+  reason           String?
+  createdByType    AuditActorType        @map("created_by_type")
+  createdById      String?               @map("created_by_id") @db.Uuid
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@index([productVariantId, createdAt(sort: Desc)])
+  @@map("inventory_movements")
 }

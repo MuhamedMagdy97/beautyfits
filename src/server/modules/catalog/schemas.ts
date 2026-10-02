@@ -146,6 +146,9 @@ export const createProductSchema = z.object({
   defaultVariant: createVariantSchema,
 });
 
+/** Units of Available stock at or below which a variant is low on stock (Q21, ADR-0024). */
+const lowStockThreshold = z.int().min(0).max(1_000_000).nullable();
+
 function atLeastOne(value: Record<string, unknown>): boolean {
   return Object.values(value).some((v) => v !== undefined);
 }
@@ -160,6 +163,8 @@ export const updateProductSchema = z
     brandId: brandId.optional(),
     /** Replaces the product's categories; `[]` removes them all. */
     categoryIds: categoryIds.optional(),
+    /** Low-stock default of its variants; null removes it (TASK-019). */
+    lowStockThreshold: lowStockThreshold.optional(),
   })
   .refine(atLeastOne, { message: "Provide at least one field to change." });
 
@@ -174,6 +179,8 @@ export const updateVariantSchema = z
     nameEn: variantName.optional(),
     attributes: attributes.optional(),
     isDefault: z.literal(true).optional(),
+    /** Overrides the product's low-stock threshold; null falls back to it (TASK-019). */
+    lowStockThreshold: lowStockThreshold.optional(),
   })
   .refine(atLeastOne, { message: "Provide at least one field to change." });
 

@@ -279,6 +279,8 @@ Implement selling price, latest purchase cost, weighted average cost, margin war
 
 Implement Available, Reserved, Damaged and Inventory Movement ledger.
 
+**Status after TASK-019** (`docs/tasks/TASK-019-inventory-ledger.md`): every variant has an `inventory_balances` row; stock changes only by inserting an `inventory_movements` row (one delta per quantity), applied by a database trigger that keeps every quantity ≥ 0 (ADR-0024). Manual adjustments, the overview, movements and low stock (product threshold, variant override) exist. TASK-020 locks the balance row (`SELECT … FOR UPDATE`) and inserts reservation/release movements, adding its movement types to `inventory_movement_type`; TASK-023 inserts `PURCHASE_RECEIPT` movements with `unit_cost`.
+
 ### TASK-020 — Inventory Reservation Engine
 **Depends on:** TASK-019
 

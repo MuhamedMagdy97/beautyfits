@@ -194,7 +194,7 @@ Core fields:
 
 v1.2 (TASK-002A): SKU, selling price, costs and stock thresholds are **not** product fields; they live on `product_variants` (C6). The main image is identified only by `product_media.is_main` (no `main_media_id`).
 
-Low-stock threshold level: `[BUSINESS DECISION REQUIRED]` — Q21 says per product, C6 puts stock at variant level. Until decided, the threshold is modelled on the variant with an optional product-level default.
+Low-stock threshold level: decided 2026-10-02 (ADR-0024 §4 item 2) — an optional threshold on the product applies to its variants; a variant may override it. See "v1.2 TASK-019 Amendments".
 
 Rules:
 - hard delete prohibited
@@ -1676,7 +1676,27 @@ Added by TASK-018 (`docs/tasks/TASK-018-pricing-cost.md`, ADR-0023). Migrated in
 - Trigger `product_variants_price_kept`: a selling price, once set, is never cleared.
 - A `PUBLISHED` product's active variants all have a selling price: enforced by the service under the product lock (publish check, new variants need a price).
 - Price and cost changes are recorded in `audit_logs` (`PRODUCT_VARIANT_PRICE_CHANGED`, `PRODUCT_VARIANT_COST_CHANGED`; §12 "price changes"); there is no separate price history table.
-- `low_stock_threshold` is still added by the inventory tasks.
+- `low_stock_threshold` is added by TASK-019 (see "v1.2 TASK-019 Amendments").
 
 ### Settings
 - New key `pricing.min_margin_basis_points` (INTEGER 0–9999, default 1000 = 10%; Q102, Q111), inserted by the bootstrap. Selling-price reviews warn below it.
+
+## v1.2 TASK-019 Amendments
+
+Added by TASK-019 (`docs/tasks/TASK-019-inventory-ledger.md`, ADR-0024). Migrated in `prisma/migrations/*_inventory_ledger`.
+
+### `products` and `product_variants` (§5, migrated)
+- New column `low_stock_threshold` (INTEGER, nullable, ≥ 0) on both. A variant's own threshold wins; otherwise its product's applies; none means no alert (ADR-0024 §4 item 2).
+
+### `inventory_balances` (§10, migrated)
+- `product_variant_id` is the primary key (one row per variant, FK restrict). `available_quantity`, `reserved_quantity`, `damaged_quantity` INTEGER default 0; check `inventory_balances_quantities_check` keeps all three ≥ 0. `updated_at` is the time of the last movement.
+- Trigger `inventory_balances_create` inserts the row when a variant is inserted; the migration created rows for existing variants.
+- Trigger `inventory_balances_guard`: rows are updated only by the movement trigger below and never deleted.
+
+### `inventory_movements` (§10, migrated)
+- `quantity_delta` is replaced by `available_delta`, `reserved_delta`, `damaged_delta` (INTEGER default 0; check `inventory_movements_delta_check`: at least one non-zero), so a move between quantities is one row and each balance is the sum of its movements.
+- `movement_type` enum `inventory_movement_type`: `MANUAL_ADJUSTMENT`, `DAMAGE`, `DAMAGE_WRITE_OFF` for now; `PURCHASE_RECEIPT`, `CUSTOMER_ORDER_COMMIT`, `RELEASE_RESERVATION`, `CUSTOMER_RETURN_RESTOCK`, `SUPPLIER_RETURN` and the reservation movement are added by their tasks.
+- `reference_type` / `reference_id` (UUID) nullable; `unit_cost` BIGINT piastres nullable (check ≥ 0); `reason` nullable (required by the service for manual adjustments, Q72); `created_by_type` uses `audit_actor_type`; `created_by_id` nullable.
+- Trigger `inventory_movements_apply` adds the deltas to the balance in the same statement; trigger `inventory_movements_append_only` rejects UPDATE and DELETE.
+- Index `(product_variant_id, created_at DESC)` (§17).
+- Manual adjustments are also recorded in `audit_logs` (`INVENTORY_ADJUSTED`; §12 "stock adjustments").
