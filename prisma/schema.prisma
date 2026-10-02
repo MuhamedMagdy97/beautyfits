@@ -921,3 +921,32 @@ model InventoryReservation {
   @@index([orderId])
   @@map("inventory_reservations")
 }
+
+// ---------------------------------------------------------------------------
+// Suppliers (TASK-021, DB design §11, ADR-0026)
+// ---------------------------------------------------------------------------
+
+enum SupplierStatus {
+  ACTIVE
+  /// No new purchase orders (TASK-022); history and links stay.
+  INACTIVE
+
+  @@map("supplier_status")
+}
+
+/// A supplier the store buys from. Never deleted (purchases, invoices and the
+/// supplier ledger point at it); deactivated instead.
+model Supplier {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  notes     String?
+  status    SupplierStatus @default(ACTIVE)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, name])
+  @@map("suppliers")
+}

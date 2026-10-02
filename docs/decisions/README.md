@@ -30,5 +30,6 @@
 | [ADR-0023](ADR-0023-pricing-and-costs.md) | Selling prices and costs | TASK-018 |
 | [ADR-0024](ADR-0024-inventory-ledger.md) | Inventory ledger and balances | TASK-019 |
 | [ADR-0025](ADR-0025-inventory-reservations.md) | Inventory reservations | TASK-020 |
+| [ADR-0026](ADR-0026-suppliers.md) | Suppliers | TASK-021 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

@@ -293,6 +293,8 @@ Implement atomic reservation, release, concurrency-safe updates and oversell pre
 
 Implement supplier records, contacts, active state and historical relationships.
 
+**Status after TASK-021** (`docs/tasks/TASK-021-suppliers.md`): `suppliers` with `ACTIVE`/`INACTIVE`, never deleted; `GET/POST /admin/suppliers`, `PATCH /admin/suppliers/{id}` (`SUPPLIER_VIEW` / `SUPPLIER_MANAGE`), audited (ADR-0026). TASK-022 links purchase orders to suppliers and refuses new orders for inactive ones.
+
 ### TASK-022 — Purchase Orders & Approval
 **Depends on:** TASK-021, TASK-013
 

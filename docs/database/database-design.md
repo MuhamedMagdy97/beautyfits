@@ -1714,3 +1714,13 @@ Added by TASK-020 (`docs/tasks/TASK-020-inventory-reservations.md`, ADR-0025). M
 
 ### `inventory_movements` (§10)
 - New `movement_type` values: `RESERVATION` (Available → Reserved), `RELEASE_RESERVATION` (Reserved → Available), `CUSTOMER_ORDER_COMMIT` (Reserved out, at `SHIPPED`). They carry `reference_type = 'ORDER'` and `reference_id` = the order id.
+
+## v1.2 TASK-021 Amendments
+
+Added by TASK-021 (`docs/tasks/TASK-021-suppliers.md`, ADR-0026). Migrated in `prisma/migrations/*_suppliers`.
+
+### `suppliers` (§11, migrated)
+- Fields of §11 plus `created_at`, `updated_at`. `phone`, `email`, `address`, `notes` nullable; `email` stored lowercase.
+- `status` enum `supplier_status` (`ACTIVE`, `INACTIVE`); `INACTIVE` suppliers get no new purchase orders (TASK-022).
+- Index `(status, name)`. Names are unique ignoring case (service check).
+- Trigger `suppliers_no_delete`: rows are deactivated, never deleted.

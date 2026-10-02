@@ -59,6 +59,9 @@ export const AUDIT_ACTIONS = [
   "PRODUCT_VARIANT_COST_CHANGED",
   // Inventory (TASK-019)
   "INVENTORY_ADJUSTED",
+  // Suppliers (TASK-021)
+  "SUPPLIER_CREATED",
+  "SUPPLIER_UPDATED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -74,6 +77,7 @@ export const AUDIT_ENTITY_TYPES = {
   brand: "BRAND",
   category: "CATEGORY",
   productMedia: "PRODUCT_MEDIA",
+  supplier: "SUPPLIER",
 } as const;
 
 export interface AuditActor {
