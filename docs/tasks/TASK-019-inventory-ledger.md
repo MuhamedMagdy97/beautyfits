@@ -87,5 +87,5 @@ Still open for TASK-020 (DB Design §10): when a reservation is consumed (`CONVE
 - [x] Planned
 - [x] In Progress
 - [x] Tests Passing
-- [ ] Reviewed
-- [ ] Done
+- [x] Reviewed
+- [x] Done

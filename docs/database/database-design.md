@@ -485,7 +485,7 @@ Fields:
 
 Unique/locking strategy must prevent two concurrent checkouts from reserving the same last units.
 
-`[BUSINESS DECISION REQUIRED]`: the order point at which a reservation is consumed (`CONVERTED`, e.g. at `SHIPPED`) and whether reserving/releasing writes `inventory_movements` rows in addition to reservation rows (AGENTS.md requires a movement for every inventory change).
+Decided 2026-10-03 (ADR-0025): a reservation is consumed (`CONVERTED`) when the order is `SHIPPED`; reserving, releasing and consuming each write `inventory_movements` rows. See "v1.2 TASK-020 Amendments".
 
 ### `inventory_movements`
 
@@ -1700,3 +1700,17 @@ Added by TASK-019 (`docs/tasks/TASK-019-inventory-ledger.md`, ADR-0024). Migrate
 - Trigger `inventory_movements_apply` adds the deltas to the balance in the same statement; trigger `inventory_movements_append_only` rejects UPDATE and DELETE.
 - Index `(product_variant_id, created_at DESC)` (§17).
 - Manual adjustments are also recorded in `audit_logs` (`INVENTORY_ADJUSTED`; §12 "stock adjustments").
+
+## v1.2 TASK-020 Amendments
+
+Added by TASK-020 (`docs/tasks/TASK-020-inventory-reservations.md`, ADR-0025). Migrated in `prisma/migrations/*_inventory_reservations`.
+
+### `inventory_reservations` (§10, migrated)
+- Fields of §10 plus `converted_at` nullable. `status` enum `inventory_reservation_status` (`ACTIVE`, `RELEASED`, `CONVERTED`). `quantity` > 0.
+- `order_id` is a UUID without a foreign key until `orders` exists (TASK-030 adds it).
+- Check `inventory_reservations_status_check`: `released_at` is set exactly for `RELEASED`, `converted_at` exactly for `CONVERTED`.
+- Partial unique index `inventory_reservations_one_active_key` on `(order_id, product_variant_id) WHERE status = 'ACTIVE'`: one active hold per order and variant. Indexes `(product_variant_id, status)` (§17) and `(order_id)`.
+- Trigger `inventory_reservations_guard`: no deletes; the only change is `ACTIVE` → `RELEASED` or `ACTIVE` → `CONVERTED`, once, with order, variant, quantity and `reserved_at` unchanged.
+
+### `inventory_movements` (§10)
+- New `movement_type` values: `RESERVATION` (Available → Reserved), `RELEASE_RESERVATION` (Reserved → Available), `CUSTOMER_ORDER_COMMIT` (Reserved out, at `SHIPPED`). They carry `reference_type = 'ORDER'` and `reference_id` = the order id.

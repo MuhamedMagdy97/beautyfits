@@ -1260,3 +1260,10 @@ Paginated, newest first: `{ id, variantId, type, availableDelta, reservedDelta, 
 | Missing `INVENTORY_VIEW` / `ADJUST_INVENTORY` | `403 PERMISSION_DENIED` (+ `requiredPermissions`) |
 | The adjustment would take Available or Damaged below zero | `409 CONFLICT`, `details.reason = INSUFFICIENT_STOCK` (+ `quantity`: `available`/`damaged`, `onHand`) |
 | Unknown or malformed variant id | `404 NOT_FOUND` |
+
+## TASK-020 Amendments (inventory reservations)
+
+Added by TASK-020 (`docs/tasks/TASK-020-inventory-reservations.md`, ADR-0025). No new endpoints: checkout, COD expiry, cancellation and shipping use the reservation engine inside their own transactions.
+
+- When any line of an order cannot be reserved, the whole request fails with `409 STOCK_CHANGED` and `details.items = [{ variantId }]`, the short variants only. Available quantities are not exposed (§13 public responses).
+- Admin inventory responses (§22) show held stock in `reservedQuantity`; movement history shows `RESERVATION`, `RELEASE_RESERVATION` and `CUSTOMER_ORDER_COMMIT` movements with `referenceType = "ORDER"`.
