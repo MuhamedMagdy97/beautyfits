@@ -283,3 +283,14 @@ export const reorderProductMediaSchema = z.object({
       message: "Each image may appear only once.",
     }),
 });
+
+/** Body of the lifecycle endpoints (TASK-017); blank means "no reason". */
+export const productStatusChangeSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .max(1000)
+    .transform((value) => (value === "" ? null : value))
+    .nullable()
+    .optional(),
+});

@@ -689,7 +689,10 @@ describe("product media", () => {
       await attach(editor.token, product.id, { mediaAssetId: asset.id }),
       201,
     );
-    await db.product.update({ where: { id: product.id }, data: { status: "PUBLISHED" } });
+    await db.product.update({
+      where: { id: product.id },
+      data: { status: "PUBLISHED", firstPublishedAt: new Date() },
+    });
     const kept = await errorOf(
       await call(removeMedia, `/admin/products/${product.id}/media/${only.id}`, {
         method: "DELETE",
@@ -700,7 +703,10 @@ describe("product media", () => {
     );
     expect(kept.details.reason).toBe("MAIN_IMAGE_REQUIRED");
 
-    await db.product.update({ where: { id: product.id }, data: { status: "ARCHIVED" } });
+    await db.product.update({
+      where: { id: product.id },
+      data: { status: "ARCHIVED", archivedAt: new Date() },
+    });
     const another = await upload(editor.token, png(650, 650));
     const frozen = await errorOf(
       await attach(editor.token, product.id, { mediaAssetId: another.id }),
@@ -761,7 +767,10 @@ describe("serving files", () => {
 
     const product = await newProduct(editor.token);
     await data(await attach(editor.token, product.id, { mediaAssetId: asset.id }), 201);
-    await db.product.update({ where: { id: product.id }, data: { status: "PUBLISHED" } });
+    await db.product.update({
+      where: { id: product.id },
+      data: { status: "PUBLISHED", firstPublishedAt: new Date() },
+    });
     const open = await get();
     expect(open.status).toBe(200);
     expect(open.headers.get("cache-control")).toBe("public, max-age=3600");

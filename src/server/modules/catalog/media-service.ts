@@ -154,12 +154,17 @@ async function assertVariantUsable(tx: Db, productId: string, variantId: string)
 }
 
 /**
- * True when the file is a current image of a published product, which anyone
- * may see (the storefront). Other files need a staff session.
+ * True when the file is a current image of a published or archived product,
+ * which anyone may see: the storefront, and wishlists and order history for
+ * archived products (ADR-0022 §4 item 4). Other files need a staff session.
  */
-export async function isPublishedProductImage(db: Db, mediaAssetId: string): Promise<boolean> {
+export async function isPublicProductImage(db: Db, mediaAssetId: string): Promise<boolean> {
   const count = await db.productMedia.count({
-    where: { mediaAssetId, removedAt: null, product: { status: "PUBLISHED" } },
+    where: {
+      mediaAssetId,
+      removedAt: null,
+      product: { status: { in: ["PUBLISHED", "ARCHIVED"] } },
+    },
   });
   return count > 0;
 }

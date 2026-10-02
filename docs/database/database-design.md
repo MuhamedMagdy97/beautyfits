@@ -1652,3 +1652,15 @@ Added by TASK-016 (`docs/tasks/TASK-016-product-media.md`, ADR-0021). Migrated i
 
 ### Settings
 - New key `catalog.max_images_per_product` (INTEGER, default 20; Q177), inserted by the bootstrap.
+
+## v1.2 TASK-017 Amendments
+
+Added by TASK-017 (`docs/tasks/TASK-017-product-publishing.md`, ADR-0022). Migrated in `prisma/migrations/*_product_lifecycle`.
+
+### `products` (§5, migrated)
+- New column `first_published_at` nullable: set by the first publish, never cleared; locks the slug.
+- Check constraint `products_archived_at_check`: `archived_at` is set exactly when `status = 'ARCHIVED'`.
+- Check constraint `products_first_published_check`: a `PUBLISHED` product has `first_published_at`.
+- Trigger `products_archive_final`: once `ARCHIVED`, the status never changes again (archiving is final in v1, ADR-0022 §4 item 1).
+- Status changes are recorded in `audit_logs` (`PRODUCT_PUBLISHED`, `PRODUCT_UNPUBLISHED`, `PRODUCT_DISABLED`, `PRODUCT_ARCHIVED`); there is no separate status history table.
+- Archiving a product leaves its variants' status unchanged; the product status alone decides whether they are purchasable.

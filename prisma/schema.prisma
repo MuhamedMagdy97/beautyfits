@@ -598,19 +598,21 @@ enum ProductVariantStatus {
 /// The container shown to customers (C6). Never hard-deleted (Q75): a
 /// database trigger rejects DELETE.
 model Product {
-  id            String        @id @default(uuid(7)) @db.Uuid
-  nameAr        String        @map("name_ar")
-  nameEn        String        @map("name_en")
+  id               String        @id @default(uuid(7)) @db.Uuid
+  nameAr           String        @map("name_ar")
+  nameEn           String        @map("name_en")
   /// Unique, lowercase Latin letters, digits and hyphens.
-  slug          String        @unique
-  descriptionAr String?       @map("description_ar")
-  descriptionEn String?       @map("description_en")
+  slug             String        @unique
+  descriptionAr    String?       @map("description_ar")
+  descriptionEn    String?       @map("description_en")
   /// Optional; a product has at most one brand (TASK-015).
-  brandId       String?       @map("brand_id") @db.Uuid
-  status        ProductStatus @default(DRAFT)
-  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime      @default(now()) @map("updated_at") @db.Timestamptz(3)
-  archivedAt    DateTime?     @map("archived_at") @db.Timestamptz(3)
+  brandId          String?       @map("brand_id") @db.Uuid
+  status           ProductStatus @default(DRAFT)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime      @default(now()) @map("updated_at") @db.Timestamptz(3)
+  archivedAt       DateTime?     @map("archived_at") @db.Timestamptz(3)
+  /// Set by the first publish, never cleared; locks the slug (TASK-017, ADR-0022).
+  firstPublishedAt DateTime?     @map("first_published_at") @db.Timestamptz(3)
 
   brand      Brand?            @relation(fields: [brandId], references: [id], onDelete: Restrict)
   variants   ProductVariant[]

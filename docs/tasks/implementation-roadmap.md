@@ -261,6 +261,8 @@ Implement image upload, media validation, main image, dimensions, type/size/secu
 
 Implement Draft/Published/Archived/Disabled states and prevent hard deletion.
 
+**Status after TASK-017** (`docs/tasks/TASK-017-product-publishing.md`): `publish`, `unpublish`, `disable` and `archive` exist with their audit entries (ADR-0022). Publishing needs a main image and named variants when there are several; TASK-018 adds its "has a selling price" check to `checkPublishable` in `src/server/modules/catalog/lifecycle.ts`. Cart, wishlist and checkout tasks treat only `PUBLISHED` products as purchasable.
+
 ### TASK-018 — Pricing & Cost Model
 **Depends on:** TASK-014, TASK-019 later for stock/cost integration
 

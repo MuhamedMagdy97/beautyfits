@@ -1130,3 +1130,36 @@ Added by TASK-016 (`docs/tasks/TASK-016-product-media.md`). Business rules: Q175
 | Changing images of an `ARCHIVED` product | `409 CONFLICT`, `details.reason = PRODUCT_ARCHIVED` |
 | `mediaIds` not exactly the current images | `400 VALIDATION_ERROR`, issue code `media_order_mismatch` |
 | Unknown or malformed product or image id, or a removed image | `404 NOT_FOUND` |
+
+## TASK-017 Amendments (product lifecycle)
+
+Added by TASK-017 (`docs/tasks/TASK-017-product-publishing.md`). Business rules: Q22, Q23, Q75, Q178, R18, R19, User Flows §4.1. Technical design and the product owner's decisions of 2026-10-02: ADR-0022. Same employee session and `Origin` rules as TASK-014. No approval requests (R19).
+
+### Endpoints (§13)
+| Endpoint | Permission | From status | To status |
+|---|---|---|---|
+| `POST /admin/products/{id}/publish` | `PRODUCT_PUBLISH` | `DRAFT`, `DISABLED` | `PUBLISHED` |
+| `POST /admin/products/{id}/unpublish` | `PRODUCT_PUBLISH` | `PUBLISHED`, `DISABLED` | `DRAFT` |
+| `POST /admin/products/{id}/disable` | `PRODUCT_ARCHIVE` | `PUBLISHED` | `DISABLED` |
+| `POST /admin/products/{id}/archive` | `PRODUCT_ARCHIVE` | `DRAFT`, `PUBLISHED`, `DISABLED` | `ARCHIVED` (final) |
+
+- Request body optional: `{ reason? }` (max 1000 characters; blank means none), kept in the audit entry. Success: `200` `product`.
+- Repeating a transition (e.g. publishing a published product) returns `200` with the product unchanged and writes no audit entry.
+- Publishing needs a current main image (Q178) and, when the product has more than one active variant, Arabic and English names on every active variant. TASK-018 adds a selling price.
+- `DISABLED` is a pause: hidden and not purchasable, still editable, can be published again. `ARCHIVED` is final: read-only, kept for history.
+- While a product is `PUBLISHED`, its last image cannot be removed (TASK-016) and variant changes may not leave several active variants with an unnamed one.
+- The slug can change only while the product is a `DRAFT` that was never published (refines TASK-014 `SLUG_LOCKED`).
+- `product` gains `firstPublishedAt` (set by the first publish, never cleared).
+- `GET /files/{id}/content` is public for current images of `PUBLISHED` **and `ARCHIVED`** products (wishlists, order history); `DRAFT` and `DISABLED` products' images need a staff session.
+- Audit actions added: `PRODUCT_PUBLISHED`, `PRODUCT_UNPUBLISHED`, `PRODUCT_DISABLED`, `PRODUCT_ARCHIVED` (entity type `PRODUCT`; previous and new `status`, `reason`).
+
+### Errors
+| Case | Response |
+|---|---|
+| Invalid body (`reason` too long, malformed JSON) | `400 VALIDATION_ERROR` |
+| Any transition of an `ARCHIVED` product | `409 CONFLICT`, `details.reason = PRODUCT_ARCHIVED` |
+| Transition not allowed from the current status (`disable` a draft) | `409 CONFLICT`, `details.reason = PRODUCT_STATUS_INVALID` (+ `status`) |
+| Publishing a product that misses a requirement | `409 CONFLICT`, `details.reason = PUBLISH_REQUIREMENTS_NOT_MET`, `details.missing` (`MAIN_IMAGE`, `VARIANT_NAMES`), `details.unnamedVariantIds` |
+| Adding a variant or clearing a variant name of a `PUBLISHED` product so that several active variants include an unnamed one | `409 CONFLICT`, `details.reason = VARIANT_NAMES_REQUIRED` (+ `unnamedVariantIds`, existing variants only) |
+| Changing the slug of a product that is not a never-published `DRAFT` | `409 CONFLICT`, `details.reason = SLUG_LOCKED` |
+| Unknown or malformed product id | `404 NOT_FOUND` |
