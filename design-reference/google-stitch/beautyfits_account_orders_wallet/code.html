@@ -1,0 +1,1262 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="web_standard" name="shell-type" />
+    <title>BeautyFits Egypt</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @layer base {
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        body {
+          overscroll-behavior: none;
+        }
+        main > :first-child {
+          margin-top: 0 !important;
+        }
+        main > :last-child {
+          margin-bottom: 0 !important;
+        }
+      }
+      ::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed-dim": "#ffb0c9",
+              "on-primary-container": "#ec87aa",
+              surface: "#fff7fb",
+              "on-tertiary": "#ffffff",
+              "surface-container": "#f3ecf0",
+              "on-tertiary-container": "#c5a069",
+              "on-primary-fixed-variant": "#792a4b",
+              "on-background": "#1d1b1e",
+              "secondary-fixed-dim": "#f8b4c6",
+              "on-primary": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "inverse-on-surface": "#f6eff3",
+              "primary-container": "#6b1e3f",
+              "on-secondary": "#ffffff",
+              "surface-tint": "#974162",
+              "surface-variant": "#e8e0e4",
+              "surface-dim": "#dfd8dc",
+              "surface-container-highest": "#e8e0e4",
+              "surface-container-low": "#f9f2f6",
+              "inverse-surface": "#332f32",
+              "surface-bright": "#fff7fb",
+              "on-secondary-fixed-variant": "#693747",
+              "secondary-container": "#feb9cb",
+              "tertiary-fixed": "#ffddae",
+              "error-container": "#ffdad6",
+              "on-secondary-fixed": "#350d1c",
+              "tertiary-fixed-dim": "#e8c086",
+              primary: "#4e0529",
+              outline: "#867277",
+              "tertiary-container": "#503708",
+              "on-tertiary-fixed": "#281800",
+              "on-surface-variant": "#534247",
+              "on-error-container": "#93000a",
+              "on-secondary-container": "#7b4656",
+              "surface-container-high": "#ede6ea",
+              background: "#fff7fb",
+              error: "#ba1a1a",
+              "on-primary-fixed": "#3e001e",
+              "primary-fixed": "#ffd9e3",
+              secondary: "#844e5e",
+              "inverse-primary": "#ffb0c9",
+              tertiary: "#362200",
+              "on-surface": "#1d1b1e",
+              "on-error": "#ffffff",
+              "on-tertiary-fixed-variant": "#5d4213",
+              "outline-variant": "#d8c1c6",
+              "secondary-fixed": "#ffd9e1",
+            },
+            borderRadius: { DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem" },
+            spacing: {
+              "space-xs": "0.25rem",
+              "space-sm": "0.5rem",
+              gutter: "1.5rem",
+              "margin-sm": "1.25rem",
+              "space-lg": "1.5rem",
+              "space-md": "1rem",
+              "gutter-sm": "1rem",
+              margin: "3rem",
+              "space-xl": "2.5rem",
+            },
+            fontFamily: {
+              "body-lg": ["Plus Jakarta Sans"],
+              "label-lg": ["Plus Jakarta Sans"],
+              "body-sm": ["Plus Jakarta Sans"],
+              "label-md": ["Plus Jakarta Sans"],
+              "headline-lg-mobile": ["Playfair Display"],
+              "headline-lg": ["Playfair Display"],
+              "display-lg": ["Playfair Display"],
+              "title-md": ["Plus Jakarta Sans"],
+              "display-lg-mobile": ["Playfair Display"],
+              "label-sm": ["Plus Jakarta Sans"],
+              "price-lg": ["Plus Jakarta Sans"],
+              "headline-sm": ["Playfair Display"],
+              "headline-md": ["Playfair Display"],
+              "price-md": ["Plus Jakarta Sans"],
+              "body-md": ["Plus Jakarta Sans"],
+              "title-lg": ["Plus Jakarta Sans"],
+            },
+            fontSize: {
+              "body-lg": ["16px", { lineHeight: "26px", fontWeight: "400" }],
+              "label-lg": [
+                "14px",
+                { lineHeight: "20px", letterSpacing: "0.02em", fontWeight: "600" },
+              ],
+              "body-sm": ["12px", { lineHeight: "18px", fontWeight: "400" }],
+              "label-md": [
+                "12px",
+                { lineHeight: "16px", letterSpacing: "0.04em", fontWeight: "600" },
+              ],
+              "headline-lg-mobile": [
+                "28px",
+                { lineHeight: "36px", letterSpacing: "0em", fontWeight: "500" },
+              ],
+              "headline-lg": [
+                "38px",
+                { lineHeight: "46px", letterSpacing: "-0.01em", fontWeight: "500" },
+              ],
+              "display-lg": [
+                "56px",
+                { lineHeight: "64px", letterSpacing: "-0.02em", fontWeight: "600" },
+              ],
+              "title-md": ["16px", { lineHeight: "24px", fontWeight: "600" }],
+              "display-lg-mobile": [
+                "36px",
+                { lineHeight: "44px", letterSpacing: "-0.01em", fontWeight: "600" },
+              ],
+              "label-sm": [
+                "10px",
+                { lineHeight: "14px", letterSpacing: "0.08em", fontWeight: "700" },
+              ],
+              "price-lg": ["20px", { lineHeight: "26px", fontWeight: "700" }],
+              "headline-sm": ["22px", { lineHeight: "30px", fontWeight: "600" }],
+              "headline-md": ["28px", { lineHeight: "36px", fontWeight: "500" }],
+              "price-md": ["16px", { lineHeight: "22px", fontWeight: "700" }],
+              "body-md": ["14px", { lineHeight: "22px", fontWeight: "400" }],
+              "title-lg": [
+                "18px",
+                { lineHeight: "26px", letterSpacing: "-0.01em", fontWeight: "600" },
+              ],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="bg-surface font-body-md text-on-surface antialiased">
+    <header class="fixed top-0 left-0 w-full z-50 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+      <div
+        class="h-[34px] bg-primary-container text-surface-container-lowest font-label-sm text-label-sm tracking-widest flex items-center justify-center px-4 uppercase select-none"
+      >
+        <span>Free shipping on orders over 2,500 EGP • Cash on Delivery across Egypt</span>
+      </div>
+      <div class="h-[82px] bg-surface border-b border-outline-variant/60">
+        <div
+          class="max-w-[1360px] h-full mx-auto px-margin flex items-center justify-between gap-space-lg"
+        >
+          <a class="flex flex-col text-decoration-none group" data-path="home" href="#"
+            ><span
+              class="font-display-lg-mobile text-headline-sm tracking-wider text-primary font-serif uppercase transition-colors group-hover:text-primary-container"
+              >BEAUTYFITS</span
+            ><span class="font-label-sm text-[9px] tracking-[0.2em] text-outline uppercase"
+              >Beauty That Fits You</span
+            ></a
+          >
+          <div class="relative w-[480px] hidden md:block">
+            <span
+              class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[20px] pointer-events-none"
+              >search</span
+            ><input
+              class="w-full h-11 pl-11 pr-4 bg-surface-container-lowest border border-outline-variant/70 rounded-full font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary-container transition-all"
+              placeholder="Search products, brands, fragrances..."
+              type="search"
+            />
+          </div>
+          <div class="flex items-center gap-space-md">
+            <a
+              class="flex items-center gap-2 text-on-surface hover:text-primary-container transition-colors py-1"
+              data-path="my-account"
+              href="#"
+              ><span class="material-symbols-outlined text-[22px]">person</span
+              ><span class="font-label-md text-label-md hidden lg:inline">Account</span></a
+            ><a
+              class="relative p-2 text-on-surface hover:text-primary-container transition-colors"
+              data-path="wishlist"
+              href="#"
+              ><span class="material-symbols-outlined text-[22px]">favorite</span
+              ><span
+                class="absolute top-1 right-1 w-4 h-4 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-[10px] flex items-center justify-center font-bold"
+                >0</span
+              ></a
+            ><a
+              class="relative p-2 text-on-surface hover:text-primary-container transition-colors"
+              data-path="cart"
+              href="#"
+              ><span class="material-symbols-outlined text-[22px]">shopping_bag</span
+              ><span
+                class="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary-container text-surface-container-lowest font-label-sm text-[10px] flex items-center justify-center font-bold"
+                >3</span
+              ></a
+            >
+            <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-1">
+              <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        class="h-[46px] bg-surface-container-lowest border-b border-outline-variant/60 backdrop-blur-md"
+      >
+        <div
+          class="max-w-[1360px] h-full mx-auto px-margin flex items-center justify-start overflow-x-auto scrollbar-none"
+        >
+          <nav
+            class="flex items-center gap-8 h-full"
+            data-active-classes="text-primary-container border-b-2 border-primary-container font-semibold"
+          >
+            <a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="home"
+              href="#"
+              >Home</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="shop-all"
+              href="#"
+              >Shop</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="makeup"
+              href="#"
+              >Makeup</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="perfumes"
+              href="#"
+              >Perfumes</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="skincare"
+              href="#"
+              >Skincare</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="new-arrivals"
+              href="#"
+              >New Arrivals</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="best-sellers"
+              href="#"
+              >Best Sellers</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="offers"
+              href="#"
+              >Offers</a
+            >
+          </nav>
+        </div>
+      </div>
+    </header>
+    <main class="w-full pt-[162px] min-h-screen bg-surface">
+      <div class="flex flex-col w-full">
+        <!-- Subtle Ambient Glow -->
+        <div class="relative w-full max-w-[1360px] mx-auto px-margin py-8">
+          <div
+            class="absolute top-10 right-20 w-96 h-96 bg-primary-fixed-dim/20 rounded-full blur-3xl pointer-events-none -z-10"
+          ></div>
+          <div
+            class="absolute bottom-20 left-10 w-80 h-80 bg-tertiary-fixed/30 rounded-full blur-3xl pointer-events-none -z-10"
+          ></div>
+          <!-- Editorial Breadcrumb & Context Header -->
+          <div class="flex flex-col gap-2 pb-8">
+            <nav
+              class="flex items-center gap-2 font-label-sm text-label-sm text-outline uppercase tracking-widest"
+            >
+              <a class="hover:text-primary transition-colors" href="#">Home</a>
+              <span>/</span>
+              <a class="hover:text-primary transition-colors" href="#">My Account</a>
+              <span>/</span>
+              <span class="text-primary font-bold">Orders &amp; Returns</span>
+            </nav>
+            <div class="flex items-baseline justify-between">
+              <h1 class="font-headline-lg text-headline-lg text-primary font-serif">
+                Customer Sanctum
+              </h1>
+              <span class="font-label-sm text-label-sm tracking-widest text-outline uppercase"
+                >Membership ID: #BF-EG-88219</span
+              >
+            </div>
+          </div>
+          <!-- Main Asymmetric Account Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <!-- Left Column: Atelier Profile & Sidebar Navigation (Col 1-3) -->
+            <aside class="lg:col-span-3 flex flex-col gap-6">
+              <!-- Profile Card -->
+              <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm flex flex-col gap-4">
+                <div class="flex items-center gap-4">
+                  <div
+                    class="relative w-14 h-14 rounded-full overflow-hidden bg-surface-container-high ring-2 ring-primary/10 flex-shrink-0"
+                  >
+                    <img
+                      class="w-full h-full object-cover"
+                      data-alt="Close up elegant studio portrait of an Egyptian woman with radiant dewy makeup, glowing skin and refined soft natural lighting, facing slightly left on an ivory studio backdrop"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSoBQGElmTvfNTagb6zOhql0mFNsAIXchJC9Z32b9No16GdwvjjS-OLXZbZRItc2xRxIIbM6NkZQM1Ct-4RsRWCoNFAd8ybilCTlyrBkKKndPo4UfUmXPU5EIJYqDp3PpFdnBF6gJPCOttXhQRidqKyx4-RGIKplMY4TRlIe6mYKqK1UTxF06Rhd2CsHcPdX-obl_YbmoobDbXed2F8_RPyUxEZYqjhJhrVBHBOz0moJCYiqPMc15Rng"
+                    />
+                  </div>
+                  <div class="flex flex-col min-w-0">
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-title-md text-title-md text-on-surface truncate"
+                        >Nour Youssef</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[16px] text-primary"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >verified</span
+                      >
+                    </div>
+                    <span class="font-body-sm text-body-sm text-outline truncate"
+                      >Zamalek, Cairo</span
+                    >
+                    <span
+                      class="font-label-sm text-[10px] text-tertiary-container uppercase tracking-wider font-semibold mt-0.5"
+                      >Prestige Connoisseur</span
+                    >
+                  </div>
+                </div>
+                <!-- BeautyFits Wallet Snapshot Module -->
+                <div class="bg-surface-container-low rounded-lg p-4 flex flex-col gap-3">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-1.5 text-primary">
+                      <span class="material-symbols-outlined text-[18px]"
+                        >account_balance_wallet</span
+                      >
+                      <span
+                        class="font-label-sm text-label-sm tracking-wider uppercase text-on-surface-variant"
+                        >BeautyFits Wallet</span
+                      >
+                    </div>
+                    <span
+                      class="font-label-sm text-[9px] uppercase tracking-widest bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full font-bold"
+                      >Active</span
+                    >
+                  </div>
+                  <div class="flex items-baseline gap-1">
+                    <span
+                      class="font-display-lg-mobile text-headline-sm text-primary font-serif font-semibold"
+                      >750.00</span
+                    >
+                    <span class="font-label-sm text-label-sm font-bold text-outline">EGP</span>
+                  </div>
+                  <p class="font-body-sm text-[11px] leading-tight text-on-surface-variant">
+                    Instant store credits applied directly to your next checkout.
+                  </p>
+                  <a
+                    class="inline-flex items-center justify-between font-label-md text-label-md text-primary hover:text-primary-container font-semibold pt-1 transition-colors"
+                    href="#wallet-activity"
+                  >
+                    <span>View Wallet Activity</span>
+                    <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                  </a>
+                </div>
+              </div>
+              <!-- Sidebar Navigation Menu -->
+              <nav class="bg-surface-container-lowest rounded-xl p-3 shadow-sm flex flex-col gap-1">
+                <a
+                  class="flex items-center justify-between px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all"
+                  href="#"
+                >
+                  <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-[20px]">dashboard</span>
+                    <span class="font-label-md text-label-md">Overview</span>
+                  </div>
+                </a>
+                <!-- Active Orders Navigation Tab -->
+                <a
+                  class="flex items-center justify-between px-4 py-3 rounded-lg bg-primary text-on-primary shadow-sm font-semibold transition-all"
+                  href="#"
+                >
+                  <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-[20px]">inventory_2</span>
+                    <span class="font-label-md text-label-md">Orders &amp; Returns</span>
+                  </div>
+                  <span class="w-2 h-2 rounded-full bg-secondary-container"></span>
+                </a>
+                <a
+                  class="flex items-center justify-between px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all"
+                  href="#"
+                >
+                  <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-[20px]">favorite</span>
+                    <span class="font-label-md text-label-md">Wishlist</span>
+                  </div>
+                  <span class="font-label-sm text-[11px] text-outline">6</span>
+                </a>
+                <a
+                  class="flex items-center justify-between px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all"
+                  href="#"
+                >
+                  <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-[20px]">location_on</span>
+                    <span class="font-label-md text-label-md">Addresses</span>
+                  </div>
+                </a>
+                <a
+                  class="flex items-center justify-between px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all"
+                  href="#wallet-activity"
+                >
+                  <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-[20px]">wallet</span>
+                    <span class="font-label-md text-label-md">BeautyFits Wallet</span>
+                  </div>
+                  <span class="font-label-sm text-[11px] font-bold text-primary">750 EGP</span>
+                </a>
+                <a
+                  class="flex items-center justify-between px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all"
+                  href="#"
+                >
+                  <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-[20px]">account_circle</span>
+                    <span class="font-label-md text-label-md">Profile Details</span>
+                  </div>
+                </a>
+                <a
+                  class="flex items-center justify-between px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-all"
+                  href="#"
+                >
+                  <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-[20px]">tune</span>
+                    <span class="font-label-md text-label-md">Marketing Preferences</span>
+                  </div>
+                </a>
+                <div class="h-px bg-surface-container-high my-2"></div>
+                <a
+                  class="flex items-center gap-3 px-4 py-3 rounded-lg text-error hover:bg-error-container/40 transition-all"
+                  href="#"
+                >
+                  <span class="material-symbols-outlined text-[20px]">logout</span>
+                  <span class="font-label-md text-label-md font-semibold">Logout</span>
+                </a>
+              </nav>
+              <!-- Customer Care Micro-Card -->
+              <div class="bg-surface-container rounded-xl p-5 flex flex-col gap-2">
+                <span class="font-label-sm text-label-sm text-outline uppercase tracking-wider"
+                  >Concierge Support</span
+                >
+                <p class="font-body-sm text-body-sm text-on-surface-variant">
+                  Cairo &amp; Giza priority assistance available daily from 9 AM to 10 PM.
+                </p>
+                <a
+                  class="font-label-sm text-label-sm text-primary font-bold hover:underline mt-1 flex items-center gap-1"
+                  href="#"
+                >
+                  <span>WhatsApp White-Glove Support</span>
+                  <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+                </a>
+              </div>
+            </aside>
+            <!-- Right Column: Orders & Return Management Area (Col 4-12) -->
+            <section class="lg:col-span-9 flex flex-col gap-8">
+              <!-- Section Header -->
+              <div
+                class="bg-surface-container-lowest rounded-xl p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6"
+              >
+                <div class="flex flex-col gap-1 max-w-xl">
+                  <h2 class="font-headline-md text-headline-md font-serif text-on-surface">
+                    My Orders &amp; Purchase History
+                  </h2>
+                  <p class="font-body-md text-body-md text-on-surface-variant">
+                    Track current shipments, download official VAT invoices, and manage items
+                    eligible for your statutory 14-day luxury guarantee.
+                  </p>
+                </div>
+                <!-- Free Shipping & Reassurance Bar -->
+                <div
+                  class="bg-surface-container-low rounded-xl p-4 flex flex-col gap-2 min-w-[260px]"
+                >
+                  <div class="flex items-center justify-between text-on-surface-variant">
+                    <span class="font-label-sm text-[11px] uppercase tracking-wider font-semibold"
+                      >Tier Protection</span
+                    >
+                    <span class="font-label-sm text-[11px] text-primary font-bold"
+                      >14-Day Returns</span
+                    >
+                  </div>
+                  <div
+                    class="w-full bg-surface-container-highest h-1.5 rounded-full overflow-hidden"
+                  >
+                    <div class="bg-primary h-full rounded-full" style="width: 100%"></div>
+                  </div>
+                  <span class="font-body-sm text-[11px] text-outline"
+                    >Doorstep courier pickup across Egypt</span
+                  >
+                </div>
+              </div>
+              <!-- Filter Tabs -->
+              <div class="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
+                <button
+                  class="px-5 py-2.5 rounded-full bg-primary text-on-primary font-label-md text-label-md font-semibold shadow-sm transition-all whitespace-nowrap"
+                >
+                  All Orders (4)
+                </button>
+                <button
+                  class="px-5 py-2.5 rounded-full bg-surface-container-lowest text-on-surface-variant hover:text-primary hover:bg-surface-container-low font-label-md text-label-md font-medium transition-all whitespace-nowrap"
+                >
+                  In Progress (1)
+                </button>
+                <button
+                  class="px-5 py-2.5 rounded-full bg-surface-container-lowest text-on-surface-variant hover:text-primary hover:bg-surface-container-low font-label-md text-label-md font-medium transition-all whitespace-nowrap"
+                >
+                  Delivered (2)
+                </button>
+                <button
+                  class="px-5 py-2.5 rounded-full bg-surface-container-lowest text-on-surface-variant hover:text-primary hover:bg-surface-container-low font-label-md text-label-md font-medium transition-all whitespace-nowrap"
+                >
+                  Cancelled &amp; Returned (1)
+                </button>
+              </div>
+              <!-- Order List -->
+              <div class="flex flex-col gap-6">
+                <!-- ORDER CARD 1: Active COD Pending Confirmation -->
+                <article
+                  class="bg-surface-container-lowest rounded-xl p-6 md:p-8 shadow-sm flex flex-col gap-6 transition-all hover:shadow-md"
+                >
+                  <!-- Order Meta Bar -->
+                  <div
+                    class="flex flex-wrap items-center justify-between gap-4 pb-6 bg-surface-container-low/50 -mx-6 -mt-6 p-6 rounded-t-xl"
+                  >
+                    <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Order Reference</span
+                        >
+                        <span class="font-title-md text-title-md font-bold text-on-surface"
+                          >#BF-98241</span
+                        >
+                      </div>
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Date Placed</span
+                        >
+                        <span class="font-body-md text-body-md text-on-surface"
+                          >Today, 2:15 PM</span
+                        >
+                      </div>
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Payment Option</span
+                        >
+                        <span
+                          class="font-body-md text-body-md font-medium text-on-surface flex items-center gap-1"
+                        >
+                          <span
+                            class="material-symbols-outlined text-[16px] text-tertiary-container"
+                            >payments</span
+                          >
+                          Cash on Delivery
+                        </span>
+                      </div>
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Total Amount</span
+                        >
+                        <span class="font-price-md text-price-md text-primary">6,300 EGP</span>
+                      </div>
+                    </div>
+                    <!-- Amber Status Badge -->
+                    <div
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm font-bold uppercase tracking-wider"
+                    >
+                      <span class="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span>
+                      Pending COD Confirmation
+                    </div>
+                  </div>
+                  <!-- Items Flow -->
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div class="flex flex-col gap-4">
+                      <!-- Product Line Item 1 -->
+                      <div class="flex items-center gap-4">
+                        <div
+                          class="w-16 h-20 bg-surface-container rounded-lg overflow-hidden flex-shrink-0"
+                        >
+                          <img
+                            class="w-full h-full object-cover"
+                            data-alt="Luxury glass bottle of Yves Saint Laurent Libre Eau De Parfum 90ml featuring bold gold accents and warm amber liquid on a calm cream stone pedestal with delicate morning highlights"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJHs4U3mOjwgv6PnB7iZmWIQcf_hzY1BL25DRsQBwvQjkiO3WdS3MOq83Nm4tNxkuwr7zLBd1FXVsF1x--waxENbu9VFNjPcpWDBoBwQ5ir-2A8agw5_SDZpoco5SRLYDxAHUUxPknrbDPtCZ1SnYU6B1p6HHHn9svlRDx_kbGxEMNpxB1OD2ItkO5YI9abtHI9MwLn8IYSfBd88ee6N_xMv9QVgqNwwyVTb-MWez7KRPf75U1hudE0A"
+                          />
+                        </div>
+                        <div class="flex flex-col min-w-0">
+                          <span
+                            class="font-label-sm text-[10px] uppercase text-outline tracking-wider font-semibold"
+                            >Yves Saint Laurent</span
+                          >
+                          <h3 class="font-title-md text-title-md text-on-surface truncate">
+                            Libre Eau de Parfum (90ml)
+                          </h3>
+                          <div class="flex items-center gap-2 mt-1">
+                            <span class="font-price-md text-price-md text-on-surface"
+                              >4,900 EGP</span
+                            >
+                            <span class="font-body-sm text-body-sm text-outline">Qty: 1</span>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- Product Line Item 2 -->
+                      <div class="flex items-center gap-4">
+                        <div
+                          class="w-16 h-20 bg-surface-container rounded-lg overflow-hidden flex-shrink-0"
+                        >
+                          <img
+                            class="w-full h-full object-cover"
+                            data-alt="Minimalist soft pink bottle of Rare Beauty Soft Pinch Liquid Blush with golden monogram lid resting elegantly on a warm ivory surface"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFUt9BIXAcLgJRzPlccQnqz1UTmu8emTpxp8dPAqXmbCPCRBgj9Tk47l20n_rl5Me1L9I9As5BRsSoEs3mXvsGNYe17pSYSD-fb3FezHVG4qByRBNr8XYiGW5h3bu5dsexAViR2gNaEt8cWLNq3nv2KmrO3QOMVIfFUASZcUSFgEGFeSvlCUu9rO0kd6viUjSRICNiuXtp3T0SEXU-dWJFAgJqy6khXXTRSGOpSKRy86F7W-0hMQHVpw"
+                          />
+                        </div>
+                        <div class="flex flex-col min-w-0">
+                          <span
+                            class="font-label-sm text-[10px] uppercase text-outline tracking-wider font-semibold"
+                            >Rare Beauty</span
+                          >
+                          <h3 class="font-title-md text-title-md text-on-surface truncate">
+                            Soft Pinch Liquid Blush - Joy
+                          </h3>
+                          <div class="flex items-center gap-2 mt-1">
+                            <span class="font-price-md text-price-md text-on-surface"
+                              >1,400 EGP</span
+                            >
+                            <span class="font-body-sm text-body-sm text-outline">Qty: 1</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- COD Verification Prompt Box -->
+                    <div
+                      class="bg-surface-container-low rounded-xl p-5 flex flex-col justify-between h-full gap-4"
+                    >
+                      <div class="flex flex-col gap-1.5">
+                        <div class="flex items-center gap-2 text-primary font-bold">
+                          <span class="material-symbols-outlined text-[20px]">phone_iphone</span>
+                          <span class="font-title-md text-title-md"
+                            >Courier Phone Confirmation</span
+                          >
+                        </div>
+                        <p class="font-body-sm text-body-sm text-on-surface-variant">
+                          Please click confirm to finalize courier dispatch to your address in
+                          Zamalek. Have exact cash (6,300 EGP) prepared for arrival.
+                        </p>
+                      </div>
+                      <div class="flex items-center gap-3 pt-2">
+                        <button
+                          class="flex-1 py-3 px-6 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-bold tracking-wider uppercase hover:bg-primary-container shadow-sm transition-all text-center"
+                        >
+                          Confirm Order
+                        </button>
+                        <button
+                          class="py-3 px-5 rounded-lg bg-surface-container-high text-on-surface font-label-md text-label-md font-semibold hover:bg-surface-variant transition-all"
+                        >
+                          View Details
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <!-- ORDER CARD 2: Delivered - Active Within 14-Day Return Window -->
+                <article
+                  class="bg-surface-container-lowest rounded-xl p-6 md:p-8 shadow-sm flex flex-col gap-6 transition-all hover:shadow-md"
+                >
+                  <!-- Meta Bar -->
+                  <div
+                    class="flex flex-wrap items-center justify-between gap-4 pb-6 bg-surface-container-low/50 -mx-6 -mt-6 p-6 rounded-t-xl"
+                  >
+                    <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Order Reference</span
+                        >
+                        <span class="font-title-md text-title-md font-bold text-on-surface"
+                          >#BF-87102</span
+                        >
+                      </div>
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Delivered Date</span
+                        >
+                        <span class="font-body-md text-body-md text-on-surface"
+                          >4 Days Ago (Oct 18, 2026)</span
+                        >
+                      </div>
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Paid Via</span
+                        >
+                        <span class="font-body-md text-body-md font-medium text-on-surface"
+                          >Credit Card (•••• 4921)</span
+                        >
+                      </div>
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Order Total</span
+                        >
+                        <span class="font-price-md text-price-md text-primary">2,850 EGP</span>
+                      </div>
+                    </div>
+                    <!-- Delivered Green Badge -->
+                    <div
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-high text-[#2D5A43] font-label-sm text-label-sm font-bold uppercase tracking-wider"
+                    >
+                      <span class="material-symbols-outlined text-[14px]">check_circle</span>
+                      Delivered
+                    </div>
+                  </div>
+                  <!-- Product Breakdown & Active 14-Day Return Trigger -->
+                  <div
+                    class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6"
+                  >
+                    <div class="flex items-center gap-4">
+                      <div
+                        class="w-16 h-20 bg-surface-container rounded-lg overflow-hidden flex-shrink-0"
+                      >
+                        <img
+                          class="w-full h-full object-cover"
+                          data-alt="High-end studio bottle shot of Dior Forever Skin Glow 24H foundation in shade 2N neutral tone with pristine pump dispenser and reflective glass container on warm stone background"
+                          src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZoEH_KR8NXzkriEbImv2kWcBibBmI4Thpa42cQkWZoli-k7MtCDgB-bSSAxvct8TDycOSZYv0d8YwwPptT3wEVBQHlhnnQgwdVOShaCMi7ca_HUyBx8BNo3YYH3jDtAEtAKnLU6GvzSUaBisZ70VzX1nA4gvfcEPaBONOs3bVBXcLZ9sY6hseOsUnnYNHiT2uj_POf6-p851MvjCWN5LKmUuvdHV7POTNDSq59qQ8LFmzWtkYCbmFlw"
+                        />
+                      </div>
+                      <div class="flex flex-col min-w-0">
+                        <span
+                          class="font-label-sm text-[10px] uppercase text-outline tracking-wider font-semibold"
+                          >Dior Beauty</span
+                        >
+                        <h3 class="font-title-md text-title-md text-on-surface">
+                          Dior Forever Skin Glow Foundation
+                        </h3>
+                        <div class="flex items-center gap-3 mt-1">
+                          <span
+                            class="font-body-sm text-body-sm text-outline-variant text-on-surface-variant font-medium"
+                            >Shade: 2N Neutral</span
+                          >
+                          <span class="font-price-md text-price-md text-on-surface">2,850 EGP</span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 14-Day Timeline Callout & Return Trigger -->
+                    <div
+                      class="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto"
+                    >
+                      <div class="flex flex-col text-left sm:text-right">
+                        <span
+                          class="font-label-md text-label-md text-primary font-bold flex items-center sm:justify-end gap-1"
+                        >
+                          <span class="material-symbols-outlined text-[16px] text-primary"
+                            >schedule</span
+                          >
+                          10 Days Remaining in Window
+                        </span>
+                        <span class="font-body-sm text-[11px] text-on-surface-variant"
+                          >Refunds issued to BeautyFits Wallet instantly</span
+                        >
+                      </div>
+                      <button
+                        class="py-2.5 px-5 rounded-lg bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary font-label-md text-label-md font-semibold transition-all flex items-center gap-2"
+                        id="toggle-return-form"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">assignment_return</span>
+                        <span>Request Return</span>
+                      </button>
+                    </div>
+                  </div>
+                  <!-- Expanded Return Drawer Accordion (Demonstrating 14-Day Lifecycle flow) -->
+                  <div
+                    class="bg-surface-container-low rounded-xl p-6 flex flex-col gap-5"
+                    id="return-form-accordion"
+                  >
+                    <div class="flex items-center justify-between pb-3 border-b-0">
+                      <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-[20px]"
+                          >sync_alt</span
+                        >
+                        <h4 class="font-title-md text-title-md font-bold text-on-surface">
+                          Submit 14-Day Return Request
+                        </h4>
+                      </div>
+                      <span class="font-label-sm text-[11px] uppercase tracking-widest text-outline"
+                        >Eligible Item: Dior Foundation 2N</span
+                      >
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div class="flex flex-col gap-2">
+                        <label
+                          class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold"
+                          >Reason for Return</label
+                        >
+                        <div class="relative">
+                          <select
+                            class="w-full h-11 px-4 bg-surface-container-lowest rounded-lg font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary appearance-none cursor-pointer"
+                          >
+                            <option value="wrong_shade">Wrong shade / formulation match</option>
+                            <option value="damaged">Packaging damaged during transit</option>
+                            <option value="changed_mind">Changed my mind (Unopened box)</option>
+                            <option value="allergy">Skin sensitivity or reaction</option>
+                          </select>
+                          <span
+                            class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[20px]"
+                            >expand_more</span
+                          >
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label
+                          class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold"
+                          >Refund Destination</label
+                        >
+                        <div
+                          class="h-11 px-4 bg-surface-container-lowest rounded-lg flex items-center justify-between text-on-surface font-body-sm text-body-sm"
+                        >
+                          <span class="flex items-center gap-2 font-medium">
+                            <span class="material-symbols-outlined text-primary text-[18px]"
+                              >wallet</span
+                            >
+                            BeautyFits Wallet (Instant upon courier check)
+                          </span>
+                          <span
+                            class="font-label-sm text-[10px] text-tertiary font-bold uppercase tracking-wider"
+                            >Fastest</span
+                          >
+                        </div>
+                      </div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                      <label
+                        class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold"
+                        >Condition &amp; Return Notes</label
+                      >
+                      <textarea
+                        class="w-full p-3 bg-surface-container-lowest rounded-lg font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="Tell us why you would like to return this order (e.g. Unopened seal intact, would prefer shade 1.5N instead)..."
+                        rows="2"
+                      ></textarea>
+                    </div>
+                    <div class="flex items-center justify-between pt-2">
+                      <span class="font-body-sm text-[11px] text-outline flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">local_shipping</span>
+                        Free courier pickup scheduled within 48 hours in Zamalek
+                      </span>
+                      <button
+                        class="py-2.5 px-6 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-bold tracking-wider uppercase hover:bg-primary-container shadow-sm transition-all"
+                        type="button"
+                      >
+                        Submit Return Request
+                      </button>
+                    </div>
+                  </div>
+                </article>
+                <!-- ORDER CARD 3: Delivered - EXPIRED 14-Day Return Window -->
+                <article
+                  class="bg-surface-container-lowest rounded-xl p-6 md:p-8 shadow-sm flex flex-col gap-6 opacity-95"
+                >
+                  <!-- Meta Bar -->
+                  <div
+                    class="flex flex-wrap items-center justify-between gap-4 pb-6 bg-surface-container-low/40 -mx-6 -mt-6 p-6 rounded-t-xl"
+                  >
+                    <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Order Reference</span
+                        >
+                        <span class="font-title-md text-title-md font-bold text-on-surface"
+                          >#BF-65019</span
+                        >
+                      </div>
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Delivered Date</span
+                        >
+                        <span class="font-body-md text-body-md text-on-surface"
+                          >28 Days Ago (Sep 24, 2026)</span
+                        >
+                      </div>
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Paid Via</span
+                        >
+                        <span class="font-body-md text-body-md font-medium text-on-surface"
+                          >Cash on Delivery</span
+                        >
+                      </div>
+                      <div>
+                        <span
+                          class="font-label-sm text-[10px] text-outline uppercase tracking-wider block"
+                          >Order Total</span
+                        >
+                        <span class="font-price-md text-price-md text-on-surface">1,850 EGP</span>
+                      </div>
+                    </div>
+                    <!-- Delivered Badge -->
+                    <div
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm font-bold uppercase tracking-wider"
+                    >
+                      <span class="material-symbols-outlined text-[14px]">check</span>
+                      Delivered
+                    </div>
+                  </div>
+                  <!-- Items Flow & Disabled Return Action -->
+                  <div
+                    class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6"
+                  >
+                    <div class="flex items-center gap-4">
+                      <div
+                        class="w-16 h-20 bg-surface-container rounded-lg overflow-hidden flex-shrink-0 grayscale-[20%]"
+                      >
+                        <img
+                          class="w-full h-full object-cover"
+                          data-alt="Stylized bottle of Olaplex No. 3 Hair Perfector presented against a clean stone podium in soft warm lighting"
+                          src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtzorOk0fw6XSGXuSpU551gAr6g9oF1MMro9AN40TemxfaYvZcS4kwUYkb5vJz5JxT7CB_OKv9QLP8zdqYDDpw3W2d8egijOKoC-c36y4DlRYnyprSUILl0kaWQRS5NdSfVJ1W13C7MRaFcBPTQfTv6XOqkDJI_4bF8mMNEk8E9KwpF1N42bs_oLxbj4KRr7Xy42YbzifmFZjXGvrnFBQO2c6JZN3l6S57XyYM9ApiECQZvSRIKjxcig"
+                        />
+                      </div>
+                      <div class="flex flex-col min-w-0">
+                        <span
+                          class="font-label-sm text-[10px] uppercase text-outline tracking-wider font-semibold"
+                          >Olaplex</span
+                        >
+                        <h3 class="font-title-md text-title-md text-on-surface">
+                          No. 3 Hair Perfector (100ml)
+                        </h3>
+                        <div class="flex items-center gap-3 mt-1">
+                          <span class="font-body-sm text-body-sm text-outline"
+                            >Clinical Hair Treatment</span
+                          >
+                          <span class="font-price-md text-price-md text-on-surface">1,850 EGP</span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Expired Return Pill (Business Rule: Show Disabled State clearly) -->
+                    <div
+                      class="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto"
+                    >
+                      <div class="flex flex-col text-left sm:text-right">
+                        <span class="font-label-sm text-label-sm text-outline font-semibold"
+                          >14-Day Statutory Window Closed</span
+                        >
+                        <span class="font-body-sm text-[11px] text-outline"
+                          >Expired 14 days ago</span
+                        >
+                      </div>
+                      <button
+                        class="py-2.5 px-5 rounded-lg bg-surface-container-highest text-outline cursor-not-allowed font-label-md text-label-md font-semibold flex items-center gap-2 select-none"
+                        disabled=""
+                      >
+                        <span class="material-symbols-outlined text-[18px]">lock_clock</span>
+                        <span>Return Window Expired</span>
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              </div>
+              <!-- Bottom Section: BeautyFits Wallet Activity Ledger -->
+              <section
+                class="bg-surface-container-lowest rounded-xl p-8 shadow-sm flex flex-col gap-6"
+                id="wallet-activity"
+              >
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6">
+                  <div class="flex flex-col gap-1">
+                    <div class="flex items-center gap-2">
+                      <span class="material-symbols-outlined text-primary text-[24px]">wallet</span>
+                      <h3 class="font-headline-sm text-headline-sm font-serif text-on-surface">
+                        BeautyFits Wallet Ledger
+                      </h3>
+                    </div>
+                    <p class="font-body-sm text-body-sm text-on-surface-variant">
+                      Your direct credit store balance. Seamlessly applied at checkout or refundable
+                      upon request.
+                    </p>
+                  </div>
+                  <div
+                    class="flex items-center gap-4 bg-surface-container-low px-5 py-3 rounded-xl"
+                  >
+                    <div class="flex flex-col">
+                      <span class="font-label-sm text-[10px] text-outline uppercase tracking-wider"
+                        >Available Balance</span
+                      >
+                      <div class="flex items-baseline gap-1">
+                        <span
+                          class="font-headline-md text-headline-md font-serif text-primary font-bold"
+                          >750.00</span
+                        >
+                        <span class="font-label-sm text-label-sm font-bold text-outline">EGP</span>
+                      </div>
+                    </div>
+                    <button
+                      class="py-2 px-4 rounded-lg bg-primary text-on-primary font-label-sm text-label-sm uppercase tracking-wider font-bold hover:bg-primary-container transition-all"
+                    >
+                      Redeem
+                    </button>
+                  </div>
+                </div>
+                <!-- Transaction Records -->
+                <div class="flex flex-col gap-3">
+                  <span
+                    class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-bold"
+                    >Recent Wallet Operations</span
+                  >
+                  <!-- Tx 1: Credit -->
+                  <div
+                    class="bg-surface-container-low rounded-lg p-4 flex items-center justify-between gap-4"
+                  >
+                    <div class="flex items-center gap-3.5">
+                      <div
+                        class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-primary"
+                      >
+                        <span class="material-symbols-outlined text-[20px]">add</span>
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-title-md text-title-md font-semibold text-on-surface"
+                          >Statutory 14-Day Refund Credit</span
+                        >
+                        <span class="font-body-sm text-body-sm text-on-surface-variant"
+                          >Order #BF-5912 • Return Inspected &amp; Approved</span
+                        >
+                      </div>
+                    </div>
+                    <div class="flex flex-col items-end">
+                      <span class="font-price-lg text-price-lg text-primary font-bold"
+                        >+750.00 EGP</span
+                      >
+                      <span class="font-body-sm text-[11px] text-outline">Oct 12, 2026</span>
+                    </div>
+                  </div>
+                  <!-- Tx 2: Debit -->
+                  <div
+                    class="bg-surface-container-low rounded-lg p-4 flex items-center justify-between gap-4"
+                  >
+                    <div class="flex items-center gap-3.5">
+                      <div
+                        class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-outline"
+                      >
+                        <span class="material-symbols-outlined text-[20px]">remove</span>
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="font-title-md text-title-md font-semibold text-on-surface"
+                          >Store Credit Applied at Checkout</span
+                        >
+                        <span class="font-body-sm text-body-sm text-on-surface-variant"
+                          >Order #BF-7108 • Paid partial order balance</span
+                        >
+                      </div>
+                    </div>
+                    <div class="flex flex-col items-end">
+                      <span class="font-price-lg text-price-lg text-on-surface font-semibold"
+                        >-500.00 EGP</span
+                      >
+                      <span class="font-body-sm text-[11px] text-outline">Sep 19, 2026</span>
+                    </div>
+                  </div>
+                </div>
+                <!-- Bottom Regulatory Reassurance Note -->
+                <div
+                  class="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-outline"
+                >
+                  <span class="font-body-sm text-body-sm flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[18px] text-primary">info</span>
+                    Wallet credits can be applied at checkout or withdrawn via customer care hotline
+                    across Egypt.
+                  </span>
+                  <a
+                    class="font-label-md text-label-md text-primary font-semibold hover:underline whitespace-nowrap"
+                    href="#"
+                  >
+                    Wallet Terms &amp; Conditions
+                  </a>
+                </div>
+              </section>
+            </section>
+          </div>
+        </div>
+        <!-- Interactive script for toggling the return request drawer -->
+        <script>
+          (function () {
+            const toggleBtn = document.getElementById("toggle-return-form");
+            const accordion = document.getElementById("return-form-accordion");
+            if (toggleBtn && accordion) {
+              toggleBtn.addEventListener("click", function () {
+                if (accordion.classList.contains("hidden")) {
+                  accordion.classList.remove("hidden");
+                  toggleBtn.innerHTML =
+                    '<span class="material-symbols-outlined text-[18px]">expand_less</span><span>Close Return Form</span>';
+                } else {
+                  accordion.classList.add("hidden");
+                  toggleBtn.innerHTML =
+                    '<span class="material-symbols-outlined text-[18px]">assignment_return</span><span>Request Return</span>';
+                }
+              });
+            }
+          })();
+        </script>
+      </div>
+    </main>
+    <footer
+      class="w-full bg-inverse-surface text-surface border-t border-outline-variant/30 pt-16 pb-12"
+    >
+      <div class="max-w-[1360px] mx-auto px-margin">
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter lg:gap-space-xl pb-12 border-b border-outline/30"
+        >
+          <div class="space-y-4">
+            <div class="flex flex-col">
+              <span
+                class="font-display-lg-mobile text-headline-sm text-surface font-serif uppercase tracking-wider"
+                >BEAUTYFITS</span
+              ><span
+                class="font-label-sm text-[9px] tracking-[0.2em] text-outline-variant uppercase"
+                >Beauty That Fits You</span
+              >
+            </div>
+            <p class="font-body-sm text-body-sm text-surface-container-high leading-relaxed">
+              Egypt's premier luxury beauty boutique. We curate authentic global cosmetics, rare
+              perfumes, and clinical skincare delivered with white-glove care nationwide.
+            </p>
+            <div
+              class="pt-2 flex flex-col gap-2 font-label-md text-label-md text-surface-container-highest"
+            >
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-tertiary-fixed"
+                  >local_shipping</span
+                ><span>Cash on Delivery Across Egypt</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-tertiary-fixed"
+                  >verified</span
+                ><span>100% Authentic Guarantee</span>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <h4 class="font-label-lg text-label-lg text-surface tracking-wider uppercase">Shop</h4>
+            <ul class="space-y-2.5 font-body-sm text-body-sm text-outline-variant">
+              <li class="hover:text-surface transition-colors">
+                <a data-path="makeup" href="#">Makeup</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="perfumes" href="#">Perfumes</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="skincare" href="#">Skincare</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="new-arrivals" href="#">New Arrivals</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="best-sellers" href="#">Best Sellers</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="offers" href="#">Exclusive Offers</a>
+              </li>
+            </ul>
+          </div>
+          <div class="space-y-4">
+            <h4 class="font-label-lg text-label-lg text-surface tracking-wider uppercase">
+              Customer Care
+            </h4>
+            <ul class="space-y-2.5 font-body-sm text-body-sm text-outline-variant">
+              <li class="hover:text-surface transition-colors">
+                <a data-path="order-tracking" href="#">Order Tracking</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="returns-policy" href="#">14-Day Returns Policy</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="shipping-policy" href="#"
+                  >Shipping &amp; Delivery (Free &gt; 2,500 EGP)</a
+                >
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="faqs" href="#">Frequently Asked Questions</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="contact-us" href="#">Contact Us</a>
+              </li>
+            </ul>
+          </div>
+          <div class="space-y-4">
+            <h4 class="font-label-lg text-label-lg text-surface tracking-wider uppercase">
+              Account &amp; Wallet
+            </h4>
+            <ul class="space-y-2.5 font-body-sm text-body-sm text-outline-variant">
+              <li class="hover:text-surface transition-colors">
+                <a data-path="my-account" href="#">My Account</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="wallet" href="#">Wallet Balance &amp; Instant Refunds</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="wishlist" href="#">My Wishlist</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="order-history" href="#">Order History</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="returns-policy" href="#">Return an Item</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div
+          class="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 font-body-sm text-body-sm text-outline-variant"
+        >
+          <p>
+            © 2026 BeautyFits. All rights reserved. • Cash on Delivery available nationwide in
+            Egypt.
+          </p>
+          <p class="font-label-md text-label-md text-surface-container-high">
+            Safe &amp; genuine beauty delivered to your door.
+          </p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

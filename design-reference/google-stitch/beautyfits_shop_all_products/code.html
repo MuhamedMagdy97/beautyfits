@@ -1,0 +1,2019 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="web_standard" name="shell-type" />
+    <title>BeautyFits Egypt</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @layer base {
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        body {
+          overscroll-behavior: none;
+        }
+        main > :first-child {
+          margin-top: 0 !important;
+        }
+        main > :last-child {
+          margin-bottom: 0 !important;
+        }
+      }
+      ::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed-dim": "#ffb0c9",
+              "on-primary-container": "#ec87aa",
+              surface: "#fff7fb",
+              "on-tertiary": "#ffffff",
+              "surface-container": "#f3ecf0",
+              "on-tertiary-container": "#c5a069",
+              "on-primary-fixed-variant": "#792a4b",
+              "on-background": "#1d1b1e",
+              "secondary-fixed-dim": "#f8b4c6",
+              "on-primary": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "inverse-on-surface": "#f6eff3",
+              "primary-container": "#6b1e3f",
+              "on-secondary": "#ffffff",
+              "surface-tint": "#974162",
+              "surface-variant": "#e8e0e4",
+              "surface-dim": "#dfd8dc",
+              "surface-container-highest": "#e8e0e4",
+              "surface-container-low": "#f9f2f6",
+              "inverse-surface": "#332f32",
+              "surface-bright": "#fff7fb",
+              "on-secondary-fixed-variant": "#693747",
+              "secondary-container": "#feb9cb",
+              "tertiary-fixed": "#ffddae",
+              "error-container": "#ffdad6",
+              "on-secondary-fixed": "#350d1c",
+              "tertiary-fixed-dim": "#e8c086",
+              primary: "#4e0529",
+              outline: "#867277",
+              "tertiary-container": "#503708",
+              "on-tertiary-fixed": "#281800",
+              "on-surface-variant": "#534247",
+              "on-error-container": "#93000a",
+              "on-secondary-container": "#7b4656",
+              "surface-container-high": "#ede6ea",
+              background: "#fff7fb",
+              error: "#ba1a1a",
+              "on-primary-fixed": "#3e001e",
+              "primary-fixed": "#ffd9e3",
+              secondary: "#844e5e",
+              "inverse-primary": "#ffb0c9",
+              tertiary: "#362200",
+              "on-surface": "#1d1b1e",
+              "on-error": "#ffffff",
+              "on-tertiary-fixed-variant": "#5d4213",
+              "outline-variant": "#d8c1c6",
+              "secondary-fixed": "#ffd9e1",
+            },
+            borderRadius: { DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem" },
+            spacing: {
+              "space-xs": "0.25rem",
+              "space-sm": "0.5rem",
+              gutter: "1.5rem",
+              "margin-sm": "1.25rem",
+              "space-lg": "1.5rem",
+              "space-md": "1rem",
+              "gutter-sm": "1rem",
+              margin: "3rem",
+              "space-xl": "2.5rem",
+            },
+            fontFamily: {
+              "body-lg": ["Plus Jakarta Sans"],
+              "label-lg": ["Plus Jakarta Sans"],
+              "body-sm": ["Plus Jakarta Sans"],
+              "label-md": ["Plus Jakarta Sans"],
+              "headline-lg-mobile": ["Playfair Display"],
+              "headline-lg": ["Playfair Display"],
+              "display-lg": ["Playfair Display"],
+              "title-md": ["Plus Jakarta Sans"],
+              "display-lg-mobile": ["Playfair Display"],
+              "label-sm": ["Plus Jakarta Sans"],
+              "price-lg": ["Plus Jakarta Sans"],
+              "headline-sm": ["Playfair Display"],
+              "headline-md": ["Playfair Display"],
+              "price-md": ["Plus Jakarta Sans"],
+              "body-md": ["Plus Jakarta Sans"],
+              "title-lg": ["Plus Jakarta Sans"],
+            },
+            fontSize: {
+              "body-lg": ["16px", { lineHeight: "26px", fontWeight: "400" }],
+              "label-lg": [
+                "14px",
+                { lineHeight: "20px", letterSpacing: "0.02em", fontWeight: "600" },
+              ],
+              "body-sm": ["12px", { lineHeight: "18px", fontWeight: "400" }],
+              "label-md": [
+                "12px",
+                { lineHeight: "16px", letterSpacing: "0.04em", fontWeight: "600" },
+              ],
+              "headline-lg-mobile": [
+                "28px",
+                { lineHeight: "36px", letterSpacing: "0em", fontWeight: "500" },
+              ],
+              "headline-lg": [
+                "38px",
+                { lineHeight: "46px", letterSpacing: "-0.01em", fontWeight: "500" },
+              ],
+              "display-lg": [
+                "56px",
+                { lineHeight: "64px", letterSpacing: "-0.02em", fontWeight: "600" },
+              ],
+              "title-md": ["16px", { lineHeight: "24px", fontWeight: "600" }],
+              "display-lg-mobile": [
+                "36px",
+                { lineHeight: "44px", letterSpacing: "-0.01em", fontWeight: "600" },
+              ],
+              "label-sm": [
+                "10px",
+                { lineHeight: "14px", letterSpacing: "0.08em", fontWeight: "700" },
+              ],
+              "price-lg": ["20px", { lineHeight: "26px", fontWeight: "700" }],
+              "headline-sm": ["22px", { lineHeight: "30px", fontWeight: "600" }],
+              "headline-md": ["28px", { lineHeight: "36px", fontWeight: "500" }],
+              "price-md": ["16px", { lineHeight: "22px", fontWeight: "700" }],
+              "body-md": ["14px", { lineHeight: "22px", fontWeight: "400" }],
+              "title-lg": [
+                "18px",
+                { lineHeight: "26px", letterSpacing: "-0.01em", fontWeight: "600" },
+              ],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="bg-surface font-body-md text-on-surface antialiased">
+    <header class="fixed top-0 left-0 w-full z-50 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+      <div
+        class="h-[34px] bg-primary-container text-surface-container-lowest font-label-sm text-label-sm tracking-widest flex items-center justify-center px-4 uppercase select-none"
+      >
+        <span>Free shipping on orders over 2,500 EGP • Cash on Delivery across Egypt</span>
+      </div>
+      <div class="h-[82px] bg-surface border-b border-outline-variant/60">
+        <div
+          class="max-w-[1360px] h-full mx-auto px-margin flex items-center justify-between gap-space-lg"
+        >
+          <a class="flex flex-col text-decoration-none group" data-path="home" href="#"
+            ><span
+              class="font-display-lg-mobile text-headline-sm tracking-wider text-primary font-serif uppercase transition-colors group-hover:text-primary-container"
+              >BEAUTYFITS</span
+            ><span class="font-label-sm text-[9px] tracking-[0.2em] text-outline uppercase"
+              >Beauty That Fits You</span
+            ></a
+          >
+          <div class="relative w-[480px] hidden md:block">
+            <span
+              class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[20px] pointer-events-none"
+              >search</span
+            ><input
+              class="w-full h-11 pl-11 pr-4 bg-surface-container-lowest border border-outline-variant/70 rounded-full font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary-container transition-all"
+              placeholder="Search products, brands, fragrances..."
+              type="search"
+            />
+          </div>
+          <div class="flex items-center gap-space-md">
+            <a
+              class="flex items-center gap-2 text-on-surface hover:text-primary-container transition-colors py-1"
+              data-path="my-account"
+              href="#"
+              ><span class="material-symbols-outlined text-[22px]">person</span
+              ><span class="font-label-md text-label-md hidden lg:inline">Account</span></a
+            ><a
+              class="relative p-2 text-on-surface hover:text-primary-container transition-colors"
+              data-path="wishlist"
+              href="#"
+              ><span class="material-symbols-outlined text-[22px]">favorite</span
+              ><span
+                class="absolute top-1 right-1 w-4 h-4 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-[10px] flex items-center justify-center font-bold"
+                >0</span
+              ></a
+            ><a
+              class="relative p-2 text-on-surface hover:text-primary-container transition-colors"
+              data-path="cart"
+              href="#"
+              ><span class="material-symbols-outlined text-[22px]">shopping_bag</span
+              ><span
+                class="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary-container text-surface-container-lowest font-label-sm text-[10px] flex items-center justify-center font-bold"
+                >3</span
+              ></a
+            >
+            <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-1">
+              <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        class="h-[46px] bg-surface-container-lowest border-b border-outline-variant/60 backdrop-blur-md"
+      >
+        <div
+          class="max-w-[1360px] h-full mx-auto px-margin flex items-center justify-start overflow-x-auto scrollbar-none"
+        >
+          <nav
+            class="flex items-center gap-8 h-full"
+            data-active-classes="text-primary-container border-b-2 border-primary-container font-semibold"
+          >
+            <a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="home"
+              href="#"
+              >Home</a
+            ><a
+              aria-current="page"
+              class="h-full flex items-center transition-all whitespace-nowrap text-primary-container border-b-2 border-primary-container font-semibold"
+              data-path="shop-all"
+              href="#"
+              >Shop</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="makeup"
+              href="#"
+              >Makeup</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="perfumes"
+              href="#"
+              >Perfumes</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="skincare"
+              href="#"
+              >Skincare</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="new-arrivals"
+              href="#"
+              >New Arrivals</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="best-sellers"
+              href="#"
+              >Best Sellers</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="offers"
+              href="#"
+              >Offers</a
+            >
+          </nav>
+        </div>
+      </div>
+    </header>
+    <main class="w-full pt-[162px] min-h-screen bg-surface">
+      <div class="flex flex-col w-full">
+        <!-- Subtle Top Banner Notification / Assurance Rail -->
+        <section class="w-full bg-surface-container-low py-2.5 px-margin">
+          <div
+            class="max-w-[1360px] mx-auto flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider"
+          >
+            <div class="flex items-center gap-6">
+              <span class="flex items-center gap-1.5 text-primary-container font-semibold">
+                <span class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim"
+                  >verified</span
+                >
+                100% Authentic Guaranteed Direct From Brands
+              </span>
+              <span class="hidden md:inline-flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">local_shipping</span>
+                Same-Day Dispatch for Greater Cairo &amp; Giza
+              </span>
+            </div>
+            <div class="flex items-center gap-2 text-on-surface">
+              <span>Cairo Concierge:</span>
+              <span class="font-bold text-primary">+20 2 2456 8900</span>
+            </div>
+          </div>
+        </section>
+        <!-- Breadcrumb & Header Hero Band -->
+        <section class="w-full bg-surface pt-8 pb-6 px-margin">
+          <div class="max-w-[1360px] mx-auto flex flex-col gap-4">
+            <!-- Breadcrumb -->
+            <nav
+              aria-label="Breadcrumb"
+              class="flex items-center gap-2 font-label-md text-label-md text-outline"
+            >
+              <a class="hover:text-primary-container transition-colors" href="#">Home</a>
+              <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+              <a class="hover:text-primary-container transition-colors" href="#">Shop All</a>
+              <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+              <span class="text-on-surface font-medium">All Products</span>
+            </nav>
+            <!-- Editorial Header Content -->
+            <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 pt-2">
+              <div class="max-w-3xl space-y-2">
+                <div class="flex items-center gap-3">
+                  <span class="h-px w-8 bg-primary-container"></span>
+                  <span
+                    class="font-label-sm text-label-sm uppercase tracking-[0.2em] text-primary-container font-semibold"
+                    >Curated Editorial Collection</span
+                  >
+                </div>
+                <h1 class="font-headline-lg text-headline-lg text-on-background tracking-tight">
+                  Shop Beauty
+                </h1>
+                <p
+                  class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl leading-relaxed"
+                >
+                  Explore authentic makeup, rare perfumes, clinical skincare, and daily beauty
+                  essentials curated for modern Middle Eastern beauty connoisseurs. Seamless Cash on
+                  Delivery available nationwide.
+                </p>
+              </div>
+              <!-- COD Milestone Pill / Cart Value Stimulator -->
+              <div
+                class="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex items-center gap-4 self-start lg:self-auto min-w-[320px]"
+              >
+                <div
+                  class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary-container shrink-0"
+                >
+                  <span class="material-symbols-outlined text-[20px]">electric_bolt</span>
+                </div>
+                <div class="flex-1">
+                  <div
+                    class="flex justify-between items-center text-label-sm font-label-sm uppercase text-on-surface-variant mb-1.5"
+                  >
+                    <span>Free Shipping Threshold</span>
+                    <span class="font-bold text-primary-container">2,500 EGP</span>
+                  </div>
+                  <div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+                    <div
+                      class="bg-primary-container h-full rounded-full transition-all duration-500"
+                      style="width: 72%"
+                    ></div>
+                  </div>
+                  <p class="font-body-sm text-[11px] text-outline mt-1.5">
+                    Orders qualify for complimentary express courier across Egypt
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- Sticky Filter & Sorting Toolbar -->
+        <section
+          class="sticky top-[162px] z-30 w-full bg-surface-container-lowest shadow-sm py-3.5 px-margin"
+        >
+          <div class="max-w-[1360px] mx-auto flex flex-wrap items-center justify-between gap-4">
+            <!-- Left: Counter & Active Filters Tag Cloud -->
+            <div class="flex items-center flex-wrap gap-2.5">
+              <span class="font-label-md text-label-md text-on-surface font-semibold mr-2 shrink-0">
+                Showing <span class="text-primary-container font-bold">128</span> products
+              </span>
+              <div class="h-4 w-px bg-surface-variant hidden sm:block"></div>
+              <!-- Active Tags -->
+              <div class="flex items-center flex-wrap gap-2" id="activeFilterTags">
+                <button
+                  class="inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container rounded-full font-label-sm text-label-sm text-on-surface hover:bg-surface-variant transition-colors group"
+                >
+                  <span>In Stock</span>
+                  <span
+                    class="material-symbols-outlined text-[14px] text-outline group-hover:text-primary"
+                    >close</span
+                  >
+                </button>
+                <button
+                  class="inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container rounded-full font-label-sm text-label-sm text-on-surface hover:bg-surface-variant transition-colors group"
+                >
+                  <span>Perfumes</span>
+                  <span
+                    class="material-symbols-outlined text-[14px] text-outline group-hover:text-primary"
+                    >close</span
+                  >
+                </button>
+                <button
+                  class="inline-flex items-center gap-1.5 px-3 py-1 bg-surface-container rounded-full font-label-sm text-label-sm text-on-surface hover:bg-surface-variant transition-colors group"
+                >
+                  <span>Under 5,000 EGP</span>
+                  <span
+                    class="material-symbols-outlined text-[14px] text-outline group-hover:text-primary"
+                    >close</span
+                  >
+                </button>
+                <button
+                  class="font-label-sm text-label-sm text-primary hover:text-primary-container font-bold ml-1 transition-colors underline decoration-outline-variant underline-offset-4"
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+            <!-- Right: Sorting & Grid/List Controls -->
+            <div class="flex items-center gap-4">
+              <!-- Sort Dropdown -->
+              <div class="relative group">
+                <label class="sr-only" for="sortDropdown">Sort By</label>
+                <div class="relative flex items-center">
+                  <span
+                    class="material-symbols-outlined absolute left-3 text-outline text-[18px] pointer-events-none"
+                    >swap_vert</span
+                  >
+                  <select
+                    class="appearance-none bg-surface-container-low pl-9 pr-9 py-2 rounded-lg font-label-md text-label-md text-on-surface cursor-pointer focus:outline-none focus:bg-surface-container transition-colors font-medium"
+                    id="sortDropdown"
+                  >
+                    <option selected="" value="featured">Sort: Featured</option>
+                    <option value="newest">Sort: Newest First</option>
+                    <option value="price-asc">Sort: Price (Low to High)</option>
+                    <option value="price-desc">Sort: Price (High to Low)</option>
+                    <option value="rating">Sort: Top Customer Rated</option>
+                  </select>
+                  <span
+                    class="material-symbols-outlined absolute right-2.5 text-outline text-[18px] pointer-events-none"
+                    >expand_more</span
+                  >
+                </div>
+              </div>
+              <!-- View Switcher -->
+              <div class="flex items-center bg-surface-container-low p-1 rounded-lg">
+                <button
+                  aria-label="4-Column Grid View"
+                  class="p-1.5 rounded-md bg-surface-container-lowest text-primary-container shadow-sm flex items-center justify-center transition-all"
+                  id="viewGrid"
+                >
+                  <span class="material-symbols-outlined text-[18px]">grid_view</span>
+                </button>
+                <button
+                  aria-label="List View"
+                  class="p-1.5 rounded-md text-outline hover:text-on-surface flex items-center justify-center transition-all"
+                  id="viewList"
+                >
+                  <span class="material-symbols-outlined text-[18px]">view_agenda</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- Main Body: 240px Sidebar + Dynamic Product Matrix -->
+        <div class="w-full max-w-[1360px] mx-auto px-margin py-8">
+          <div class="flex gap-8 items-start">
+            <!-- LEFT FILTER SIDEBAR (240px wide) -->
+            <aside
+              class="w-[240px] shrink-0 sticky top-[242px] max-h-[calc(100vh-270px)] overflow-y-auto pr-3 space-y-6"
+            >
+              <!-- Accordion 1: Categories -->
+              <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between pb-3">
+                  <span class="font-label-lg text-label-lg font-semibold text-on-surface"
+                    >Categories</span
+                  >
+                  <span class="material-symbols-outlined text-outline text-[18px]"
+                    >keyboard_arrow_up</span
+                  >
+                </div>
+                <div class="space-y-2 pt-1 font-body-sm text-body-sm">
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Makeup</span>
+                    </span>
+                    <span
+                      class="text-outline text-label-sm font-label-sm bg-surface-container px-2 py-0.5 rounded-full"
+                      >48</span
+                    >
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        checked=""
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span class="font-medium text-primary-container">Perfumes</span>
+                    </span>
+                    <span
+                      class="text-primary-container bg-primary-fixed px-2 py-0.5 rounded-full font-bold text-label-sm font-label-sm"
+                      >36</span
+                    >
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Skincare</span>
+                    </span>
+                    <span
+                      class="text-outline text-label-sm font-label-sm bg-surface-container px-2 py-0.5 rounded-full"
+                      >28</span
+                    >
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Beauty Essentials</span>
+                    </span>
+                    <span
+                      class="text-outline text-label-sm font-label-sm bg-surface-container px-2 py-0.5 rounded-full"
+                      >16</span
+                    >
+                  </label>
+                </div>
+              </div>
+              <!-- Accordion 2: Availability -->
+              <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between pb-3">
+                  <span class="font-label-lg text-label-lg font-semibold text-on-surface"
+                    >Availability</span
+                  >
+                  <span class="material-symbols-outlined text-outline text-[18px]"
+                    >keyboard_arrow_up</span
+                  >
+                </div>
+                <div class="space-y-2 pt-1 font-body-sm text-body-sm">
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        checked=""
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>In Stock Ready to Ship</span>
+                    </span>
+                    <span
+                      class="text-outline text-label-sm font-label-sm bg-surface-container px-2 py-0.5 rounded-full"
+                      >114</span
+                    >
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Out of Stock</span>
+                    </span>
+                    <span
+                      class="text-outline text-label-sm font-label-sm bg-surface-container px-2 py-0.5 rounded-full"
+                      >14</span
+                    >
+                  </label>
+                </div>
+              </div>
+              <!-- Price Range Slider with Free Shipping Marker -->
+              <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="font-label-lg text-label-lg font-semibold text-on-surface"
+                    >Price Range</span
+                  >
+                  <span class="font-label-sm text-label-sm text-outline uppercase tracking-wider"
+                    >EGP</span
+                  >
+                </div>
+                <!-- Visual Track Bar with 2500 Marker -->
+                <div class="relative pt-4 pb-2">
+                  <div class="relative h-2 bg-surface-container-high rounded-full">
+                    <!-- Simulated Selected Span -->
+                    <div
+                      class="absolute left-0 top-0 bottom-0 bg-primary-container rounded-full"
+                      style="width: 50%"
+                    ></div>
+                    <!-- Free Shipping Tick Indicator at 25% (2,500 of 10,000) -->
+                    <div
+                      class="absolute top-[-18px] left-[25%] -translate-x-1/2 flex flex-col items-center"
+                    >
+                      <span
+                        class="text-[9px] font-bold text-tertiary-container bg-tertiary-fixed px-1 rounded uppercase tracking-tighter whitespace-nowrap shadow-xs"
+                        >Free Ship</span
+                      >
+                      <span class="w-1.5 h-1.5 bg-tertiary-container rotate-45 -mt-0.5"></span>
+                    </div>
+                    <div
+                      class="absolute left-[25%] -top-1 bottom-[-4px] w-0.5 bg-tertiary-container opacity-80 pointer-events-none"
+                    ></div>
+                    <!-- Slider Handles -->
+                    <div
+                      class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-surface-container-lowest rounded-full shadow-md cursor-grab"
+                    ></div>
+                    <div
+                      class="absolute left-[50%] top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-primary-container rounded-full shadow-md cursor-grab"
+                    ></div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 pt-1">
+                  <div class="flex-1 bg-surface-container-low px-2.5 py-1.5 rounded-md">
+                    <span class="text-[10px] uppercase font-bold text-outline block">Min</span>
+                    <span class="font-label-md text-label-md text-on-surface font-semibold"
+                      >0 EGP</span
+                    >
+                  </div>
+                  <span class="text-outline font-bold">-</span>
+                  <div class="flex-1 bg-surface-container-low px-2.5 py-1.5 rounded-md text-right">
+                    <span class="text-[10px] uppercase font-bold text-outline block">Max</span>
+                    <span class="font-label-md text-label-md text-primary font-semibold"
+                      >5,000 EGP</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <!-- Fragrance Family Filter (Perfume specific) -->
+              <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between pb-3">
+                  <span class="font-label-lg text-label-lg font-semibold text-on-surface"
+                    >Fragrance Family</span
+                  >
+                  <span class="material-symbols-outlined text-outline text-[18px]"
+                    >keyboard_arrow_up</span
+                  >
+                </div>
+                <div class="space-y-2 pt-1 font-body-sm text-body-sm">
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Floral &amp; Blooming</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">14</span>
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Woody &amp; Oriental</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">12</span>
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Fresh &amp; Citrus</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">6</span>
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Warm Gourmand</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">4</span>
+                  </label>
+                </div>
+              </div>
+              <!-- Makeup Finish Swatch Selectors -->
+              <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between pb-3">
+                  <span class="font-label-lg text-label-lg font-semibold text-on-surface"
+                    >Finish &amp; Texture</span
+                  >
+                  <span class="material-symbols-outlined text-outline text-[18px]"
+                    >keyboard_arrow_up</span
+                  >
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-1 font-label-sm text-label-sm">
+                  <button
+                    class="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container font-medium text-on-surface text-center transition-colors"
+                  >
+                    Matte
+                  </button>
+                  <button
+                    class="px-2.5 py-1.5 rounded-lg bg-primary-fixed text-primary font-bold text-center"
+                  >
+                    Satin
+                  </button>
+                  <button
+                    class="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container font-medium text-on-surface text-center transition-colors"
+                  >
+                    Glow
+                  </button>
+                  <button
+                    class="px-2.5 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container font-medium text-on-surface text-center transition-colors"
+                  >
+                    Dewy
+                  </button>
+                </div>
+              </div>
+              <!-- Volume / Fl. Oz. Size Filter -->
+              <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between pb-2">
+                  <span class="font-label-lg text-label-lg font-semibold text-on-surface"
+                    >Volume &amp; Size</span
+                  >
+                </div>
+                <div class="flex gap-2 pt-2">
+                  <button
+                    class="flex-1 py-1.5 rounded-md bg-surface-container-low text-on-surface font-label-md text-label-md hover:bg-primary-fixed transition-colors"
+                  >
+                    30ml
+                  </button>
+                  <button
+                    class="flex-1 py-1.5 rounded-md bg-surface-container-low text-on-surface font-label-md text-label-md hover:bg-primary-fixed transition-colors"
+                  >
+                    50ml
+                  </button>
+                  <button
+                    class="flex-1 py-1.5 rounded-md bg-surface-container-low text-on-surface font-label-md text-label-md hover:bg-primary-fixed transition-colors"
+                  >
+                    100ml
+                  </button>
+                </div>
+              </div>
+              <!-- Luxury Brands Filter -->
+              <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between pb-3">
+                  <span class="font-label-lg text-label-lg font-semibold text-on-surface"
+                    >Prestige Brands</span
+                  >
+                  <span class="material-symbols-outlined text-outline text-[18px]"
+                    >keyboard_arrow_up</span
+                  >
+                </div>
+                <div class="space-y-2 pt-1 font-body-sm text-body-sm max-h-48 overflow-y-auto pr-1">
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Yves Saint Laurent</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">18</span>
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Dior</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">22</span>
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Rare Beauty</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">14</span>
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Charlotte Tilbury</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">16</span>
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Chanel</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">11</span>
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>M•A•C Cosmetics</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">19</span>
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Huda Beauty</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">15</span>
+                  </label>
+                  <label
+                    class="flex items-center justify-between text-on-surface hover:text-primary cursor-pointer select-none"
+                  >
+                    <span class="flex items-center gap-2">
+                      <input
+                        class="w-4 h-4 rounded text-primary-container accent-primary-container"
+                        type="checkbox"
+                      />
+                      <span>Maybelline New York</span>
+                    </span>
+                    <span class="text-outline text-label-sm font-label-sm">24</span>
+                  </label>
+                </div>
+              </div>
+              <!-- Rating Filter -->
+              <div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between pb-3">
+                  <span class="font-label-lg text-label-lg font-semibold text-on-surface"
+                    >Customer Rating</span
+                  >
+                </div>
+                <div class="space-y-2 font-body-sm text-body-sm">
+                  <label class="flex items-center gap-2 cursor-pointer select-none group">
+                    <input
+                      class="w-4 h-4 accent-primary-container"
+                      name="rating_filter"
+                      type="radio"
+                    />
+                    <div class="flex items-center gap-1 text-tertiary-container">
+                      <span
+                        class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span class="material-symbols-outlined text-[16px] text-surface-variant"
+                        >star</span
+                      >
+                    </div>
+                    <span
+                      class="font-label-md text-label-md text-on-surface group-hover:text-primary"
+                      >&amp; up</span
+                    >
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer select-none group">
+                    <input
+                      class="w-4 h-4 accent-primary-container"
+                      name="rating_filter"
+                      type="radio"
+                    />
+                    <div class="flex items-center gap-1 text-tertiary-container">
+                      <span
+                        class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span class="material-symbols-outlined text-[16px] text-surface-variant"
+                        >star</span
+                      >
+                      <span class="material-symbols-outlined text-[16px] text-surface-variant"
+                        >star</span
+                      >
+                    </div>
+                    <span
+                      class="font-label-md text-label-md text-on-surface group-hover:text-primary"
+                      >&amp; up</span
+                    >
+                  </label>
+                </div>
+              </div>
+            </aside>
+            <!-- RIGHT PRODUCT GRID (4 Columns on Desktop) -->
+            <main class="flex-1 min-w-0">
+              <div
+                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-gutter"
+                id="productGridContainer"
+              >
+                <!-- PRODUCT 1: YSL Libre Le Parfum (90ml) -->
+                <article
+                  class="group relative bg-surface-container-lowest rounded-xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                >
+                  <div
+                    class="relative w-full aspect-[3/4] bg-surface-container-low rounded-lg overflow-hidden mb-3"
+                  >
+                    <!-- Badges -->
+                    <div class="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1">
+                      <span
+                        class="bg-tertiary-fixed text-primary px-2.5 py-0.5 rounded-full font-label-sm text-label-sm uppercase tracking-wider font-bold shadow-xs"
+                        >Bestseller</span
+                      >
+                    </div>
+                    <!-- Wishlist Heart Trigger -->
+                    <button
+                      aria-label="Add to Wishlist"
+                      class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface-container-lowest/80 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-surface-container-lowest hover:text-primary-container hover:scale-110 transition-all shadow-sm"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">favorite</span>
+                    </button>
+                    <!-- Photo -->
+                    <img
+                      class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      data-alt="A sleek glass perfume flacon of YSL Libre Le Parfum with gold chain couture neck wrapped around the bottle top, warm amber liquid glowing against an ivory minimalist marble podium in soft studio luxury lighting."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKsZ4cnSDmBBZehFA72oQGOOLR_YtHSt5m8ojdfRO1AWcjPFQhbMr6Y7R96OR9YCctIX8gZOAx49ZYJDBF-TaDOddmLBx9-Z3UF8n_3wN5DJQm0L4vQm0t3tmTsFzdrrziu3WvijXfz2CpC4bi7LZPAHymk36D286L8m3LFe9LP3sWWy5hHRY-Oiw_cz4ybLBt1LAI0td4DA90MMcLOloEer5Y0irOE2hSFlkPxuuha4KlFsKyb1u5YA"
+                    />
+                    <!-- Hover Slide-up Quick Add -->
+                    <div
+                      class="absolute inset-x-2 bottom-2 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out z-20"
+                    >
+                      <button
+                        class="w-full h-10 bg-primary-container text-surface-container-lowest rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:bg-primary transition-colors shadow-md"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                        Quick Add
+                      </button>
+                    </div>
+                  </div>
+                  <!-- Metadata -->
+                  <div class="flex flex-col flex-1 justify-between space-y-2">
+                    <div>
+                      <div
+                        class="flex items-center justify-between text-outline font-label-sm text-label-sm uppercase tracking-wider"
+                      >
+                        <span>YVES SAINT LAURENT</span>
+                        <span class="flex items-center text-tertiary-container gap-0.5">
+                          <span
+                            class="material-symbols-outlined text-[13px] text-tertiary-fixed-dim"
+                            style="font-variation-settings: &quot;FILL&quot; 1"
+                            >star</span
+                          >
+                          <span class="text-on-surface font-bold text-[11px]">4.9</span>
+                        </span>
+                      </div>
+                      <h3
+                        class="font-title-md text-title-md text-on-surface line-clamp-2 mt-0.5 group-hover:text-primary transition-colors"
+                      >
+                        Libre Le Parfum (90ml)
+                      </h3>
+                      <p class="font-body-sm text-[12px] text-outline mt-0.5">
+                        Sensual saffron, orange blossom &amp; warm honey
+                      </p>
+                    </div>
+                    <div class="pt-2">
+                      <div class="flex items-baseline justify-between">
+                        <span class="font-price-lg text-price-lg text-primary font-bold"
+                          >5,200
+                          <span class="text-label-sm font-normal text-on-surface-variant"
+                            >EGP</span
+                          ></span
+                        >
+                        <span
+                          class="font-label-sm text-[11px] text-tertiary-fixed-dim font-semibold uppercase"
+                          >Free Express Ship</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <!-- PRODUCT 2: Rare Beauty Soft Pinch Blush -->
+                <article
+                  class="group relative bg-surface-container-lowest rounded-xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                >
+                  <div
+                    class="relative w-full aspect-[3/4] bg-surface-container-low rounded-lg overflow-hidden mb-3"
+                  >
+                    <div class="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1">
+                      <span
+                        class="bg-primary-container text-surface-container-lowest px-2.5 py-0.5 rounded-full font-label-sm text-label-sm uppercase tracking-wider font-bold shadow-xs"
+                        >New</span
+                      >
+                    </div>
+                    <button
+                      aria-label="Add to Wishlist"
+                      class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface-container-lowest/80 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-surface-container-lowest hover:text-primary-container hover:scale-110 transition-all shadow-sm"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">favorite</span>
+                    </button>
+                    <img
+                      class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      data-alt="Rare Beauty liquid blush matte frosted bottle with iconic sphere gold cap standing elegantly next to soft pink blush pigment smears on warm beige silk background."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuAkRiqVvwJcCoTSeKPyK2JIMzvNnR3W3VDFbVf6BpBlBO1Oe_mfWuQuJrtWtYmpJTep-Zqiw8cPCt55f1Y5JNUntlTBfPoj5dvdnhHBno8ICnwg6BwGrOpbDQG5Dw8SZzXIjMjjpABq5N7dt3xzr5KNVKr-6BWJUZHTiq5UwG5Dl8ZRieUKDCWh8lDndnczKZXNjdW5Wu6YsTWFmzmbfJP-Rm55pChUbLQurIOjVVT9ZZJU4NWOKIp1qw"
+                    />
+                    <!-- Hover Slide-up Quick Add -->
+                    <div
+                      class="absolute inset-x-2 bottom-2 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out z-20"
+                    >
+                      <button
+                        class="w-full h-10 bg-primary-container text-surface-container-lowest rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:bg-primary transition-colors shadow-md"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">palette</span>
+                        Select Shade (4)
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col flex-1 justify-between space-y-2">
+                    <div>
+                      <div
+                        class="flex items-center justify-between text-outline font-label-sm text-label-sm uppercase tracking-wider"
+                      >
+                        <span>RARE BEAUTY</span>
+                        <span class="flex items-center text-tertiary-container gap-0.5">
+                          <span
+                            class="material-symbols-outlined text-[13px] text-tertiary-fixed-dim"
+                            style="font-variation-settings: &quot;FILL&quot; 1"
+                            >star</span
+                          >
+                          <span class="text-on-surface font-bold text-[11px]">4.8</span>
+                        </span>
+                      </div>
+                      <h3
+                        class="font-title-md text-title-md text-on-surface line-clamp-2 mt-0.5 group-hover:text-primary transition-colors"
+                      >
+                        Soft Pinch Liquid Blush
+                      </h3>
+                      <div class="flex items-center gap-1.5 mt-1.5">
+                        <span
+                          class="w-3 h-3 rounded-full bg-[#E07A76] ring-1 ring-surface-variant"
+                        ></span>
+                        <span
+                          class="w-3 h-3 rounded-full bg-[#CE4F58] ring-1 ring-surface-variant"
+                        ></span>
+                        <span
+                          class="w-3 h-3 rounded-full bg-[#B85764] ring-1 ring-surface-variant"
+                        ></span>
+                        <span
+                          class="w-3 h-3 rounded-full bg-[#8A3745] ring-1 ring-surface-variant"
+                        ></span>
+                        <span class="text-[11px] text-outline font-medium ml-1">4 shades</span>
+                      </div>
+                    </div>
+                    <div class="pt-2">
+                      <div class="flex items-baseline justify-between">
+                        <span class="font-price-lg text-price-lg text-primary font-bold"
+                          >1,450
+                          <span class="text-label-sm font-normal text-on-surface-variant"
+                            >EGP</span
+                          ></span
+                        >
+                        <span class="font-label-sm text-[11px] text-on-surface-variant font-medium"
+                          >In Stock</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <!-- PRODUCT 3: MAC Powder Kiss Velvet Blur -->
+                <article
+                  class="group relative bg-surface-container-lowest rounded-xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                >
+                  <div
+                    class="relative w-full aspect-[3/4] bg-surface-container-low rounded-lg overflow-hidden mb-3"
+                  >
+                    <button
+                      aria-label="Add to Wishlist"
+                      class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface-container-lowest/80 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-surface-container-lowest hover:text-primary-container hover:scale-110 transition-all shadow-sm"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">favorite</span>
+                    </button>
+                    <img
+                      class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      data-alt="MAC Powder Kiss slim velvet matte black and gold lipstick bullet resting at an aesthetic 45 degree angle on fine textured paper with warm plum swatch."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtwIIkmYQ7cpLiLF_uM7j7dGsKoo22ZACXA219_8VWv3CZ3X9CZfZqKbPMXZWveP0f1pPL41kGEcKf3Vkg7Ktgoo8SjJ7NekzcF4QFQdPlhOojsXxmpJG4OKjGByX8r0spYvbr5hgYX2VHxG92NJ2XOA7F6VL7Jeeg0aYApqLtAP_VSNdXQRshunEr2BNybffH9Wwkc2v65PRdwMJApfVMJntBXMG3-n7MM95JVUqXrQyFXl8ja4mm_Q"
+                    />
+                    <div
+                      class="absolute inset-x-2 bottom-2 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out z-20"
+                    >
+                      <button
+                        class="w-full h-10 bg-primary-container text-surface-container-lowest rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:bg-primary transition-colors shadow-md"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">palette</span>
+                        Select Shade (6)
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col flex-1 justify-between space-y-2">
+                    <div>
+                      <div
+                        class="flex items-center justify-between text-outline font-label-sm text-label-sm uppercase tracking-wider"
+                      >
+                        <span>M•A•C COSMETICS</span>
+                        <span class="flex items-center text-tertiary-container gap-0.5">
+                          <span
+                            class="material-symbols-outlined text-[13px] text-tertiary-fixed-dim"
+                            style="font-variation-settings: &quot;FILL&quot; 1"
+                            >star</span
+                          >
+                          <span class="text-on-surface font-bold text-[11px]">4.7</span>
+                        </span>
+                      </div>
+                      <h3
+                        class="font-title-md text-title-md text-on-surface line-clamp-2 mt-0.5 group-hover:text-primary transition-colors"
+                      >
+                        Powder Kiss Velvet Blur Stick
+                      </h3>
+                      <div class="flex items-center gap-1.5 mt-1.5">
+                        <span class="w-3 h-3 rounded-full bg-[#A8434D]"></span>
+                        <span class="w-3 h-3 rounded-full bg-[#963842]"></span>
+                        <span class="w-3 h-3 rounded-full bg-[#BD5E66]"></span>
+                        <span class="text-[11px] text-outline font-medium ml-1">6 shades</span>
+                      </div>
+                    </div>
+                    <div class="pt-2">
+                      <div class="flex items-baseline justify-between">
+                        <span class="font-price-lg text-price-lg text-primary font-bold"
+                          >1,250
+                          <span class="text-label-sm font-normal text-on-surface-variant"
+                            >EGP</span
+                          ></span
+                        >
+                        <span class="font-label-sm text-[11px] text-on-surface-variant font-medium"
+                          >In Stock</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <!-- PRODUCT 4: Tom Ford Black Orchid EDP (50ml) -->
+                <article
+                  class="group relative bg-surface-container-lowest rounded-xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                >
+                  <div
+                    class="relative w-full aspect-[3/4] bg-surface-container-low rounded-lg overflow-hidden mb-3"
+                  >
+                    <div class="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1">
+                      <span
+                        class="bg-tertiary-container text-tertiary-fixed px-2.5 py-0.5 rounded-full font-label-sm text-label-sm uppercase tracking-wider font-bold shadow-xs"
+                        >Rare Find</span
+                      >
+                    </div>
+                    <button
+                      aria-label="Add to Wishlist"
+                      class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface-container-lowest/80 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-surface-container-lowest hover:text-primary-container hover:scale-110 transition-all shadow-sm"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">favorite</span>
+                    </button>
+                    <img
+                      class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      data-alt="Tom Ford Black Orchid perfume bottle in iconic ribbed jet black glass with golden 24k stamped plaque, moodily backlit with warm amber rim light."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBh6vIXgkDPHa-3C4_6wxcWehHyuCWt-UVfa9NkTrHZYGuOXblSuC8BbA1mh-_hWqGpaqTdBRR-87IpUG0pFpQ85HFXTVeF6UcarLN8feRgcY5ouzGJPiySDghbCjDCMOvZg3hvHj3bm0sYPKKGKZJoG0v_Amw_1zwRbG07zVXT6ogHFo6w7ziuC1nXpMSMRiaHp-6x809NWgQoiqzh7Qdl8FrmFD-VF4zAnwI1JFQqBw5OGSykqEOsTw"
+                    />
+                    <div
+                      class="absolute inset-x-2 bottom-2 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out z-20"
+                    >
+                      <button
+                        class="w-full h-10 bg-primary-container text-surface-container-lowest rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:bg-primary transition-colors shadow-md"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                        Quick Add
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col flex-1 justify-between space-y-2">
+                    <div>
+                      <div
+                        class="flex items-center justify-between text-outline font-label-sm text-label-sm uppercase tracking-wider"
+                      >
+                        <span>TOM FORD</span>
+                        <span class="flex items-center text-tertiary-container gap-0.5">
+                          <span
+                            class="material-symbols-outlined text-[13px] text-tertiary-fixed-dim"
+                            style="font-variation-settings: &quot;FILL&quot; 1"
+                            >star</span
+                          >
+                          <span class="text-on-surface font-bold text-[11px]">4.9</span>
+                        </span>
+                      </div>
+                      <h3
+                        class="font-title-md text-title-md text-on-surface line-clamp-2 mt-0.5 group-hover:text-primary transition-colors"
+                      >
+                        Black Orchid Eau de Parfum (50ml)
+                      </h3>
+                      <p class="font-body-sm text-[12px] text-outline mt-0.5">
+                        Dark truffles, ylang-ylang &amp; rich patchouli
+                      </p>
+                    </div>
+                    <div class="pt-2">
+                      <div class="flex items-baseline justify-between">
+                        <span class="font-price-lg text-price-lg text-primary font-bold"
+                          >6,800
+                          <span class="text-label-sm font-normal text-on-surface-variant"
+                            >EGP</span
+                          ></span
+                        >
+                        <span
+                          class="font-label-sm text-[11px] text-tertiary-fixed-dim font-semibold uppercase"
+                          >Free Express Ship</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <!-- PRODUCT 5: Dior Forever Skin Glow Foundation (FREE SHIPPING TAG) -->
+                <article
+                  class="group relative bg-surface-container-lowest rounded-xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                >
+                  <div
+                    class="relative w-full aspect-[3/4] bg-surface-container-low rounded-lg overflow-hidden mb-3"
+                  >
+                    <div class="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1">
+                      <span
+                        class="bg-primary-fixed text-primary px-2.5 py-0.5 rounded-full font-label-sm text-label-sm uppercase tracking-wider font-bold shadow-xs"
+                        >Eligible for Free Shipping</span
+                      >
+                    </div>
+                    <button
+                      aria-label="Add to Wishlist"
+                      class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface-container-lowest/80 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-surface-container-lowest hover:text-primary-container hover:scale-110 transition-all shadow-sm"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">favorite</span>
+                    </button>
+                    <img
+                      class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      data-alt="Dior Forever Skin Glow clear glass bottle with clean silver Dior motif, radiant clean liquid foundation reflecting natural morning light on light pink surface."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqTlsMlhh1jurisi_QlofcDADoHOKqBRJn8tiAgtYi8DkT0uvKYfiDLUPbeKw6y7OVZM0ilcDqVuG89h7eKBuiv-JE8HuEvokd4KJ-VXszsLXCQMhwnwYP24saAg-0SGQEoZLKBpuIU3vvB39OU2SzOtsgCalaJ-N5Pova2MVkVDSXnG1-j5Ji7DZGvpRNEjhp_A5kWHsgCUBbRPHMBP4UPJJLbHnyw8KGTfLgiosAlNwruV6dnWRLyQ"
+                    />
+                    <div
+                      class="absolute inset-x-2 bottom-2 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out z-20"
+                    >
+                      <button
+                        class="w-full h-10 bg-primary-container text-surface-container-lowest rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:bg-primary transition-colors shadow-md"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">tune</span>
+                        Select Shade &amp; Undertone
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col flex-1 justify-between space-y-2">
+                    <div>
+                      <div
+                        class="flex items-center justify-between text-outline font-label-sm text-label-sm uppercase tracking-wider"
+                      >
+                        <span>DIOR BEAUTY</span>
+                        <span class="flex items-center text-tertiary-container gap-0.5">
+                          <span
+                            class="material-symbols-outlined text-[13px] text-tertiary-fixed-dim"
+                            style="font-variation-settings: &quot;FILL&quot; 1"
+                            >star</span
+                          >
+                          <span class="text-on-surface font-bold text-[11px]">4.8</span>
+                        </span>
+                      </div>
+                      <h3
+                        class="font-title-md text-title-md text-on-surface line-clamp-2 mt-0.5 group-hover:text-primary transition-colors"
+                      >
+                        Dior Forever Skin Glow Foundation
+                      </h3>
+                      <p class="font-body-sm text-[12px] text-outline mt-0.5">
+                        24h radiant wear with hydration floral base
+                      </p>
+                    </div>
+                    <div class="pt-2">
+                      <div class="flex items-baseline justify-between">
+                        <span class="font-price-lg text-price-lg text-primary font-bold"
+                          >2,850
+                          <span class="text-label-sm font-normal text-on-surface-variant"
+                            >EGP</span
+                          ></span
+                        >
+                        <span class="font-label-sm text-[11px] text-secondary font-semibold"
+                          >COD Available</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <!-- PRODUCT 6: Chanel Coco Mademoiselle EDP (100ml) - OUT OF STOCK SPECIFIC TREATMENT -->
+                <article
+                  class="group relative bg-surface-container-low/70 rounded-xl p-3 shadow-none transition-all duration-300 flex flex-col justify-between opacity-80 hover:opacity-95"
+                >
+                  <div
+                    class="relative w-full aspect-[3/4] bg-surface-dim rounded-lg overflow-hidden mb-3"
+                  >
+                    <!-- Out of Stock Badge -->
+                    <div class="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1">
+                      <span
+                        class="bg-surface-variant text-on-surface-variant px-2.5 py-0.5 rounded-full font-label-sm text-label-sm uppercase tracking-wider font-bold shadow-xs"
+                        >Out of Stock</span
+                      >
+                    </div>
+                    <!-- Functional Wishlist Heart -->
+                    <button
+                      aria-label="Add to Wishlist"
+                      class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface-container-lowest text-primary-container flex items-center justify-center hover:scale-110 transition-all shadow-sm"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">favorite</span>
+                    </button>
+                    <!-- Desaturated Image -->
+                    <img
+                      class="w-full h-full object-cover object-center grayscale contrast-90"
+                      data-alt="Chanel Coco Mademoiselle clear faceted perfume bottle resting on a subtle silk background, slightly desaturated tone, delicate luxury essence."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDo0wc_tMhAPi4e1ci3k00zIU4qobyRyujbo46arZkhpnaCNfgGVjq7JTbkQi3IMC5HFS0Pm_b8DApUXoKknfSFbTVg0KxbJ6QMqbXs1cT8g42maR1cwBOjQx3PHE9Pfjty9DsURVES27Mi92zyA-68Tg7tA5nOI-ZNWs2WSODJouPD3IJ1fAOhuFCS9e757dHthP-2nFhfIgNZ8AOx0MNXDRtK6-1MDPj9u0zV-dthLXNFTK6YJtKKlQ"
+                    />
+                  </div>
+                  <!-- Metadata -->
+                  <div class="flex flex-col flex-1 justify-between space-y-2">
+                    <div>
+                      <div
+                        class="flex items-center justify-between text-outline font-label-sm text-label-sm uppercase tracking-wider"
+                      >
+                        <span>CHANEL</span>
+                        <span class="flex items-center text-outline gap-0.5">
+                          <span
+                            class="material-symbols-outlined text-[13px] text-tertiary-fixed-dim"
+                            style="font-variation-settings: &quot;FILL&quot; 1"
+                            >star</span
+                          >
+                          <span class="text-on-surface-variant font-bold text-[11px]">4.9</span>
+                        </span>
+                      </div>
+                      <h3
+                        class="font-title-md text-title-md text-on-surface-variant line-clamp-2 mt-0.5"
+                      >
+                        Coco Mademoiselle EDP (100ml)
+                      </h3>
+                      <p class="font-body-sm text-[12px] text-outline mt-0.5">
+                        Vibrant orange, jasmine &amp; May rose
+                      </p>
+                    </div>
+                    <div class="pt-2 space-y-2">
+                      <div class="flex items-baseline justify-between">
+                        <span class="font-price-lg text-price-lg text-outline font-semibold"
+                          >7,400
+                          <span class="text-label-sm font-normal text-outline">EGP</span></span
+                        >
+                        <span class="font-label-sm text-[11px] text-error font-semibold"
+                          >Sold Out</span
+                        >
+                      </div>
+                      <!-- Dual Action: Disabled Out of Stock + Active Notify Me -->
+                      <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          class="w-full h-9 bg-surface-container-highest text-outline rounded-lg font-label-sm text-label-sm font-bold uppercase cursor-not-allowed flex items-center justify-center"
+                          disabled=""
+                        >
+                          Out of Stock
+                        </button>
+                        <button
+                          class="w-full h-9 bg-surface-container-lowest text-primary-container rounded-lg font-label-sm text-label-sm font-bold flex items-center justify-center gap-1 hover:bg-primary-fixed transition-colors shadow-xs"
+                        >
+                          <span class="material-symbols-outlined text-[14px]">notifications</span>
+                          Notify Me
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <!-- PRODUCT 7: Maybelline Sky High Mascara (-20% SALE BADGE) -->
+                <article
+                  class="group relative bg-surface-container-lowest rounded-xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                >
+                  <div
+                    class="relative w-full aspect-[3/4] bg-surface-container-low rounded-lg overflow-hidden mb-3"
+                  >
+                    <div class="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1">
+                      <span
+                        class="bg-error text-on-error px-2.5 py-0.5 rounded-full font-label-sm text-label-sm uppercase tracking-wider font-bold shadow-xs"
+                        >-20% Sale</span
+                      >
+                    </div>
+                    <button
+                      aria-label="Add to Wishlist"
+                      class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface-container-lowest/80 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-surface-container-lowest hover:text-primary-container hover:scale-110 transition-all shadow-sm"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">favorite</span>
+                    </button>
+                    <img
+                      class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      data-alt="Maybelline Lash Sensational Sky High Mascara metallic blush pink tube standing upright on neutral studio set with dramatic lengthened eyelash effect backdrop."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDoiKs95S78UwaxYoeJfaIstFRtEYVHj_51jectR8eH1Vl1u6bmyKTxinr3M41j1wYL30jWqx7ETtOJE_hi3FcSdr4tPJD3b16PsF86QaQceszunm3TzruLwtnw-seO6yxta4Y__eHqkqNPh-CUDXHydzg41z4Ymf7dqN-TvRfYc6VyWts_KEsif3RkC2IRTouhSnKDDeN6pZjeLEX3EmOSlI7laMzfUeqy5sjeXVlh2aVam-rQSJupuw"
+                    />
+                    <div
+                      class="absolute inset-x-2 bottom-2 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out z-20"
+                    >
+                      <button
+                        class="w-full h-10 bg-primary-container text-surface-container-lowest rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:bg-primary transition-colors shadow-md"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                        Quick Add
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col flex-1 justify-between space-y-2">
+                    <div>
+                      <div
+                        class="flex items-center justify-between text-outline font-label-sm text-label-sm uppercase tracking-wider"
+                      >
+                        <span>MAYBELLINE NY</span>
+                        <span class="flex items-center text-tertiary-container gap-0.5">
+                          <span
+                            class="material-symbols-outlined text-[13px] text-tertiary-fixed-dim"
+                            style="font-variation-settings: &quot;FILL&quot; 1"
+                            >star</span
+                          >
+                          <span class="text-on-surface font-bold text-[11px]">4.6</span>
+                        </span>
+                      </div>
+                      <h3
+                        class="font-title-md text-title-md text-on-surface line-clamp-2 mt-0.5 group-hover:text-primary transition-colors"
+                      >
+                        Lash Sensational Sky High Mascara
+                      </h3>
+                      <p class="font-body-sm text-[12px] text-outline mt-0.5">
+                        Very Black • Bamboo extract formula
+                      </p>
+                    </div>
+                    <div class="pt-2">
+                      <div class="flex items-baseline gap-2">
+                        <span class="font-price-lg text-price-lg text-error font-bold"
+                          >680
+                          <span class="text-label-sm font-normal text-on-surface-variant"
+                            >EGP</span
+                          ></span
+                        >
+                        <span class="font-body-sm text-body-sm text-outline line-through"
+                          >850 EGP</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <!-- PRODUCT 8: Fenty Beauty Gloss Bomb Universal -->
+                <article
+                  class="group relative bg-surface-container-lowest rounded-xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                >
+                  <div
+                    class="relative w-full aspect-[3/4] bg-surface-container-low rounded-lg overflow-hidden mb-3"
+                  >
+                    <button
+                      aria-label="Add to Wishlist"
+                      class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface-container-lowest/80 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-surface-container-lowest hover:text-primary-container hover:scale-110 transition-all shadow-sm"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">favorite</span>
+                    </button>
+                    <img
+                      class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      data-alt="Fenty Beauty Gloss Bomb luminous hexagonal lip luminizer bottle glowing with shimmering rose-nude gloss, reflective mirror surfaces."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsWsgdSTHLsoUJrIIYal1DaV6XuTiDa7BluFeMqWD_UjYowKk8z9Oru6KieKnT9WoY23dVSzruRCCnrn0Ul0ualpWgOgnicusJCzGwYI2xh_C6FivCC-UR4k0sG9csEs1vVu20tm1ECc916CePOOn2pz-XdR9cVtYKl22PJMK93CdbULZKOCtYxjxOZo9XR5tcOPucZ-JRmyjWOKKS25p_Jf4wYR3NZpyXqlOFWEGTNnbwoMPB1okaDQ"
+                    />
+                    <div
+                      class="absolute inset-x-2 bottom-2 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out z-20"
+                    >
+                      <button
+                        class="w-full h-10 bg-primary-container text-surface-container-lowest rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:bg-primary transition-colors shadow-md"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                        Quick Add
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col flex-1 justify-between space-y-2">
+                    <div>
+                      <div
+                        class="flex items-center justify-between text-outline font-label-sm text-label-sm uppercase tracking-wider"
+                      >
+                        <span>FENTY BEAUTY</span>
+                        <span class="flex items-center text-tertiary-container gap-0.5">
+                          <span
+                            class="material-symbols-outlined text-[13px] text-tertiary-fixed-dim"
+                            style="font-variation-settings: &quot;FILL&quot; 1"
+                            >star</span
+                          >
+                          <span class="text-on-surface font-bold text-[11px]">4.8</span>
+                        </span>
+                      </div>
+                      <h3
+                        class="font-title-md text-title-md text-on-surface line-clamp-2 mt-0.5 group-hover:text-primary transition-colors"
+                      >
+                        Gloss Bomb Universal Lip Luminizer
+                      </h3>
+                      <p class="font-body-sm text-[12px] text-outline mt-0.5">
+                        Shade: Fenty Glow • Shea butter enriched
+                      </p>
+                    </div>
+                    <div class="pt-2">
+                      <div class="flex items-baseline justify-between">
+                        <span class="font-price-lg text-price-lg text-primary font-bold"
+                          >1,150
+                          <span class="text-label-sm font-normal text-on-surface-variant"
+                            >EGP</span
+                          ></span
+                        >
+                        <span class="font-label-sm text-[11px] text-on-surface-variant font-medium"
+                          >In Stock</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <!-- PRODUCT 9: Charlotte Tilbury Magic Cream (50ml) -->
+                <article
+                  class="group relative bg-surface-container-lowest rounded-xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                >
+                  <div
+                    class="relative w-full aspect-[3/4] bg-surface-container-low rounded-lg overflow-hidden mb-3"
+                  >
+                    <div class="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1">
+                      <span
+                        class="bg-tertiary-fixed text-primary px-2.5 py-0.5 rounded-full font-label-sm text-label-sm uppercase tracking-wider font-bold shadow-xs"
+                        >Cult Classic</span
+                      >
+                    </div>
+                    <button
+                      aria-label="Add to Wishlist"
+                      class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface-container-lowest/80 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-surface-container-lowest hover:text-primary-container hover:scale-110 transition-all shadow-sm"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">favorite</span>
+                    </button>
+                    <img
+                      class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      data-alt="Charlotte Tilbury Magic Cream in heavy faceted glass jar with rose-gold metallic starburst lid sitting open revealing luxurious whipped ivory moisturizing cream."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuATxA8wrrZ72UjEddrUyNuMVfjIOXV0U7ExogtTdlFs4IF42Hl05lonabWoP2JkERkBO6-Nmv0bZBSdd36vYTk3ZyNbgQKeEnyLRbvt5XxZMVKl98PJ3VgtDbrDEjw-OuFbYRaLDVfVwOshDQHbQzcoZMVujDpDEeVulHzTms5RMjNVORmluOcEZvQGJcBrjwKBhTjMhcN8RY1MxWE2rQ9DawPaPJHZlaBtAEAMzP8fNHiKgi30Gq3kdQ"
+                    />
+                    <div
+                      class="absolute inset-x-2 bottom-2 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out z-20"
+                    >
+                      <button
+                        class="w-full h-10 bg-primary-container text-surface-container-lowest rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:bg-primary transition-colors shadow-md"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                        Quick Add
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col flex-1 justify-between space-y-2">
+                    <div>
+                      <div
+                        class="flex items-center justify-between text-outline font-label-sm text-label-sm uppercase tracking-wider"
+                      >
+                        <span>CHARLOTTE TILBURY</span>
+                        <span class="flex items-center text-tertiary-container gap-0.5">
+                          <span
+                            class="material-symbols-outlined text-[13px] text-tertiary-fixed-dim"
+                            style="font-variation-settings: &quot;FILL&quot; 1"
+                            >star</span
+                          >
+                          <span class="text-on-surface font-bold text-[11px]">4.9</span>
+                        </span>
+                      </div>
+                      <h3
+                        class="font-title-md text-title-md text-on-surface line-clamp-2 mt-0.5 group-hover:text-primary transition-colors"
+                      >
+                        Charlotte's Magic Cream (50ml)
+                      </h3>
+                      <p class="font-body-sm text-[12px] text-outline mt-0.5">
+                        Hyaluronic acid, bionymph peptides &amp; glow
+                      </p>
+                    </div>
+                    <div class="pt-2">
+                      <div class="flex items-baseline justify-between">
+                        <span class="font-price-lg text-price-lg text-primary font-bold"
+                          >3,900
+                          <span class="text-label-sm font-normal text-on-surface-variant"
+                            >EGP</span
+                          ></span
+                        >
+                        <span
+                          class="font-label-sm text-[11px] text-tertiary-fixed-dim font-semibold uppercase"
+                          >Free Express Ship</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <!-- PRODUCT 10: Kayali Vanilla 28 EDP (100ml) -->
+                <article
+                  class="group relative bg-surface-container-lowest rounded-xl p-3 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                >
+                  <div
+                    class="relative w-full aspect-[3/4] bg-surface-container-low rounded-lg overflow-hidden mb-3"
+                  >
+                    <div class="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1">
+                      <span
+                        class="bg-primary-container text-surface-container-lowest px-2.5 py-0.5 rounded-full font-label-sm text-label-sm uppercase tracking-wider font-bold shadow-xs"
+                        >Bestseller</span
+                      >
+                    </div>
+                    <button
+                      aria-label="Add to Wishlist"
+                      class="absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full bg-surface-container-lowest/80 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-surface-container-lowest hover:text-primary-container hover:scale-110 transition-all shadow-sm"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">favorite</span>
+                    </button>
+                    <img
+                      class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      data-alt="Kayali Vanilla 28 Eau de Parfum jewel-cut diamond glass flacon with diamond faceted cap containing rich cognac brown fragrance liquid bathed in warm sunshine."
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-siBZlLyri1DtJvcR93BQyIR003z1gSMQJH2eHwDEfqRI0ftTbcjswVgTKGg5F_bPRbJrGoxMCoULq_BFDSzJXb2dbL6h1fIV5zv9njQNmgPqVG4gCP74YQPbCXFNC6kJIUZRZpmNQm7LksuWKlEUWzGTfhtL4YD9EYDNT0tq4BxqarOPD6KjblM_FZihML1o8Ekw0ZYDpmdgfNXeZp7dZwPNo6nPeqMXjwV3IqGZ99RsOJDQKevn9w"
+                    />
+                    <div
+                      class="absolute inset-x-2 bottom-2 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out z-20"
+                    >
+                      <button
+                        class="w-full h-10 bg-primary-container text-surface-container-lowest rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:bg-primary transition-colors shadow-md"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                        Quick Add
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col flex-1 justify-between space-y-2">
+                    <div>
+                      <div
+                        class="flex items-center justify-between text-outline font-label-sm text-label-sm uppercase tracking-wider"
+                      >
+                        <span>KAYALI PARFUMS</span>
+                        <span class="flex items-center text-tertiary-container gap-0.5">
+                          <span
+                            class="material-symbols-outlined text-[13px] text-tertiary-fixed-dim"
+                            style="font-variation-settings: &quot;FILL&quot; 1"
+                            >star</span
+                          >
+                          <span class="text-on-surface font-bold text-[11px]">4.9</span>
+                        </span>
+                      </div>
+                      <h3
+                        class="font-title-md text-title-md text-on-surface line-clamp-2 mt-0.5 group-hover:text-primary transition-colors"
+                      >
+                        Vanilla | 28 Eau De Parfum (100ml)
+                      </h3>
+                      <p class="font-body-sm text-[12px] text-outline mt-0.5">
+                        Madagascar vanilla orchid, brown sugar &amp; tonka
+                      </p>
+                    </div>
+                    <div class="pt-2">
+                      <div class="flex items-baseline justify-between">
+                        <span class="font-price-lg text-price-lg text-primary font-bold"
+                          >4,200
+                          <span class="text-label-sm font-normal text-on-surface-variant"
+                            >EGP</span
+                          ></span
+                        >
+                        <span
+                          class="font-label-sm text-[11px] text-tertiary-fixed-dim font-semibold uppercase"
+                          >Free Express Ship</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              </div>
+              <!-- PAGINATION MODULE -->
+              <section
+                class="mt-12 pt-6 border-t border-surface-variant flex flex-col sm:flex-row items-center justify-between gap-6"
+              >
+                <!-- Items per page selector -->
+                <div class="flex items-center gap-3">
+                  <span class="font-label-md text-label-md text-outline">Show</span>
+                  <div class="relative">
+                    <select
+                      class="appearance-none bg-surface-container-low pl-3 pr-8 py-1.5 rounded-md font-label-md text-label-md text-on-surface cursor-pointer focus:outline-none focus:bg-surface-container"
+                    >
+                      <option selected="" value="24">24 per page</option>
+                      <option value="48">48 per page</option>
+                      <option value="96">96 per page</option>
+                    </select>
+                    <span
+                      class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-outline text-[16px] pointer-events-none"
+                      >expand_more</span
+                    >
+                  </div>
+                  <span class="font-body-sm text-body-sm text-outline">of 128 products</span>
+                </div>
+                <!-- Page Links -->
+                <div class="flex items-center gap-1.5 font-label-md text-label-md">
+                  <button
+                    class="w-9 h-9 rounded-lg bg-primary-container text-surface-container-lowest font-bold flex items-center justify-center shadow-sm"
+                  >
+                    1
+                  </button>
+                  <button
+                    class="w-9 h-9 rounded-lg text-on-surface hover:bg-surface-container-low flex items-center justify-center transition-colors"
+                  >
+                    2
+                  </button>
+                  <button
+                    class="w-9 h-9 rounded-lg text-on-surface hover:bg-surface-container-low flex items-center justify-center transition-colors"
+                  >
+                    3
+                  </button>
+                  <span class="w-9 h-9 flex items-center justify-center text-outline">…</span>
+                  <button
+                    class="w-9 h-9 rounded-lg text-on-surface hover:bg-surface-container-low flex items-center justify-center transition-colors"
+                  >
+                    11
+                  </button>
+                  <!-- Next Arrow Button -->
+                  <button
+                    class="ml-2 px-3.5 h-9 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container font-label-md text-label-md flex items-center gap-1 transition-colors group"
+                  >
+                    <span>Next</span>
+                    <span
+                      class="material-symbols-outlined text-[16px] group-hover:translate-x-0.5 transition-transform"
+                      >arrow_forward</span
+                    >
+                  </button>
+                </div>
+              </section>
+            </main>
+          </div>
+        </div>
+        <!-- Delivery & Assurance Editorial Triad -->
+        <section class="w-full bg-surface-container-low py-12 px-margin mt-16">
+          <div class="max-w-[1360px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="flex items-start gap-4">
+              <div
+                class="w-12 h-12 rounded-xl bg-surface-container-lowest flex items-center justify-center text-primary-container shrink-0 shadow-sm"
+              >
+                <span class="material-symbols-outlined text-[24px]">payments</span>
+              </div>
+              <div>
+                <h4 class="font-title-md text-title-md text-on-surface font-semibold">
+                  Cash on Delivery Across Egypt
+                </h4>
+                <p class="font-body-sm text-body-sm text-outline mt-1 leading-relaxed">
+                  Inspect your order upon doorstep delivery anywhere in Cairo, Giza, Alexandria, and
+                  nationwide governorates before paying.
+                </p>
+              </div>
+            </div>
+            <div class="flex items-start gap-4">
+              <div
+                class="w-12 h-12 rounded-xl bg-surface-container-lowest flex items-center justify-center text-primary-container shrink-0 shadow-sm"
+              >
+                <span class="material-symbols-outlined text-[24px]">verified</span>
+              </div>
+              <div>
+                <h4 class="font-title-md text-title-md text-on-surface font-semibold">
+                  100% Direct Brand Authenticity
+                </h4>
+                <p class="font-body-sm text-body-sm text-outline mt-1 leading-relaxed">
+                  Every bottle, compact, and serum is officially sourced through authorized Egyptian
+                  distributors and French fragrance houses.
+                </p>
+              </div>
+            </div>
+            <div class="flex items-start gap-4">
+              <div
+                class="w-12 h-12 rounded-xl bg-surface-container-lowest flex items-center justify-center text-primary-container shrink-0 shadow-sm"
+              >
+                <span class="material-symbols-outlined text-[24px]">lte_mobiledata</span>
+              </div>
+              <div>
+                <h4 class="font-title-md text-title-md text-on-surface font-semibold">
+                  14-Day Seamless Return Policy
+                </h4>
+                <p class="font-body-sm text-body-sm text-outline mt-1 leading-relaxed">
+                  Unopened items enjoy rapid pickup and immediate wallet balance refund or instant
+                  courier cash reimbursement.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- Interactive Client Behavior Script -->
+        <script>
+          document.addEventListener("DOMContentLoaded", () => {
+            // Grid & List View Toggle
+            const gridBtn = document.getElementById("viewGrid");
+            const listBtn = document.getElementById("viewList");
+            const gridContainer = document.getElementById("productGridContainer");
+
+            if (gridBtn && listBtn && gridContainer) {
+              gridBtn.addEventListener("click", () => {
+                gridBtn.className =
+                  "p-1.5 rounded-md bg-surface-container-lowest text-primary-container shadow-sm flex items-center justify-center transition-all";
+                listBtn.className =
+                  "p-1.5 rounded-md text-outline hover:text-on-surface flex items-center justify-center transition-all";
+                gridContainer.className =
+                  "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-gutter";
+              });
+
+              listBtn.addEventListener("click", () => {
+                listBtn.className =
+                  "p-1.5 rounded-md bg-surface-container-lowest text-primary-container shadow-sm flex items-center justify-center transition-all";
+                gridBtn.className =
+                  "p-1.5 rounded-md text-outline hover:text-on-surface flex items-center justify-center transition-all";
+                gridContainer.className = "grid grid-cols-1 gap-4";
+              });
+            }
+
+            // Wishlist toggle interaction
+            const wishlistButtons = document.querySelectorAll(
+              'button[aria-label="Add to Wishlist"]',
+            );
+            wishlistButtons.forEach((btn) => {
+              btn.addEventListener("click", (e) => {
+                e.preventDefault();
+                const icon = btn.querySelector(".material-symbols-outlined");
+                if (icon) {
+                  const isFilled = icon.style.fontVariationSettings?.includes("'FILL' 1");
+                  if (isFilled) {
+                    icon.style.fontVariationSettings = "'FILL' 0";
+                    btn.classList.remove("text-primary-container");
+                    btn.classList.add("text-on-surface");
+                  } else {
+                    icon.style.fontVariationSettings = "'FILL' 1";
+                    btn.classList.add("text-primary-container");
+                    btn.classList.remove("text-on-surface");
+                  }
+                }
+              });
+            });
+          });
+        </script>
+      </div>
+    </main>
+    <footer
+      class="w-full bg-inverse-surface text-surface border-t border-outline-variant/30 pt-16 pb-12"
+    >
+      <div class="max-w-[1360px] mx-auto px-margin">
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter lg:gap-space-xl pb-12 border-b border-outline/30"
+        >
+          <div class="space-y-4">
+            <div class="flex flex-col">
+              <span
+                class="font-display-lg-mobile text-headline-sm text-surface font-serif uppercase tracking-wider"
+                >BEAUTYFITS</span
+              ><span
+                class="font-label-sm text-[9px] tracking-[0.2em] text-outline-variant uppercase"
+                >Beauty That Fits You</span
+              >
+            </div>
+            <p class="font-body-sm text-body-sm text-surface-container-high leading-relaxed">
+              Egypt's premier luxury beauty boutique. We curate authentic global cosmetics, rare
+              perfumes, and clinical skincare delivered with white-glove care nationwide.
+            </p>
+            <div
+              class="pt-2 flex flex-col gap-2 font-label-md text-label-md text-surface-container-highest"
+            >
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-tertiary-fixed"
+                  >local_shipping</span
+                ><span>Cash on Delivery Across Egypt</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-tertiary-fixed"
+                  >verified</span
+                ><span>100% Authentic Guarantee</span>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <h4 class="font-label-lg text-label-lg text-surface tracking-wider uppercase">Shop</h4>
+            <ul class="space-y-2.5 font-body-sm text-body-sm text-outline-variant">
+              <li class="hover:text-surface transition-colors">
+                <a data-path="makeup" href="#">Makeup</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="perfumes" href="#">Perfumes</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="skincare" href="#">Skincare</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="new-arrivals" href="#">New Arrivals</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="best-sellers" href="#">Best Sellers</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="offers" href="#">Exclusive Offers</a>
+              </li>
+            </ul>
+          </div>
+          <div class="space-y-4">
+            <h4 class="font-label-lg text-label-lg text-surface tracking-wider uppercase">
+              Customer Care
+            </h4>
+            <ul class="space-y-2.5 font-body-sm text-body-sm text-outline-variant">
+              <li class="hover:text-surface transition-colors">
+                <a data-path="order-tracking" href="#">Order Tracking</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="returns-policy" href="#">14-Day Returns Policy</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="shipping-policy" href="#"
+                  >Shipping &amp; Delivery (Free &gt; 2,500 EGP)</a
+                >
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="faqs" href="#">Frequently Asked Questions</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="contact-us" href="#">Contact Us</a>
+              </li>
+            </ul>
+          </div>
+          <div class="space-y-4">
+            <h4 class="font-label-lg text-label-lg text-surface tracking-wider uppercase">
+              Account &amp; Wallet
+            </h4>
+            <ul class="space-y-2.5 font-body-sm text-body-sm text-outline-variant">
+              <li class="hover:text-surface transition-colors">
+                <a data-path="my-account" href="#">My Account</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="wallet" href="#">Wallet Balance &amp; Instant Refunds</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="wishlist" href="#">My Wishlist</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="order-history" href="#">Order History</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="returns-policy" href="#">Return an Item</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div
+          class="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 font-body-sm text-body-sm text-outline-variant"
+        >
+          <p>
+            © 2026 BeautyFits. All rights reserved. • Cash on Delivery available nationwide in
+            Egypt.
+          </p>
+          <p class="font-label-md text-label-md text-surface-container-high">
+            Safe &amp; genuine beauty delivered to your door.
+          </p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,1967 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="web_standard" name="shell-type" />
+    <title>BeautyFits Egypt</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      @layer base {
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        body {
+          overscroll-behavior: none;
+        }
+        main > :first-child {
+          margin-top: 0 !important;
+        }
+        main > :last-child {
+          margin-bottom: 0 !important;
+        }
+      }
+      ::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed-dim": "#ffb0c9",
+              "on-primary-container": "#ec87aa",
+              surface: "#fff7fb",
+              "on-tertiary": "#ffffff",
+              "surface-container": "#f3ecf0",
+              "on-tertiary-container": "#c5a069",
+              "on-primary-fixed-variant": "#792a4b",
+              "on-background": "#1d1b1e",
+              "secondary-fixed-dim": "#f8b4c6",
+              "on-primary": "#ffffff",
+              "surface-container-lowest": "#ffffff",
+              "inverse-on-surface": "#f6eff3",
+              "primary-container": "#6b1e3f",
+              "on-secondary": "#ffffff",
+              "surface-tint": "#974162",
+              "surface-variant": "#e8e0e4",
+              "surface-dim": "#dfd8dc",
+              "surface-container-highest": "#e8e0e4",
+              "surface-container-low": "#f9f2f6",
+              "inverse-surface": "#332f32",
+              "surface-bright": "#fff7fb",
+              "on-secondary-fixed-variant": "#693747",
+              "secondary-container": "#feb9cb",
+              "tertiary-fixed": "#ffddae",
+              "error-container": "#ffdad6",
+              "on-secondary-fixed": "#350d1c",
+              "tertiary-fixed-dim": "#e8c086",
+              primary: "#4e0529",
+              outline: "#867277",
+              "tertiary-container": "#503708",
+              "on-tertiary-fixed": "#281800",
+              "on-surface-variant": "#534247",
+              "on-error-container": "#93000a",
+              "on-secondary-container": "#7b4656",
+              "surface-container-high": "#ede6ea",
+              background: "#fff7fb",
+              error: "#ba1a1a",
+              "on-primary-fixed": "#3e001e",
+              "primary-fixed": "#ffd9e3",
+              secondary: "#844e5e",
+              "inverse-primary": "#ffb0c9",
+              tertiary: "#362200",
+              "on-surface": "#1d1b1e",
+              "on-error": "#ffffff",
+              "on-tertiary-fixed-variant": "#5d4213",
+              "outline-variant": "#d8c1c6",
+              "secondary-fixed": "#ffd9e1",
+            },
+            borderRadius: { DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem" },
+            spacing: {
+              "space-xs": "0.25rem",
+              "space-sm": "0.5rem",
+              gutter: "1.5rem",
+              "margin-sm": "1.25rem",
+              "space-lg": "1.5rem",
+              "space-md": "1rem",
+              "gutter-sm": "1rem",
+              margin: "3rem",
+              "space-xl": "2.5rem",
+            },
+            fontFamily: {
+              "body-lg": ["Plus Jakarta Sans"],
+              "label-lg": ["Plus Jakarta Sans"],
+              "body-sm": ["Plus Jakarta Sans"],
+              "label-md": ["Plus Jakarta Sans"],
+              "headline-lg-mobile": ["Playfair Display"],
+              "headline-lg": ["Playfair Display"],
+              "display-lg": ["Playfair Display"],
+              "title-md": ["Plus Jakarta Sans"],
+              "display-lg-mobile": ["Playfair Display"],
+              "label-sm": ["Plus Jakarta Sans"],
+              "price-lg": ["Plus Jakarta Sans"],
+              "headline-sm": ["Playfair Display"],
+              "headline-md": ["Playfair Display"],
+              "price-md": ["Plus Jakarta Sans"],
+              "body-md": ["Plus Jakarta Sans"],
+              "title-lg": ["Plus Jakarta Sans"],
+            },
+            fontSize: {
+              "body-lg": ["16px", { lineHeight: "26px", fontWeight: "400" }],
+              "label-lg": [
+                "14px",
+                { lineHeight: "20px", letterSpacing: "0.02em", fontWeight: "600" },
+              ],
+              "body-sm": ["12px", { lineHeight: "18px", fontWeight: "400" }],
+              "label-md": [
+                "12px",
+                { lineHeight: "16px", letterSpacing: "0.04em", fontWeight: "600" },
+              ],
+              "headline-lg-mobile": [
+                "28px",
+                { lineHeight: "36px", letterSpacing: "0em", fontWeight: "500" },
+              ],
+              "headline-lg": [
+                "38px",
+                { lineHeight: "46px", letterSpacing: "-0.01em", fontWeight: "500" },
+              ],
+              "display-lg": [
+                "56px",
+                { lineHeight: "64px", letterSpacing: "-0.02em", fontWeight: "600" },
+              ],
+              "title-md": ["16px", { lineHeight: "24px", fontWeight: "600" }],
+              "display-lg-mobile": [
+                "36px",
+                { lineHeight: "44px", letterSpacing: "-0.01em", fontWeight: "600" },
+              ],
+              "label-sm": [
+                "10px",
+                { lineHeight: "14px", letterSpacing: "0.08em", fontWeight: "700" },
+              ],
+              "price-lg": ["20px", { lineHeight: "26px", fontWeight: "700" }],
+              "headline-sm": ["22px", { lineHeight: "30px", fontWeight: "600" }],
+              "headline-md": ["28px", { lineHeight: "36px", fontWeight: "500" }],
+              "price-md": ["16px", { lineHeight: "22px", fontWeight: "700" }],
+              "body-md": ["14px", { lineHeight: "22px", fontWeight: "400" }],
+              "title-lg": [
+                "18px",
+                { lineHeight: "26px", letterSpacing: "-0.01em", fontWeight: "600" },
+              ],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="bg-surface font-body-md text-on-surface antialiased">
+    <header class="fixed top-0 left-0 w-full z-50 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
+      <div
+        class="h-[34px] bg-primary-container text-surface-container-lowest font-label-sm text-label-sm tracking-widest flex items-center justify-center px-4 uppercase select-none"
+      >
+        <span>Free shipping on orders over 2,500 EGP • Cash on Delivery across Egypt</span>
+      </div>
+      <div class="h-[82px] bg-surface border-b border-outline-variant/60">
+        <div
+          class="max-w-[1360px] h-full mx-auto px-margin flex items-center justify-between gap-space-lg"
+        >
+          <a class="flex flex-col text-decoration-none group" data-path="home" href="#"
+            ><span
+              class="font-display-lg-mobile text-headline-sm tracking-wider text-primary font-serif uppercase transition-colors group-hover:text-primary-container"
+              >BEAUTYFITS</span
+            ><span class="font-label-sm text-[9px] tracking-[0.2em] text-outline uppercase"
+              >Beauty That Fits You</span
+            ></a
+          >
+          <div class="relative w-[480px] hidden md:block">
+            <span
+              class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[20px] pointer-events-none"
+              >search</span
+            ><input
+              class="w-full h-11 pl-11 pr-4 bg-surface-container-lowest border border-outline-variant/70 rounded-full font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary-container transition-all"
+              placeholder="Search products, brands, fragrances..."
+              type="search"
+            />
+          </div>
+          <div class="flex items-center gap-space-md">
+            <a
+              class="flex items-center gap-2 text-on-surface hover:text-primary-container transition-colors py-1"
+              data-path="my-account"
+              href="#"
+              ><span class="material-symbols-outlined text-[22px]">person</span
+              ><span class="font-label-md text-label-md hidden lg:inline">Account</span></a
+            ><a
+              class="relative p-2 text-on-surface hover:text-primary-container transition-colors"
+              data-path="wishlist"
+              href="#"
+              ><span class="material-symbols-outlined text-[22px]">favorite</span
+              ><span
+                class="absolute top-1 right-1 w-4 h-4 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-[10px] flex items-center justify-center font-bold"
+                >0</span
+              ></a
+            ><a
+              class="relative p-2 text-on-surface hover:text-primary-container transition-colors"
+              data-path="cart"
+              href="#"
+              ><span class="material-symbols-outlined text-[22px]">shopping_bag</span
+              ><span
+                class="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary-container text-surface-container-lowest font-label-sm text-[10px] flex items-center justify-center font-bold"
+                >3</span
+              ></a
+            >
+            <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-1">
+              <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        class="h-[46px] bg-surface-container-lowest border-b border-outline-variant/60 backdrop-blur-md"
+      >
+        <div
+          class="max-w-[1360px] h-full mx-auto px-margin flex items-center justify-start overflow-x-auto scrollbar-none"
+        >
+          <nav
+            class="flex items-center gap-8 h-full"
+            data-active-classes="text-primary-container border-b-2 border-primary-container font-semibold"
+          >
+            <a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="home"
+              href="#"
+              >Home</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="shop-all"
+              href="#"
+              >Shop</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="makeup"
+              href="#"
+              >Makeup</a
+            ><a
+              aria-current="page"
+              class="h-full flex items-center transition-all whitespace-nowrap text-primary-container border-b-2 border-primary-container font-semibold"
+              data-path="perfumes"
+              href="#"
+              >Perfumes</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="skincare"
+              href="#"
+              >Skincare</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="new-arrivals"
+              href="#"
+              >New Arrivals</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="best-sellers"
+              href="#"
+              >Best Sellers</a
+            ><a
+              class="h-full flex items-center font-label-md text-label-md text-on-surface-variant hover:text-primary-container border-b-2 border-transparent transition-all whitespace-nowrap"
+              data-path="offers"
+              href="#"
+              >Offers</a
+            >
+          </nav>
+        </div>
+      </div>
+    </header>
+    <main class="w-full pt-[162px] min-h-screen bg-surface">
+      <div class="flex flex-col w-full">
+        <!-- BREADCRUMB & METADATA BAR -->
+        <div class="w-full bg-surface-container-low">
+          <div
+            class="max-w-[1360px] mx-auto px-margin-sm md:px-margin py-3.5 flex items-center justify-between text-body-sm"
+          >
+            <nav
+              aria-label="Breadcrumb"
+              class="flex items-center gap-2 text-on-surface-variant font-label-md"
+            >
+              <a class="hover:text-primary-container transition-colors" data-path="home" href="#"
+                >Home</a
+              >
+              <span class="text-outline-variant">/</span>
+              <a
+                class="hover:text-primary-container transition-colors"
+                data-path="perfumes"
+                href="#"
+                >Perfumes</a
+              >
+              <span class="text-outline-variant">/</span>
+              <a
+                class="hover:text-primary-container transition-colors"
+                data-path="perfumes-women"
+                href="#"
+                >Women's Fragrances</a
+              >
+              <span class="text-outline-variant">/</span>
+              <span class="text-on-surface font-semibold truncate max-w-[200px] md:max-w-none"
+                >YSL Libre Eau de Parfum</span
+              >
+            </nav>
+            <div
+              class="hidden sm:flex items-center gap-4 text-on-surface-variant font-label-sm tracking-wider uppercase"
+            >
+              <span class="flex items-center gap-1.5"
+                ><span class="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span> Cairo Vault:
+                Authenticated</span
+              >
+              <span class="text-outline-variant">•</span>
+              <span>SKU: YSL-LIB-EDP-90</span>
+            </div>
+          </div>
+        </div>
+        <!-- MAIN PRODUCT SECTION: ASYMMETRIC 60/40 EDITORIAL GRID -->
+        <section class="w-full py-8 md:py-12 bg-surface">
+          <div class="max-w-[1360px] mx-auto px-margin-sm md:px-margin">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-14 items-start">
+              <!-- LEFT COLUMN (60% -> col-span-7) MEDIA SUITE -->
+              <div class="lg:col-span-7 flex flex-col gap-6">
+                <div
+                  class="relative bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm aspect-[4/5] flex items-center justify-center group"
+                >
+                  <!-- Active Main Image -->
+                  <img
+                    class="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
+                    data-alt="High luxury studio photograph of Yves Saint Laurent Libre Eau de Parfum iconic angular glass bottle with asymmetric black cap, gold twisted oversized YSL Cassandre logo chain wrapped around glass, resting gracefully on a textured warm ivory fluted stone pedestal with soft warm diffused sunlight casting tender ambient shadows, 8k commercial perfume photography"
+                    id="main-product-image"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCesgZcIjRWiOo-iYRJv0gbWqfmtM5VoFbtqmqfifYlVUP5kiV6qKK-Sq-xFrSmpW3YZ9aVxxonW_AspJ9xKkOsrhUef30TxQQ3wcmvUUr7roXQqglCARe91locY0BNkTe0O1b_v5XhDd_bkwGnmOOp-3tV5khqwaXQX7Sh33CR4P550QqZAFlgajxGLxSLB8u3lQ3QC3W88oNRcnVlktFMBzjTl06ewn0ZcwImfMA3YYMjTrw1deFDSg"
+                  />
+                  <!-- Badges -->
+                  <div class="absolute top-5 left-5 flex flex-col gap-2 pointer-events-none">
+                    <span
+                      class="bg-primary-container text-surface-container-lowest font-label-sm text-[10px] tracking-widest px-3 py-1 uppercase rounded-full shadow-sm"
+                      >Bestseller</span
+                    >
+                    <span
+                      class="bg-surface/90 backdrop-blur-md text-primary font-label-sm text-[10px] tracking-widest px-3 py-1 uppercase rounded-full shadow-sm"
+                      >Award Winner</span
+                    >
+                  </div>
+                  <!-- Zoom & Inspect Trigger -->
+                  <button
+                    aria-label="Zoom image"
+                    class="absolute bottom-5 right-5 w-11 h-11 rounded-full bg-surface/90 hover:bg-surface text-primary backdrop-blur-sm flex items-center justify-center shadow-md transition-all hover:scale-105"
+                    type="button"
+                  >
+                    <span class="material-symbols-outlined text-[20px]">zoom_in</span>
+                  </button>
+                </div>
+                <!-- Thumbnails Row -->
+                <div class="grid grid-cols-4 gap-3 sm:gap-4">
+                  <button
+                    class="thumb-btn active-thumb relative aspect-square rounded-lg overflow-hidden bg-surface-container-lowest p-1 shadow-sm transition-all focus:outline-none ring-2 ring-primary-container"
+                    onclick="
+                      selectThumbnail(
+                        0,
+                        'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&amp;fit=crop&amp;q=80&amp;w=1200',
+                      )
+                    "
+                    type="button"
+                  >
+                    <img
+                      class="w-full h-full object-cover rounded"
+                      data-alt="Close up of Yves Saint Laurent Libre perfume bottle showing gold sculpted YSL logo on glass pedestal in gentle warm light"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDk3xZLfYJEeh3zokOtBOmqVdeYxbL_uPsbJocJQ0Mmx6EX84roLwDgDd7MeLqnblKzcItknEFReeGYpkou2CzT6vWC0t03tq91-Wj2iMAuA9HEDc1aNTpR63MRo9csalRbzV-7SP_P91V2l4NVqCVFkMxgJXbFIe4lCLPO5ZXC_OdPoziNP2mk1MBTNdlAsShufVSCkcpFx_7Za9MrfNO1bH-49al-Dub_fUjmZL7bCfQq5hh2A5fR8w"
+                    />
+                  </button>
+                  <button
+                    class="thumb-btn relative aspect-square rounded-lg overflow-hidden bg-surface-container-lowest p-1 shadow-sm transition-all focus:outline-none opacity-70 hover:opacity-100"
+                    onclick="
+                      selectThumbnail(
+                        1,
+                        'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&amp;fit=crop&amp;q=80&amp;w=1200',
+                      )
+                    "
+                    type="button"
+                  >
+                    <img
+                      class="w-full h-full object-cover rounded"
+                      data-alt="Macro detail of asymmetric glossy black lacquered cap, gold chain choker necklace wrapped around perfume bottle neck, fine French luxury craftsmanship"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_Sn_yeXzWZ2K5nffRhFyL_nv2dM-mYxbloAQw5QyBh-3Esy3ZY_dIIHkaecX8a7PGBkLGs5y6ySf67fSMLlF926eqORTaKYbsmCXMI2r0cOGBoYPR6A8dhTM3VpllnCq8SCptjrghyZRGZH0Pot60-pukREfGv_MdbPDOyzTRNvrhacD27ejJSBVw3CMKwlUdPvVuiRIrHDU7kfehmOlNLFg42fKhm621WYB16-Ep44GiIl_ILyGAGQ"
+                    />
+                  </button>
+                  <button
+                    class="thumb-btn relative aspect-square rounded-lg overflow-hidden bg-surface-container-lowest p-1 shadow-sm transition-all focus:outline-none opacity-70 hover:opacity-100"
+                    onclick="
+                      selectThumbnail(
+                        2,
+                        'https://images.unsplash.com/photo-1616949755610-8c9bbc08f138?auto=format&amp;fit=crop&amp;q=80&amp;w=1200',
+                      )
+                    "
+                    type="button"
+                  >
+                    <img
+                      class="w-full h-full object-cover rounded"
+                      data-alt="Artistic botanical mood arrangement showing fresh lavender blossoms, radiant orange blossoms, and rich Madagascar vanilla beans beside amber resin stones"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0RpmXRsqQCeOC1a-k7yTHQPYX18hsSCTBKFEe9CyOf0YnDFP4u_MY2SsU0i4KY3W4mg0wp_tku-HobtsbmmhQOcmgTRlMVTNOp8K2BaRWoF4epPwSNypByCaftymEfjM2zlMy_2o0splYtl4kyzTqTbKFUME5jLECVe2AP_FFaW-CWaOzq7t-_0CzClPO56n0HAZwc8yeLqoGkO6Gre_BkL6dUhI1GGtBxV0wh3OsAaeOiSqVUTZvtw"
+                    />
+                  </button>
+                  <button
+                    class="thumb-btn relative aspect-square rounded-lg overflow-hidden bg-surface-container-lowest p-1 shadow-sm transition-all focus:outline-none opacity-70 hover:opacity-100"
+                    onclick="
+                      selectThumbnail(
+                        3,
+                        'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&amp;fit=crop&amp;q=80&amp;w=1200',
+                      )
+                    "
+                    type="button"
+                  >
+                    <img
+                      class="w-full h-full object-cover rounded"
+                      data-alt="Sophisticated woman in tailored black blazer holding Yves Saint Laurent Libre fragrance in soft golden hour sunlight, lifestyle portrait"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpRzerhD4HXZf3lLO-QcBLUMe1cs0ZbAZ8bGgeDTF-L00TkLfyuRMFtmRlTeRE-OaUhO9tzkjUJXTu4k3vGhwano5ql8UcZaksqlWzqmeABJ0qJUnaB7hZsO-eqKpOl7igljHbi7K85Zl7tFBSjrWUimsO-wMQoNbX4tFeTgkkHvS5xRWikalRY8sJSoE9-0RwrbNNhgZh4ePtp0xbCQ_8JUnv-TskA36ICiO8C9n44V06_h2ggGgtXA"
+                    />
+                  </button>
+                </div>
+                <!-- Authentication Trust Banner -->
+                <div
+                  class="bg-surface-container-low rounded-xl p-4 flex items-center justify-between gap-4"
+                >
+                  <div class="flex items-center gap-3">
+                    <span
+                      class="w-10 h-10 rounded-full bg-primary-container/10 flex items-center justify-center text-primary-container"
+                    >
+                      <span
+                        class="material-symbols-outlined text-[20px]"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >verified_user</span
+                      >
+                    </span>
+                    <div>
+                      <p class="font-title-md text-title-md text-on-surface">
+                        100% Genuine Guaranteed
+                      </p>
+                      <p class="font-body-sm text-body-sm text-on-surface-variant">
+                        Imported directly from authorized French suppliers • Verifiable Batch Code
+                        on Box
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    class="hidden sm:inline-block font-label-sm text-primary uppercase tracking-widest bg-primary-fixed/60 px-3 py-1.5 rounded"
+                    >Vault Inspected</span
+                  >
+                </div>
+              </div>
+              <!-- RIGHT COLUMN (40% -> col-span-5) PURCHASING SUITE -->
+              <div class="lg:col-span-5 flex flex-col gap-6">
+                <!-- Brand & Product Title Header -->
+                <div class="flex flex-col gap-2">
+                  <a
+                    class="font-label-sm tracking-[0.2em] uppercase text-primary font-bold hover:text-primary-container transition-colors"
+                    data-path="brand-ysl"
+                    href="#"
+                    >Yves Saint Laurent</a
+                  >
+                  <h1 class="font-headline-lg text-headline-lg text-on-surface leading-tight">
+                    Libre Eau de Parfum
+                  </h1>
+                  <p class="font-body-md text-body-md text-on-surface-variant">
+                    The fragrance of freedom — sensual French lavender meets glowing Moroccan orange
+                    blossom.
+                  </p>
+                </div>
+                <!-- Social Proof & Velocity Signal -->
+                <div
+                  class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-4 bg-surface-container-lowest p-4 rounded-xl shadow-sm"
+                >
+                  <div class="flex items-center gap-2">
+                    <div class="flex text-amber-500 text-[18px]">
+                      <span
+                        class="material-symbols-outlined text-[18px]"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[18px]"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[18px]"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[18px]"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[18px]"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                    </div>
+                    <span class="font-title-md text-title-md font-bold text-on-surface">4.9</span>
+                    <a
+                      class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary underline underline-offset-4"
+                      href="#reviews"
+                      >(312 reviews)</a
+                    >
+                  </div>
+                  <div class="flex items-center gap-1.5 text-primary-container font-label-sm">
+                    <span class="material-symbols-outlined text-[16px] animate-pulse"
+                      >local_fire_department</span
+                    >
+                    <span>24 sold in last 24h</span>
+                  </div>
+                </div>
+                <!-- Price & COD Clarity Module -->
+                <div
+                  class="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col gap-3"
+                >
+                  <div class="flex items-baseline justify-between">
+                    <div>
+                      <span class="font-label-sm text-outline uppercase tracking-wider block"
+                        >Price</span
+                      >
+                      <span
+                        class="font-display-lg-mobile text-headline-lg text-primary font-serif"
+                        id="product-price"
+                        >4,850
+                        <span
+                          class="font-price-md text-price-md font-sans font-bold text-on-surface"
+                          >EGP</span
+                        ></span
+                      >
+                    </div>
+                    <div class="text-right">
+                      <span
+                        class="font-label-sm text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full font-bold flex items-center gap-1"
+                      >
+                        <span class="material-symbols-outlined text-[14px]">check</span> Free Cairo
+                        &amp; Giza Delivery
+                      </span>
+                      <span class="font-body-sm text-[11px] text-on-surface-variant mt-1 block"
+                        >Taxes &amp; Customs Duties Included</span
+                      >
+                    </div>
+                  </div>
+                  <!-- Free Shipping Visual Milestone -->
+                  <div class="pt-2">
+                    <div class="flex items-center justify-between text-body-sm mb-1.5">
+                      <span
+                        class="font-label-md text-primary-container font-semibold flex items-center gap-1.5"
+                      >
+                        <span class="material-symbols-outlined text-[16px]">redeem</span>
+                        Congratulations! Unlocked Free Shipping
+                      </span>
+                      <span class="font-label-sm text-on-surface-variant"
+                        >Threshold: 2,500 EGP</span
+                      >
+                    </div>
+                    <div class="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                      <div
+                        class="h-full bg-primary-container w-full rounded-full transition-all duration-500"
+                      ></div>
+                    </div>
+                  </div>
+                  <div
+                    class="pt-2 flex items-center gap-2 text-on-surface-variant font-label-md bg-surface-container-low px-3 py-2 rounded-lg"
+                  >
+                    <span class="material-symbols-outlined text-[18px] text-primary-container"
+                      >payments</span
+                    >
+                    <span
+                      >Pay with <strong>Cash on Delivery (COD)</strong>, Credit Card, or BeautyFits
+                      Wallet</span
+                    >
+                  </div>
+                </div>
+                <!-- VARIANT SELECTOR 1: SIZE / VOLUME -->
+                <div class="flex flex-col gap-2.5">
+                  <div class="flex items-center justify-between font-label-lg">
+                    <span class="text-on-surface"
+                      >Volume:
+                      <strong class="text-primary font-bold" id="selected-size-label"
+                        >90ml</strong
+                      ></span
+                    >
+                    <a
+                      class="text-on-surface-variant font-label-md hover:text-primary underline flex items-center gap-1"
+                      href="#fragrance-guide"
+                    >
+                      <span class="material-symbols-outlined text-[16px]">straighten</span> Size
+                      Guide
+                    </a>
+                  </div>
+                  <div class="grid grid-cols-4 gap-2.5" id="size-options">
+                    <button
+                      class="size-btn flex flex-col items-center justify-center p-3 rounded-lg bg-surface-container-lowest hover:bg-surface-container-low shadow-sm transition-all focus:outline-none"
+                      onclick="selectSize('30ml', 2600, this)"
+                      type="button"
+                    >
+                      <span class="font-label-md text-on-surface">30ml</span>
+                      <span class="font-label-sm text-[11px] text-outline mt-0.5">2,600 EGP</span>
+                    </button>
+                    <button
+                      class="size-btn flex flex-col items-center justify-center p-3 rounded-lg bg-surface-container-lowest hover:bg-surface-container-low shadow-sm transition-all focus:outline-none"
+                      onclick="selectSize('50ml', 3850, this)"
+                      type="button"
+                    >
+                      <span class="font-label-md text-on-surface">50ml</span>
+                      <span class="font-label-sm text-[11px] text-outline mt-0.5">3,850 EGP</span>
+                    </button>
+                    <button
+                      class="size-btn active-size flex flex-col items-center justify-center p-3 rounded-lg bg-primary-container text-surface-container-lowest shadow-sm transition-all focus:outline-none"
+                      onclick="selectSize('90ml', 4850, this)"
+                      type="button"
+                    >
+                      <span class="font-label-md font-bold">90ml</span>
+                      <span class="font-label-sm text-[11px] opacity-90 mt-0.5">4,850 EGP</span>
+                    </button>
+                    <button
+                      class="opacity-40 cursor-not-allowed flex flex-col items-center justify-center p-3 rounded-lg bg-surface-container line-through"
+                      disabled=""
+                      type="button"
+                    >
+                      <span class="font-label-md text-outline">150ml</span>
+                      <span class="font-label-sm text-[10px] text-outline">Sold Out</span>
+                    </button>
+                  </div>
+                </div>
+                <!-- VARIANT SELECTOR 2: CONCENTRATION -->
+                <div class="flex flex-col gap-2.5">
+                  <span class="font-label-lg text-on-surface"
+                    >Concentration:
+                    <strong class="text-primary font-bold">Eau de Parfum</strong></span
+                  >
+                  <div class="grid grid-cols-3 gap-2.5">
+                    <button
+                      class="py-2.5 px-3 rounded-lg bg-surface-container-lowest hover:bg-surface-container-low text-on-surface text-center font-label-md shadow-sm transition-all"
+                      type="button"
+                    >
+                      Eau de Toilette
+                    </button>
+                    <button
+                      class="py-2.5 px-3 rounded-lg bg-primary-container text-surface-container-lowest font-semibold text-center font-label-md shadow-sm"
+                      type="button"
+                    >
+                      Eau de Parfum
+                    </button>
+                    <button
+                      class="py-2.5 px-3 rounded-lg bg-surface-container-lowest hover:bg-surface-container-low text-on-surface text-center font-label-md shadow-sm transition-all"
+                      type="button"
+                    >
+                      Le Parfum
+                    </button>
+                  </div>
+                </div>
+                <!-- STOCK METER -->
+                <div
+                  class="flex items-center gap-2.5 bg-amber-50 rounded-lg p-3 text-amber-900 font-label-md"
+                >
+                  <span
+                    class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping inline-block"
+                  ></span>
+                  <span class="font-semibold">Only 4 bottles remaining</span>
+                  <span class="text-amber-700 text-body-sm font-normal"
+                    >• Dispatched immediately from New Cairo fulfillment centre</span
+                  >
+                </div>
+                <!-- QUANTITY & ADD TO BAG ROW -->
+                <div class="flex flex-col sm:flex-row items-stretch gap-3">
+                  <!-- Stepper -->
+                  <div
+                    class="flex items-center justify-between bg-surface-container-lowest rounded-lg px-4 h-[50px] shadow-sm sm:w-[130px]"
+                  >
+                    <button
+                      class="text-on-surface hover:text-primary transition-colors text-lg font-bold p-1 focus:outline-none"
+                      onclick="updateQty(-1)"
+                      type="button"
+                    >
+                      −
+                    </button>
+                    <span
+                      class="font-title-md text-title-md font-bold text-on-surface"
+                      id="qty-counter"
+                      >1</span
+                    >
+                    <button
+                      class="text-on-surface hover:text-primary transition-colors text-lg font-bold p-1 focus:outline-none"
+                      onclick="updateQty(1)"
+                      type="button"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <!-- Primary Add to Bag Button -->
+                  <button
+                    class="flex-1 h-[50px] bg-primary-container hover:bg-primary text-surface-container-lowest rounded-lg font-label-lg text-label-lg tracking-wider uppercase flex items-center justify-center gap-3 shadow-md transition-all active:scale-[0.99]"
+                    id="add-to-bag-btn"
+                    onclick="handleAddToCart()"
+                    type="button"
+                  >
+                    <span class="material-symbols-outlined text-[20px]">shopping_bag</span>
+                    <span id="btn-text">Add to Bag — 4,850 EGP</span>
+                  </button>
+                  <!-- Wishlist Button -->
+                  <button
+                    aria-label="Add to wishlist"
+                    class="h-[50px] w-[50px] rounded-lg bg-surface-container-lowest hover:bg-surface-container-low text-on-surface shadow-sm flex items-center justify-center transition-all group"
+                    onclick="toggleWishlist(this)"
+                    type="button"
+                  >
+                    <span
+                      class="material-symbols-outlined text-[22px] group-hover:text-primary transition-colors"
+                      >favorite</span
+                    >
+                  </button>
+                </div>
+                <!-- TRUST BADGES GRID -->
+                <div class="grid grid-cols-2 gap-3 pt-3">
+                  <div class="flex items-center gap-3 bg-surface-container-low p-3 rounded-lg">
+                    <span class="material-symbols-outlined text-primary-container text-[22px]"
+                      >verified</span
+                    >
+                    <div class="flex flex-col">
+                      <span class="font-label-md text-on-surface font-semibold"
+                        >100% Authentic</span
+                      >
+                      <span class="font-body-sm text-[11px] text-on-surface-variant"
+                        >Direct European Import</span
+                      >
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3 bg-surface-container-low p-3 rounded-lg">
+                    <span class="material-symbols-outlined text-primary-container text-[22px]"
+                      >local_shipping</span
+                    >
+                    <div class="flex flex-col">
+                      <span class="font-label-md text-on-surface font-semibold"
+                        >Free Express Shipping</span
+                      >
+                      <span class="font-body-sm text-[11px] text-on-surface-variant"
+                        >On orders &gt; 2,500 EGP</span
+                      >
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3 bg-surface-container-low p-3 rounded-lg">
+                    <span class="material-symbols-outlined text-primary-container text-[22px]"
+                      >assignment_return</span
+                    >
+                    <div class="flex flex-col">
+                      <span class="font-label-md text-on-surface font-semibold"
+                        >14-Day Returns</span
+                      >
+                      <span class="font-body-sm text-[11px] text-on-surface-variant"
+                        >Instant Wallet Refund</span
+                      >
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3 bg-surface-container-low p-3 rounded-lg">
+                    <span class="material-symbols-outlined text-primary-container text-[22px]"
+                      >account_balance_wallet</span
+                    >
+                    <div class="flex flex-col">
+                      <span class="font-label-md text-on-surface font-semibold"
+                        >Cash on Delivery</span
+                      >
+                      <span class="font-body-sm text-[11px] text-on-surface-variant"
+                        >Pay at your doorstep</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- OLFACTORY MOOD PYRAMID & EDITORIAL SPREAD -->
+        <section class="w-full py-16 bg-surface-container-low">
+          <div class="max-w-[1360px] mx-auto px-margin-sm md:px-margin">
+            <div class="text-center max-w-2xl mx-auto mb-12">
+              <span class="font-label-sm text-primary uppercase tracking-[0.2em] font-bold"
+                >The Architecture of Scent</span
+              >
+              <h2 class="font-headline-lg text-headline-lg text-on-surface mt-2 font-serif">
+                A Tension Between Floral &amp; Aromatic
+              </h2>
+              <p class="font-body-md text-body-md text-on-surface-variant mt-3">
+                Crafted in Grasse and Paris by Master Perfumers Anne Flipo and Carlos Benaïm, Libre
+                is an ode to untamed, fearless femininity.
+              </p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <!-- Top Notes -->
+              <div
+                class="bg-surface-container-lowest p-8 rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-all"
+              >
+                <div
+                  class="absolute -right-4 -bottom-4 w-28 h-28 rounded-full bg-primary-container/5 pointer-events-none group-hover:scale-125 transition-transform duration-500"
+                ></div>
+                <div>
+                  <span class="font-label-sm uppercase tracking-widest text-primary font-bold"
+                    >First Impression • 15 Mins</span
+                  >
+                  <h3 class="font-headline-sm text-headline-sm text-on-surface mt-2 font-serif">
+                    Top Notes
+                  </h3>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant mt-3 leading-relaxed">
+                    Crisp, zesty French Diva Lavender from sustainable harvests in Provence, paired
+                    with crystalline Tangerine Oil and tart Blackcurrant essence.
+                  </p>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-6">
+                  <span
+                    class="font-label-sm bg-surface-container px-3 py-1 rounded-full text-on-surface-variant"
+                    >French Lavender</span
+                  >
+                  <span
+                    class="font-label-sm bg-surface-container px-3 py-1 rounded-full text-on-surface-variant"
+                    >Mandarin Oil</span
+                  >
+                  <span
+                    class="font-label-sm bg-surface-container px-3 py-1 rounded-full text-on-surface-variant"
+                    >Blackcurrant</span
+                  >
+                </div>
+              </div>
+              <!-- Heart Notes -->
+              <div
+                class="bg-surface-container-lowest p-8 rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-all"
+              >
+                <div
+                  class="absolute -right-4 -bottom-4 w-28 h-28 rounded-full bg-amber-500/10 pointer-events-none group-hover:scale-125 transition-transform duration-500"
+                ></div>
+                <div>
+                  <span class="font-label-sm uppercase tracking-widest text-amber-700 font-bold"
+                    >The Core • 2 - 4 Hours</span
+                  >
+                  <h3 class="font-headline-sm text-headline-sm text-on-surface mt-2 font-serif">
+                    Heart Notes
+                  </h3>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant mt-3 leading-relaxed">
+                    A fiery, radiant blossom burst of Moroccan Orange Blossom absolute married with
+                    opulent Indian Jasmine Sambac for unmistakable warmth.
+                  </p>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-6">
+                  <span
+                    class="font-label-sm bg-surface-container px-3 py-1 rounded-full text-on-surface-variant"
+                    >Moroccan Orange Blossom</span
+                  >
+                  <span
+                    class="font-label-sm bg-surface-container px-3 py-1 rounded-full text-on-surface-variant"
+                    >Jasmine Sambac</span
+                  >
+                </div>
+              </div>
+              <!-- Base Notes -->
+              <div
+                class="bg-surface-container-lowest p-8 rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-all"
+              >
+                <div
+                  class="absolute -right-4 -bottom-4 w-28 h-28 rounded-full bg-primary-container/10 pointer-events-none group-hover:scale-125 transition-transform duration-500"
+                ></div>
+                <div>
+                  <span
+                    class="font-label-sm uppercase tracking-widest text-primary-container font-bold"
+                    >The Dry Down • 8+ Hours</span
+                  >
+                  <h3 class="font-headline-sm text-headline-sm text-on-surface mt-2 font-serif">
+                    Base Notes
+                  </h3>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant mt-3 leading-relaxed">
+                    Sensual Madagascar Vanilla Bourbon extract enveloped by smoky Cedarwood oil,
+                    glowing Ambergris accord, and clean animalic Musks.
+                  </p>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-6">
+                  <span
+                    class="font-label-sm bg-surface-container px-3 py-1 rounded-full text-on-surface-variant"
+                    >Madagascar Vanilla</span
+                  >
+                  <span
+                    class="font-label-sm bg-surface-container px-3 py-1 rounded-full text-on-surface-variant"
+                    >Cedarwood</span
+                  >
+                  <span
+                    class="font-label-sm bg-surface-container px-3 py-1 rounded-full text-on-surface-variant"
+                    >Ambergris</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- ACCORDION INFORMATION TABS -->
+        <section class="w-full py-12 md:py-16 bg-surface">
+          <div class="max-w-[1000px] mx-auto px-margin-sm md:px-margin">
+            <div class="text-center mb-8">
+              <h2 class="font-headline-md text-headline-md text-on-surface font-serif">
+                Product Specifications &amp; Commitments
+              </h2>
+            </div>
+            <div class="flex flex-col gap-3">
+              <!-- Accordion 1: Description -->
+              <div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+                <button
+                  class="w-full p-5 text-left flex items-center justify-between font-title-lg text-title-lg text-on-surface hover:text-primary transition-colors focus:outline-none"
+                  onclick="toggleAccordion('acc-1')"
+                  type="button"
+                >
+                  <span class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-primary-container"
+                      >auto_awesome</span
+                    >
+                    Detailed Description &amp; Character
+                  </span>
+                  <span
+                    class="material-symbols-outlined transition-transform duration-300"
+                    id="acc-1-icon"
+                    >expand_less</span
+                  >
+                </button>
+                <div
+                  class="px-5 pb-6 text-body-md text-on-surface-variant flex flex-col gap-3"
+                  id="acc-1-content"
+                >
+                  <p>
+                    Yves Saint Laurent Libre Eau de Parfum represents a daring statement of freedom.
+                    The structured rigidity of masculine lavender is subverted and softened by
+                    ultra-feminine white florals, creating an audacious tension between fierce
+                    determination and magnetic sensuality.
+                  </p>
+                  <p>
+                    The flacon itself reflects couture architecture: geometric lines inspired by
+                    Saint Laurent's tailored tuxedos, draped in the iconic gold Cassandre monogram
+                    pinned like an haute-couture brooch, crowned with an asymmetric jet-black
+                    lacquered cap wrapped in gold chains.
+                  </p>
+                </div>
+              </div>
+              <!-- Accordion 2: How to Wear & Longevity -->
+              <div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+                <button
+                  class="w-full p-5 text-left flex items-center justify-between font-title-lg text-title-lg text-on-surface hover:text-primary transition-colors focus:outline-none"
+                  onclick="toggleAccordion('acc-2')"
+                  type="button"
+                >
+                  <span class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-primary-container">schedule</span>
+                    How to Wear, Sillage &amp; Longevity
+                  </span>
+                  <span
+                    class="material-symbols-outlined transition-transform duration-300"
+                    id="acc-2-icon"
+                    >expand_more</span
+                  >
+                </button>
+                <div
+                  class="hidden px-5 pb-6 text-body-md text-on-surface-variant flex flex-col gap-3"
+                  id="acc-2-content"
+                >
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 py-2">
+                    <div class="bg-surface-container-low p-4 rounded-lg">
+                      <span class="font-label-sm text-outline uppercase block">Longevity</span>
+                      <span class="font-title-md text-on-surface font-bold">8 to 12 Hours</span>
+                      <span class="text-body-sm text-on-surface-variant block mt-1"
+                        >Excellent hold even in warm Egyptian climates.</span
+                      >
+                    </div>
+                    <div class="bg-surface-container-low p-4 rounded-lg">
+                      <span class="font-label-sm text-outline uppercase block"
+                        >Sillage / Projection</span
+                      >
+                      <span class="font-title-md text-on-surface font-bold">Moderate to Heavy</span>
+                      <span class="text-body-sm text-on-surface-variant block mt-1"
+                        >Leaves a distinct, magnetic trail without overwhelming.</span
+                      >
+                    </div>
+                    <div class="bg-surface-container-low p-4 rounded-lg">
+                      <span class="font-label-sm text-outline uppercase block"
+                        >Ideal Occasions</span
+                      >
+                      <span class="font-title-md text-on-surface font-bold"
+                        >Day-to-Night Signature</span
+                      >
+                      <span class="text-body-sm text-on-surface-variant block mt-1"
+                        >Boardrooms, evening soirees, and special galas.</span
+                      >
+                    </div>
+                  </div>
+                  <p>
+                    <strong>Application Ritual:</strong> Mist onto pulse points: wrists, collarbone,
+                    behind ears, and inside elbows. Avoid rubbing wrists together after application,
+                    as this breaks down top aromatic molecular clusters.
+                  </p>
+                </div>
+              </div>
+              <!-- Accordion 3: Ingredients & Origin -->
+              <div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+                <button
+                  class="w-full p-5 text-left flex items-center justify-between font-title-lg text-title-lg text-on-surface hover:text-primary transition-colors focus:outline-none"
+                  onclick="toggleAccordion('acc-3')"
+                  type="button"
+                >
+                  <span class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-primary-container">science</span>
+                    Ingredients &amp; French Origin
+                  </span>
+                  <span
+                    class="material-symbols-outlined transition-transform duration-300"
+                    id="acc-3-icon"
+                    >expand_more</span
+                  >
+                </button>
+                <div
+                  class="hidden px-5 pb-6 text-body-md text-on-surface-variant flex flex-col gap-3"
+                  id="acc-3-content"
+                >
+                  <p class="font-label-md text-on-surface">
+                    Country of Origin: <strong>Made in France</strong>
+                  </p>
+                  <p class="text-body-sm leading-relaxed">
+                    ALCOHOL • PARFUM / FRAGRANCE • AQUA / WATER / EAU • LIMONENE • LINALOOL • BENZYL
+                    SALICYLATE • HYDROXYCITRONELLAL • BENZYL ALCOHOL • ETHYLHEXYL SALICYLATE • BUTYL
+                    METHOXYDIBENZOYLMETHANE • COUMARIN • GERANIOL • METHYL ANTHRANILATE •
+                    CITRONELLOL • CITRAL • ISOEUGENOL • ALPHA-ISOMETHYL IONONE • FARNESOL • CI 15985
+                    / YELLOW 6 • CI 19140 / YELLOW 5 • CI 60730 / EXT. VIOLET 2.
+                  </p>
+                </div>
+              </div>
+              <!-- Accordion 4: Shipping, COD & 14-Day Returns -->
+              <div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+                <button
+                  class="w-full p-5 text-left flex items-center justify-between font-title-lg text-title-lg text-on-surface hover:text-primary transition-colors focus:outline-none"
+                  onclick="toggleAccordion('acc-4')"
+                  type="button"
+                >
+                  <span class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-primary-container"
+                      >local_shipping</span
+                    >
+                    Egypt Shipping, COD &amp; 14-Day Returns Guarantee
+                  </span>
+                  <span
+                    class="material-symbols-outlined transition-transform duration-300"
+                    id="acc-4-icon"
+                    >expand_more</span
+                  >
+                </button>
+                <div
+                  class="hidden px-5 pb-6 text-body-md text-on-surface-variant flex flex-col gap-3"
+                  id="acc-4-content"
+                >
+                  <ul class="space-y-2 list-disc pl-5">
+                    <li>
+                      <strong>Greater Cairo &amp; Giza:</strong> Delivered within 24 to 48 hours.
+                      Orders placed before 2:00 PM qualify for expedited dispatch.
+                    </li>
+                    <li>
+                      <strong>Alexandria, Delta, &amp; Red Sea Governorates:</strong> 2 to 4
+                      business days via temperature-controlled courier vans.
+                    </li>
+                    <li>
+                      <strong>Free Delivery:</strong> All orders totaling over 2,500 EGP ship
+                      entirely free of charge anywhere in Egypt.
+                    </li>
+                    <li>
+                      <strong>14-Day Easy Returns:</strong> If your fragrance is unopened with
+                      original cellophane security seals intact, initiate a return from your Account
+                      Dashboard within 14 days of delivery. Refunds are credited instantly to your
+                      BeautyFits Wallet or returned in cash upon pickup.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- REAL CUSTOMER REVIEWS & BREAKDOWN SECTION -->
+        <section class="w-full py-16 bg-surface-container-low" id="reviews">
+          <div class="max-w-[1360px] mx-auto px-margin-sm md:px-margin">
+            <div
+              class="flex flex-col md:flex-row md:items-end justify-between mb-10 pb-6 border-b border-outline-variant/40 gap-4"
+            >
+              <div>
+                <span class="font-label-sm text-primary uppercase tracking-[0.2em] font-bold"
+                  >Community Verifications</span
+                >
+                <h2 class="font-headline-lg text-headline-lg text-on-surface mt-1 font-serif">
+                  Customer Reviews
+                </h2>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                  Real, verified purchases from fragrance enthusiasts across Egypt.
+                </p>
+              </div>
+              <button
+                class="h-11 px-6 rounded-lg bg-primary-container text-surface-container-lowest font-label-md hover:bg-primary shadow-sm transition-colors flex items-center justify-center gap-2 self-start md:self-auto"
+                type="button"
+              >
+                <span class="material-symbols-outlined text-[18px]">rate_review</span>
+                <span>Write a Verified Review</span>
+              </button>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-12">
+              <!-- Review Summary Left (col-span-4) -->
+              <div
+                class="lg:col-span-4 bg-surface-container-lowest p-6 rounded-xl shadow-sm flex flex-col gap-5"
+              >
+                <div class="flex items-center gap-4">
+                  <span
+                    class="font-display-lg text-display-lg text-primary font-serif font-bold leading-none"
+                    >4.9</span
+                  >
+                  <div>
+                    <div class="flex text-amber-500">
+                      <span
+                        class="material-symbols-outlined text-[20px]"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[20px]"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[20px]"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[20px]"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                      <span
+                        class="material-symbols-outlined text-[20px]"
+                        style="font-variation-settings: &quot;FILL&quot; 1"
+                        >star</span
+                      >
+                    </div>
+                    <p class="font-label-md text-on-surface font-semibold mt-1">
+                      Based on 312 Ratings
+                    </p>
+                    <p class="font-body-sm text-on-surface-variant text-[11px]">
+                      98% of customers recommend this fragrance
+                    </p>
+                  </div>
+                </div>
+                <!-- Rating Breakdown Progress Bars -->
+                <div class="space-y-2.5 pt-2">
+                  <div class="flex items-center gap-3 text-body-sm">
+                    <span class="w-12 font-label-md text-on-surface">5 Stars</span>
+                    <div class="flex-1 h-2 bg-surface-container rounded-full overflow-hidden">
+                      <div class="h-full bg-primary-container rounded-full w-[88%]"></div>
+                    </div>
+                    <span class="w-8 text-right font-label-md text-on-surface-variant">88%</span>
+                  </div>
+                  <div class="flex items-center gap-3 text-body-sm">
+                    <span class="w-12 font-label-md text-on-surface">4 Stars</span>
+                    <div class="flex-1 h-2 bg-surface-container rounded-full overflow-hidden">
+                      <div class="h-full bg-primary-container rounded-full w-[9%]"></div>
+                    </div>
+                    <span class="w-8 text-right font-label-md text-on-surface-variant">9%</span>
+                  </div>
+                  <div class="flex items-center gap-3 text-body-sm">
+                    <span class="w-12 font-label-md text-on-surface">3 Stars</span>
+                    <div class="flex-1 h-2 bg-surface-container rounded-full overflow-hidden">
+                      <div class="h-full bg-primary-container rounded-full w-[2%]"></div>
+                    </div>
+                    <span class="w-8 text-right font-label-md text-on-surface-variant">2%</span>
+                  </div>
+                  <div class="flex items-center gap-3 text-body-sm">
+                    <span class="w-12 font-label-md text-on-surface">2 Stars</span>
+                    <div class="flex-1 h-2 bg-surface-container rounded-full overflow-hidden">
+                      <div class="h-full bg-primary-container rounded-full w-[1%]"></div>
+                    </div>
+                    <span class="w-8 text-right font-label-md text-on-surface-variant">1%</span>
+                  </div>
+                  <div class="flex items-center gap-3 text-body-sm">
+                    <span class="w-12 font-label-md text-on-surface">1 Star</span>
+                    <div class="flex-1 h-2 bg-surface-container rounded-full overflow-hidden">
+                      <div class="h-full bg-primary-container rounded-full w-[0%]"></div>
+                    </div>
+                    <span class="w-8 text-right font-label-md text-on-surface-variant">0%</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Individual Review Cards (col-span-8) -->
+              <div class="lg:col-span-8 flex flex-col gap-4">
+                <!-- Review 1 -->
+                <div
+                  class="bg-surface-container-lowest p-6 rounded-xl shadow-sm flex flex-col gap-3"
+                >
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center font-label-lg"
+                      >
+                        NY
+                      </div>
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <span class="font-title-md text-on-surface font-semibold"
+                            >Nour Youssef</span
+                          >
+                          <span
+                            class="font-label-sm text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-0.5"
+                          >
+                            <span class="material-symbols-outlined text-[12px]">verified</span>
+                            Verified Buyer
+                          </span>
+                        </div>
+                        <span class="font-body-sm text-[11px] text-outline"
+                          >Purchased 90ml • Zamalek, Cairo</span
+                        >
+                      </div>
+                    </div>
+                    <span class="font-body-sm text-[11px] text-outline">3 days ago</span>
+                  </div>
+                  <div class="flex text-amber-500">
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                  </div>
+                  <h4 class="font-title-md text-on-surface font-bold">
+                    Magnificent packaging and 100% authentic fragrance!
+                  </h4>
+                  <p class="font-body-md text-on-surface-variant leading-relaxed">
+                    I was anxious about ordering luxury perfume online in Egypt, but BeautyFits
+                    delivered with incredible packaging and a verifiable batch code matching the
+                    bottom of the bottle. The lavender and vanilla blend lasts over 10 hours during
+                    my workday. Paid Cash on Delivery with zero hassle.
+                  </p>
+                  <div
+                    class="flex items-center justify-between pt-2 border-t border-surface-container text-body-sm text-on-surface-variant"
+                  >
+                    <span>Was this review helpful?</span>
+                    <div class="flex items-center gap-4">
+                      <button
+                        class="flex items-center gap-1 hover:text-primary transition-colors"
+                        type="button"
+                      >
+                        <span class="material-symbols-outlined text-[16px]">thumb_up</span> 42
+                      </button>
+                      <button
+                        class="flex items-center gap-1 hover:text-primary transition-colors"
+                        type="button"
+                      >
+                        <span class="material-symbols-outlined text-[16px]">thumb_down</span> 1
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <!-- Review 2 -->
+                <div
+                  class="bg-surface-container-lowest p-6 rounded-xl shadow-sm flex flex-col gap-3"
+                >
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-10 h-10 rounded-full bg-secondary-fixed text-primary font-bold flex items-center justify-center font-label-lg"
+                      >
+                        FE
+                      </div>
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <span class="font-title-md text-on-surface font-semibold"
+                            >Farida El-Sayed</span
+                          >
+                          <span
+                            class="font-label-sm text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-0.5"
+                          >
+                            <span class="material-symbols-outlined text-[12px]">verified</span>
+                            Verified Buyer
+                          </span>
+                        </div>
+                        <span class="font-body-sm text-[11px] text-outline"
+                          >Purchased 50ml • Sheikh Zayed, Giza</span
+                        >
+                      </div>
+                    </div>
+                    <span class="font-body-sm text-[11px] text-outline">1 week ago</span>
+                  </div>
+                  <div class="flex text-amber-500">
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                  </div>
+                  <h4 class="font-title-md text-on-surface font-bold">
+                    My absolute signature scent now
+                  </h4>
+                  <p class="font-body-md text-on-surface-variant leading-relaxed">
+                    Libre EDP has that rare power to be both commanding and undeniably comforting.
+                    The orange blossom and cedarwood settle into the skin like warm silk. Arrived
+                    next morning in Zayed in chilled courier box!
+                  </p>
+                  <div
+                    class="flex items-center justify-between pt-2 border-t border-surface-container text-body-sm text-on-surface-variant"
+                  >
+                    <span>Was this review helpful?</span>
+                    <div class="flex items-center gap-4">
+                      <button
+                        class="flex items-center gap-1 hover:text-primary transition-colors"
+                        type="button"
+                      >
+                        <span class="material-symbols-outlined text-[16px]">thumb_up</span> 28
+                      </button>
+                      <button
+                        class="flex items-center gap-1 hover:text-primary transition-colors"
+                        type="button"
+                      >
+                        <span class="material-symbols-outlined text-[16px]">thumb_down</span> 0
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <!-- Review 3 -->
+                <div
+                  class="bg-surface-container-lowest p-6 rounded-xl shadow-sm flex flex-col gap-3"
+                >
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-10 h-10 rounded-full bg-primary-fixed text-primary font-bold flex items-center justify-center font-label-lg"
+                      >
+                        MK
+                      </div>
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <span class="font-title-md text-on-surface font-semibold"
+                            >Mariam Kamel</span
+                          >
+                          <span
+                            class="font-label-sm text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-0.5"
+                          >
+                            <span class="material-symbols-outlined text-[12px]">verified</span>
+                            Verified Buyer
+                          </span>
+                        </div>
+                        <span class="font-body-sm text-[11px] text-outline"
+                          >Purchased 90ml • New Cairo</span
+                        >
+                      </div>
+                    </div>
+                    <span class="font-body-sm text-[11px] text-outline">2 weeks ago</span>
+                  </div>
+                  <div class="flex text-amber-500">
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span
+                      class="material-symbols-outlined text-[16px]"
+                      style="font-variation-settings: &quot;FILL&quot; 1"
+                      >star</span
+                    >
+                    <span class="text-outline-variant">star</span>
+                  </div>
+                  <h4 class="font-title-md text-on-surface font-bold">
+                    Luxurious and long lasting, but spray with moderation
+                  </h4>
+                  <p class="font-body-md text-on-surface-variant leading-relaxed">
+                    It is gorgeous, sophisticated, and commands attention. Just two sprays are
+                    enough because it has quite intense projection. Exceptional customer care from
+                    BeautyFits team when I updated my delivery address.
+                  </p>
+                  <div
+                    class="flex items-center justify-between pt-2 border-t border-surface-container text-body-sm text-on-surface-variant"
+                  >
+                    <span>Was this review helpful?</span>
+                    <div class="flex items-center gap-4">
+                      <button
+                        class="flex items-center gap-1 hover:text-primary transition-colors"
+                        type="button"
+                      >
+                        <span class="material-symbols-outlined text-[16px]">thumb_up</span> 19
+                      </button>
+                      <button
+                        class="flex items-center gap-1 hover:text-primary transition-colors"
+                        type="button"
+                      >
+                        <span class="material-symbols-outlined text-[16px]">thumb_down</span> 2
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- RELATED PRODUCTS / YOU MAY ALSO LOVE -->
+        <section class="w-full py-16 bg-surface">
+          <div class="max-w-[1360px] mx-auto px-margin-sm md:px-margin">
+            <div class="flex items-end justify-between mb-8">
+              <div>
+                <span class="font-label-sm text-primary uppercase tracking-[0.2em] font-bold"
+                  >Curated Complementary Scents</span
+                >
+                <h2 class="font-headline-lg text-headline-lg text-on-surface mt-1 font-serif">
+                  You May Also Love
+                </h2>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  aria-label="Previous suggestions"
+                  class="w-10 h-10 rounded-full bg-surface-container-lowest hover:bg-surface-container-low shadow-sm flex items-center justify-center text-on-surface transition-colors"
+                  type="button"
+                >
+                  <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+                </button>
+                <button
+                  aria-label="Next suggestions"
+                  class="w-10 h-10 rounded-full bg-surface-container-lowest hover:bg-surface-container-low shadow-sm flex items-center justify-center text-on-surface transition-colors"
+                  type="button"
+                >
+                  <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <!-- Related 1 -->
+              <div
+                class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col justify-between group hover:shadow-md transition-all"
+              >
+                <div
+                  class="relative aspect-[3/4] rounded-lg overflow-hidden bg-surface-container-low mb-4"
+                >
+                  <img
+                    class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    data-alt="YSL Libre Le Parfum deep amber tinted perfume flacon in moody dark studio setting with warm gold lighting"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJczYwr6-QMGqEnJwxmtDveirx8i39I2LeBAllLsjy6jgb27aYPxJkVHr-7XO0LWFJl4MBFB5d11roV3yI3qM95Ecd50WDz_WuKOmxHH-Ef1K4mKZGV_qif9m_31cjewdzNb0VWYsUQ0IWAXVvRsuJLd4YDtCcN2OQaqtaCqYA1KxzRX1V4vN3yITGqdUxiRkLD1YOOtKRNnAfxIyBRv8QrN9SrcFsfS2PZ47ZsrV3qeVfIR9P75p5XQ"
+                  />
+                  <span
+                    class="absolute top-3 left-3 bg-primary-container text-surface-container-lowest font-label-sm text-[10px] px-2.5 py-0.5 rounded-full uppercase"
+                    >Intense</span
+                  >
+                  <button
+                    aria-label="Add to wishlist"
+                    class="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface/90 hover:bg-surface text-on-surface flex items-center justify-center shadow-sm"
+                    type="button"
+                  >
+                    <span class="material-symbols-outlined text-[16px]">favorite</span>
+                  </button>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span class="font-label-sm text-outline uppercase tracking-wider"
+                    >Yves Saint Laurent</span
+                  >
+                  <h3
+                    class="font-title-md text-on-surface font-semibold group-hover:text-primary transition-colors"
+                  >
+                    Libre Le Parfum
+                  </h3>
+                  <p class="font-body-sm text-[12px] text-on-surface-variant">
+                    Saffron, Honey &amp; Bourbon Vanilla
+                  </p>
+                  <div class="flex items-center justify-between pt-3 mt-1">
+                    <span class="font-price-md text-price-md font-bold text-primary"
+                      >5,400 <span class="text-[12px] font-normal text-on-surface">EGP</span></span
+                    >
+                    <button
+                      class="w-9 h-9 rounded-lg bg-surface-container hover:bg-primary-container hover:text-surface-container-lowest transition-colors flex items-center justify-center"
+                      type="button"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <!-- Related 2 -->
+              <div
+                class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col justify-between group hover:shadow-md transition-all"
+              >
+                <div
+                  class="relative aspect-[3/4] rounded-lg overflow-hidden bg-surface-container-low mb-4"
+                >
+                  <img
+                    class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    data-alt="Dior J'adore Eau de Parfum elegant amphora shaped glass bottle with gold rings collar on pure ivory surface"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCmJGsO39uM5kIlKo0omvSYEj--JJYqd8v5Yu9U0VmJ073l3Hh7AePGZLIC_3HJFaKpvuT6ZXkl2BKjN9TF2M0PkZRf5rpfc2leX7XkpA-_EuLpkflEjgXOxbdhDfxe5MtjEIOCY9kpHU02G4tsUf7woz5kLDl0V6XFysrLstj03VAnGRIFToseNxgleup0TkCnfP1T9TTUj0JhDEUotuUFpNdIxYfqwyFS0BkErld-aT17KQfH81skSQ"
+                  />
+                  <span
+                    class="absolute top-3 left-3 bg-amber-100 text-amber-900 font-label-sm text-[10px] px-2.5 py-0.5 rounded-full uppercase"
+                    >Iconic</span
+                  >
+                  <button
+                    aria-label="Add to wishlist"
+                    class="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface/90 hover:bg-surface text-on-surface flex items-center justify-center shadow-sm"
+                    type="button"
+                  >
+                    <span class="material-symbols-outlined text-[16px]">favorite</span>
+                  </button>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span class="font-label-sm text-outline uppercase tracking-wider">Dior</span>
+                  <h3
+                    class="font-title-md text-on-surface font-semibold group-hover:text-primary transition-colors"
+                  >
+                    J'adore Eau de Parfum
+                  </h3>
+                  <p class="font-body-sm text-[12px] text-on-surface-variant">
+                    Ylang-Ylang, Damascus Rose &amp; Jasmine
+                  </p>
+                  <div class="flex items-center justify-between pt-3 mt-1">
+                    <span class="font-price-md text-price-md font-bold text-primary"
+                      >5,100 <span class="text-[12px] font-normal text-on-surface">EGP</span></span
+                    >
+                    <button
+                      class="w-9 h-9 rounded-lg bg-surface-container hover:bg-primary-container hover:text-surface-container-lowest transition-colors flex items-center justify-center"
+                      type="button"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <!-- Related 3 -->
+              <div
+                class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col justify-between group hover:shadow-md transition-all"
+              >
+                <div
+                  class="relative aspect-[3/4] rounded-lg overflow-hidden bg-surface-container-low mb-4"
+                >
+                  <img
+                    class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    data-alt="Tom Ford Black Orchid fluted black glass bottle with gold plaque on dark velvet surface with golden lighting"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxnJLX7ufpGgdXIovd_3gc0pdiCZ-UcfV-lM6Hp8bJdiRZR2ZePVkfCo98swZNUEgvTVL3V5xMs3OcUh42pU1INAhMel5lPrAoQCRu9ZQ2w8u_9Ik3ydyUhPW4yhSBSC_6a8nRMWnRsFiQ8t72wrGuhRZvBpuChjkjENzAI7q-rDBxLtTsL_lgyMDiEpPiY1T5IrcLckUNlH0gdtew94R1dQLzJqBBu32rqr_IolrcyRH5bq11gkTb-g"
+                  />
+                  <span
+                    class="absolute top-3 left-3 bg-surface-container-high text-on-surface font-label-sm text-[10px] px-2.5 py-0.5 rounded-full uppercase"
+                    >Signature</span
+                  >
+                  <button
+                    aria-label="Add to wishlist"
+                    class="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface/90 hover:bg-surface text-on-surface flex items-center justify-center shadow-sm"
+                    type="button"
+                  >
+                    <span class="material-symbols-outlined text-[16px]">favorite</span>
+                  </button>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span class="font-label-sm text-outline uppercase tracking-wider">Tom Ford</span>
+                  <h3
+                    class="font-title-md text-on-surface font-semibold group-hover:text-primary transition-colors"
+                  >
+                    Black Orchid
+                  </h3>
+                  <p class="font-body-sm text-[12px] text-on-surface-variant">
+                    Black Truffle, Orchid &amp; Patchouli
+                  </p>
+                  <div class="flex items-center justify-between pt-3 mt-1">
+                    <span class="font-price-md text-price-md font-bold text-primary"
+                      >6,150 <span class="text-[12px] font-normal text-on-surface">EGP</span></span
+                    >
+                    <button
+                      class="w-9 h-9 rounded-lg bg-surface-container hover:bg-primary-container hover:text-surface-container-lowest transition-colors flex items-center justify-center"
+                      type="button"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <!-- Related 4 -->
+              <div
+                class="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col justify-between group hover:shadow-md transition-all"
+              >
+                <div
+                  class="relative aspect-[3/4] rounded-lg overflow-hidden bg-surface-container-low mb-4"
+                >
+                  <img
+                    class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    data-alt="Kayali Vanilla 28 cut faceted crystal glass perfume bottle showing warm golden honey liquid on cream stone podium"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7vRPzuPNp0ia6t7Ck_O6VccmUC8Kny9FHpWU5SW2706kFmKU8J3Vgh0h_ioogVFugjLD_6aaonpumxIc-B24fZnEgAXrNA7NAPOVqqdT56xclBdam_xy4wPbt_XCujvZmuT5ZHqJPFc14ajRDnG437xVELcQ6kAAUgGjQIMPyZ5xscjs6C6sV2lB66tPDNQ4-APzJT9QWDelzYEJqiUQDHI1bV0BQNRD-vLOHvBPl1BUypAD76g0dhw"
+                  />
+                  <span
+                    class="absolute top-3 left-3 bg-amber-50 text-amber-800 font-label-sm text-[10px] px-2.5 py-0.5 rounded-full uppercase"
+                    >Trending</span
+                  >
+                  <button
+                    aria-label="Add to wishlist"
+                    class="absolute top-3 right-3 w-8 h-8 rounded-full bg-surface/90 hover:bg-surface text-on-surface flex items-center justify-center shadow-sm"
+                    type="button"
+                  >
+                    <span class="material-symbols-outlined text-[16px]">favorite</span>
+                  </button>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span class="font-label-sm text-outline uppercase tracking-wider">Kayali</span>
+                  <h3
+                    class="font-title-md text-on-surface font-semibold group-hover:text-primary transition-colors"
+                  >
+                    Vanilla | 28
+                  </h3>
+                  <p class="font-body-sm text-[12px] text-on-surface-variant">
+                    Brown Sugar, Tonka &amp; Royal Amber
+                  </p>
+                  <div class="flex items-center justify-between pt-3 mt-1">
+                    <span class="font-price-md text-price-md font-bold text-primary"
+                      >4,200 <span class="text-[12px] font-normal text-on-surface">EGP</span></span
+                    >
+                    <button
+                      class="w-9 h-9 rounded-lg bg-surface-container hover:bg-primary-container hover:text-surface-container-lowest transition-colors flex items-center justify-center"
+                      type="button"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- FLOATING DESKTOP STICKY QUICK ACTION BAR (Visible on scroll down) -->
+        <div
+          class="fixed bottom-0 left-0 w-full bg-surface-container-lowest/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.06)] z-40 py-3.5 transform translate-y-full transition-transform duration-300"
+          id="sticky-bar"
+        >
+          <div
+            class="max-w-[1360px] mx-auto px-margin-sm md:px-margin flex items-center justify-between gap-4"
+          >
+            <div class="flex items-center gap-4">
+              <div
+                class="w-12 h-12 rounded-lg bg-surface-container-low overflow-hidden flex-shrink-0"
+              >
+                <img
+                  class="w-full h-full object-cover"
+                  data-alt="Miniature bottle preview of Yves Saint Laurent Libre Eau de Parfum"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDCBFyF9CnxMvteWTdmRvdcgmDz78GYPoHTJaZ_PL9-9-zFyWwTUZ7aTOO8zbPJuvY_wlVWB6xhD7mO_6rmIOVfnQXwn-ZwHx1-v9g4U97igzbLPcXXepy_wAJ1lkle3UWK7hKuzg2mF9iR__qUmNtLqBOlFOYUW_scx6uDlSYky-Qf3T5pbKERXRCsEG3UiJ0C7p2uVrMgerf8mbeKYrF48-XSqwvNjeSdua5zIMQ-pSbcqCGajjPKvQ"
+                />
+              </div>
+              <div>
+                <span class="font-label-sm text-outline uppercase">Yves Saint Laurent</span>
+                <p class="font-title-md text-title-md text-on-surface font-bold leading-none">
+                  Libre Eau de Parfum
+                </p>
+                <span class="font-body-sm text-[11px] text-on-surface-variant"
+                  >Selected: <span id="sticky-size-label">90ml</span></span
+                >
+              </div>
+            </div>
+            <div class="flex items-center gap-6">
+              <div class="text-right hidden sm:block">
+                <span class="font-label-sm text-emerald-800 font-bold block"
+                  >✓ Free Egypt Delivery</span
+                >
+                <span
+                  class="font-headline-sm text-headline-sm font-bold text-primary font-serif"
+                  id="sticky-price"
+                  >4,850 EGP</span
+                >
+              </div>
+              <button
+                class="h-12 px-8 bg-primary-container hover:bg-primary text-surface-container-lowest rounded-lg font-label-lg uppercase tracking-wider flex items-center gap-2 shadow-md transition-all"
+                onclick="handleAddToCart()"
+                type="button"
+              >
+                <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                <span>Add to Bag</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <script>
+          let currentQty = 1;
+          let currentPricePerUnit = 4850;
+
+          function selectThumbnail(index, imgUrl) {
+            const thumbs = document.querySelectorAll(".thumb-btn");
+            thumbs.forEach((t, i) => {
+              if (i === index) {
+                t.classList.add("ring-2", "ring-primary-container", "opacity-100");
+                t.classList.remove("opacity-70");
+              } else {
+                t.classList.remove("ring-2", "ring-primary-container", "opacity-100");
+                t.classList.add("opacity-70");
+              }
+            });
+            // In production, update main-product-image src
+          }
+
+          function selectSize(sizeStr, price, btn) {
+            currentPricePerUnit = price;
+            document.getElementById("selected-size-label").textContent = sizeStr;
+            document.getElementById("sticky-size-label").textContent = sizeStr;
+
+            const sizeBtns = document.querySelectorAll(".size-btn");
+            sizeBtns.forEach((b) => {
+              b.classList.remove(
+                "bg-primary-container",
+                "text-surface-container-lowest",
+                "font-bold",
+              );
+              b.classList.add("bg-surface-container-lowest", "text-on-surface");
+            });
+
+            btn.classList.add("bg-primary-container", "text-surface-container-lowest", "font-bold");
+            btn.classList.remove("bg-surface-container-lowest", "text-on-surface");
+
+            updatePriceDisplay();
+          }
+
+          function updateQty(delta) {
+            const next = currentQty + delta;
+            if (next >= 1 && next <= 10) {
+              currentQty = next;
+              document.getElementById("qty-counter").textContent = currentQty;
+              updatePriceDisplay();
+            }
+          }
+
+          function updatePriceDisplay() {
+            const total = (currentPricePerUnit * currentQty).toLocaleString();
+            document.getElementById("product-price").innerHTML =
+              `${total} <span class="font-price-md text-price-md font-sans font-bold text-on-surface">EGP</span>`;
+            document.getElementById("btn-text").textContent = `Add to Bag — ${total} EGP`;
+            document.getElementById("sticky-price").textContent = `${total} EGP`;
+          }
+
+          function toggleAccordion(id) {
+            const content = document.getElementById(id + "-content");
+            const icon = document.getElementById(id + "-icon");
+            const isHidden = content.classList.contains("hidden");
+
+            if (isHidden) {
+              content.classList.remove("hidden");
+              icon.textContent = "expand_less";
+            } else {
+              content.classList.add("hidden");
+              icon.textContent = "expand_more";
+            }
+          }
+
+          function toggleWishlist(btn) {
+            const icon = btn.querySelector(".material-symbols-outlined");
+            if (
+              icon.style.fontVariationSettings &&
+              icon.style.fontVariationSettings.includes("'FILL' 1")
+            ) {
+              icon.style.fontVariationSettings = "'FILL' 0";
+              icon.classList.remove("text-primary");
+            } else {
+              icon.style.fontVariationSettings = "'FILL' 1";
+              icon.classList.add("text-primary");
+            }
+          }
+
+          function handleAddToCart() {
+            const btn = document.getElementById("add-to-bag-btn");
+            const originalText = document.getElementById("btn-text").textContent;
+            document.getElementById("btn-text").textContent = "Adding to Bag...";
+            setTimeout(() => {
+              document.getElementById("btn-text").textContent = "✓ Added to Bag";
+              setTimeout(() => {
+                document.getElementById("btn-text").textContent = originalText;
+              }, 1500);
+            }, 500);
+          }
+
+          // Scroll listener for sticky quick bar
+          window.addEventListener("scroll", () => {
+            const stickyBar = document.getElementById("sticky-bar");
+            if (window.scrollY > 600) {
+              stickyBar.classList.remove("translate-y-full");
+            } else {
+              stickyBar.classList.add("translate-y-full");
+            }
+          });
+        </script>
+      </div>
+    </main>
+    <footer
+      class="w-full bg-inverse-surface text-surface border-t border-outline-variant/30 pt-16 pb-12"
+    >
+      <div class="max-w-[1360px] mx-auto px-margin">
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter lg:gap-space-xl pb-12 border-b border-outline/30"
+        >
+          <div class="space-y-4">
+            <div class="flex flex-col">
+              <span
+                class="font-display-lg-mobile text-headline-sm text-surface font-serif uppercase tracking-wider"
+                >BEAUTYFITS</span
+              ><span
+                class="font-label-sm text-[9px] tracking-[0.2em] text-outline-variant uppercase"
+                >Beauty That Fits You</span
+              >
+            </div>
+            <p class="font-body-sm text-body-sm text-surface-container-high leading-relaxed">
+              Egypt's premier luxury beauty boutique. We curate authentic global cosmetics, rare
+              perfumes, and clinical skincare delivered with white-glove care nationwide.
+            </p>
+            <div
+              class="pt-2 flex flex-col gap-2 font-label-md text-label-md text-surface-container-highest"
+            >
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-tertiary-fixed"
+                  >local_shipping</span
+                ><span>Cash on Delivery Across Egypt</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-tertiary-fixed"
+                  >verified</span
+                ><span>100% Authentic Guarantee</span>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <h4 class="font-label-lg text-label-lg text-surface tracking-wider uppercase">Shop</h4>
+            <ul class="space-y-2.5 font-body-sm text-body-sm text-outline-variant">
+              <li class="hover:text-surface transition-colors">
+                <a data-path="makeup" href="#">Makeup</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="perfumes" href="#">Perfumes</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="skincare" href="#">Skincare</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="new-arrivals" href="#">New Arrivals</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="best-sellers" href="#">Best Sellers</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="offers" href="#">Exclusive Offers</a>
+              </li>
+            </ul>
+          </div>
+          <div class="space-y-4">
+            <h4 class="font-label-lg text-label-lg text-surface tracking-wider uppercase">
+              Customer Care
+            </h4>
+            <ul class="space-y-2.5 font-body-sm text-body-sm text-outline-variant">
+              <li class="hover:text-surface transition-colors">
+                <a data-path="order-tracking" href="#">Order Tracking</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="returns-policy" href="#">14-Day Returns Policy</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="shipping-policy" href="#"
+                  >Shipping &amp; Delivery (Free &gt; 2,500 EGP)</a
+                >
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="faqs" href="#">Frequently Asked Questions</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="contact-us" href="#">Contact Us</a>
+              </li>
+            </ul>
+          </div>
+          <div class="space-y-4">
+            <h4 class="font-label-lg text-label-lg text-surface tracking-wider uppercase">
+              Account &amp; Wallet
+            </h4>
+            <ul class="space-y-2.5 font-body-sm text-body-sm text-outline-variant">
+              <li class="hover:text-surface transition-colors">
+                <a data-path="my-account" href="#">My Account</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="wallet" href="#">Wallet Balance &amp; Instant Refunds</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="wishlist" href="#">My Wishlist</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="order-history" href="#">Order History</a>
+              </li>
+              <li class="hover:text-surface transition-colors">
+                <a data-path="returns-policy" href="#">Return an Item</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div
+          class="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 font-body-sm text-body-sm text-outline-variant"
+        >
+          <p>
+            © 2026 BeautyFits. All rights reserved. • Cash on Delivery available nationwide in
+            Egypt.
+          </p>
+          <p class="font-label-md text-label-md text-surface-container-high">
+            Safe &amp; genuine beauty delivered to your door.
+          </p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
