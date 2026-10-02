@@ -1163,3 +1163,63 @@ Added by TASK-017 (`docs/tasks/TASK-017-product-publishing.md`). Business rules:
 | Adding a variant or clearing a variant name of a `PUBLISHED` product so that several active variants include an unnamed one | `409 CONFLICT`, `details.reason = VARIANT_NAMES_REQUIRED` (+ `unnamedVariantIds`, existing variants only) |
 | Changing the slug of a product that is not a never-published `DRAFT` | `409 CONFLICT`, `details.reason = SLUG_LOCKED` |
 | Unknown or malformed product id | `404 NOT_FOUND` |
+
+## TASK-018 Amendments (prices and costs)
+
+Added by TASK-018 (`docs/tasks/TASK-018-pricing-cost.md`). Business rules: Q73, Q74, Q80, Q102, Q103, Q111, C1, R9. Technical design and the product owner's decisions of 2026-10-02: ADR-0023. Same employee session and `Origin` rules as TASK-014. No approval requests (R19). Money is integer piastres (§2 principle 3); margins are integer basis points (1 bp = 0.01%).
+
+### Variant fields (§13)
+- Every admin `variant` (in `product.variants` and the variant endpoints) gains `sellingPrice` (integer or `null` until set; tax-inclusive) and `currency` (`EGP`).
+- Callers with `VIEW_COST_PRICE` also get `costs`: `{ latestPurchaseCost, weightedAverageCost, marginBasisPoints, costsEditable }` (margin of the selling price over the latest purchase cost; `costsEditable` is `false` once a goods receipt has set the costs). Without it the `costs` key is absent.
+- `POST /admin/products` (`defaultVariant.sellingPrice`) and `POST /admin/products/{id}/variants` (`sellingPrice`) accept an optional positive price; giving one also needs `EDIT_PRODUCT_PRICE`.
+
+### `POST /admin/products/{id}/price-review` — `EDIT_PRODUCT_PRICE`
+Request:
+```json
+{
+  "items": [
+    { "variantId": "…", "sellingPrice": 19999 },
+    { "variantId": "…", "targetMarginBasisPoints": 4000 }
+  ],
+  "apply": false,
+  "reason": "Spring prices"
+}
+```
+- Each item has exactly one of `sellingPrice` (positive integer) or `targetMarginBasisPoints` (0–9999). 1–100 items, each variant once, all active variants of this product. `apply` defaults to `false` (preview only). `reason` optional (max 1000, blank means none).
+- A target margin suggests `latestPurchaseCost / (1 − margin)`, rounded HALF-UP to the piastre, and needs `VIEW_COST_PRICE`.
+- Success `200`:
+```json
+{
+  "applied": true,
+  "minimumMarginBasisPoints": 1000,
+  "items": [
+    {
+      "variantId": "…", "sku": "LIP-RED", "currentPrice": null, "proposedPrice": 19999, "changes": true,
+      "latestPurchaseCost": 12000, "marginBasisPoints": 4000, "warnings": []
+    }
+  ]
+}
+```
+- `minimumMarginBasisPoints`, `latestPurchaseCost`, `marginBasisPoints` and `warnings` are present only for callers with `VIEW_COST_PRICE`. `warnings`: `PRICE_NOT_ABOVE_COST`, `BELOW_MINIMUM_MARGIN`; they never block.
+- With `apply: true` the changed prices are saved at once; unchanged ones are skipped. Audit action `PRODUCT_VARIANT_PRICE_CHANGED` (entity `PRODUCT_VARIANT`; previous and new `sellingPrice`, `targetMarginBasisPoints` when used, `reason`).
+
+### `PATCH /admin/variants/{id}/cost` — `EDIT_COST_PRICE`
+- Request: `{ latestPurchaseCost?, weightedAverageCost?, reason }` (integers ≥ 0, at least one; `reason` required, max 1000). Opening values only: refused once a goods receipt has set the costs.
+- Success `200` `variant` (with `costs` for callers with `VIEW_COST_PRICE`). Repeating the same values writes no audit entry. Audit action `PRODUCT_VARIANT_COST_CHANGED` (previous and new costs, `reason`).
+
+### Publishing (amends "TASK-017 Amendments")
+- Publishing also needs a selling price on every active variant: `details.missing` may contain `SELLING_PRICE`, with `details.unpricedVariantIds`.
+- A variant added to a `PUBLISHED` product needs a `sellingPrice`.
+
+### Errors
+| Case | Response |
+|---|---|
+| Invalid body (both or neither of price and margin, price ≤ 0 or fractional, margin out of range, duplicate variant, missing cost `reason`) | `400 VALIDATION_ERROR` |
+| A variant that is not this product's | `400 VALIDATION_ERROR`, issue code `variant_not_found` |
+| Missing `EDIT_PRODUCT_PRICE` / `EDIT_COST_PRICE`; a target margin or a price at creation without the needed permission | `403 PERMISSION_DENIED` (+ `requiredPermissions`) |
+| Archived product or variant | `409 CONFLICT`, `details.reason = PRODUCT_ARCHIVED` / `VARIANT_ARCHIVED` |
+| Target margin without a latest purchase cost | `409 CONFLICT`, `details.reason = COST_UNKNOWN` (+ `variantId`) |
+| Target margin over a zero cost | `409 CONFLICT`, `details.reason = PRICE_SUGGESTION_UNAVAILABLE` (+ `variantId`) |
+| Costs typed by hand after a goods receipt | `409 CONFLICT`, `details.reason = COSTS_LOCKED` |
+| New variant of a `PUBLISHED` product without a price | `409 CONFLICT`, `details.reason = SELLING_PRICE_REQUIRED` |
+| Unknown or malformed product / variant id | `404 NOT_FOUND` |

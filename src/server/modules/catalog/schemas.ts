@@ -89,11 +89,25 @@ function namePairIssue(value: {
   return null;
 }
 
+/** A selling price in piastres (ADR-0011): a positive safe integer (ADR-0023 §4 item 5). */
+export const sellingPriceSchema = z
+  .int()
+  .positive()
+  .transform((value) => BigInt(value));
+
+/** A cost in piastres: a safe integer, zero or more. */
+const costSchema = z
+  .int()
+  .nonnegative()
+  .transform((value) => BigInt(value));
+
 const variantFields = {
   sku: skuSchema,
   nameAr: variantName.optional(),
   nameEn: variantName.optional(),
   attributes: attributes.optional(),
+  /** Needs `EDIT_PRODUCT_PRICE` as well (TASK-018). */
+  sellingPrice: sellingPriceSchema.optional(),
 };
 
 export const createVariantSchema = z.object(variantFields).superRefine((value, ctx) => {
@@ -284,13 +298,66 @@ export const reorderProductMediaSchema = z.object({
     }),
 });
 
-/** Body of the lifecycle endpoints (TASK-017); blank means "no reason". */
+/** Blank means "no reason". */
+const optionalReason = z
+  .string()
+  .trim()
+  .max(1000)
+  .transform((value) => (value === "" ? null : value))
+  .nullable()
+  .optional();
+
+/** Body of the lifecycle endpoints (TASK-017). */
 export const productStatusChangeSchema = z.object({
-  reason: z
-    .string()
-    .trim()
-    .max(1000)
-    .transform((value) => (value === "" ? null : value))
-    .nullable()
-    .optional(),
+  reason: optionalReason,
 });
+
+// ---------------------------------------------------------------------------
+// Prices and costs (TASK-018, ADR-0023)
+// ---------------------------------------------------------------------------
+
+/** At most this many variants per price review (the variant limit of ADR-0019). */
+export const MAX_PRICE_REVIEW_ITEMS = 100;
+
+/** A target margin on the selling price, basis points: 0 to 99.99%. */
+const targetMarginBasisPoints = z.int().min(0).max(9999);
+
+/** One variant: either a manual price or a target margin, not both (Q111). */
+const priceReviewItem = z
+  .object({
+    variantId: lowerUuid,
+    sellingPrice: sellingPriceSchema.optional(),
+    targetMarginBasisPoints: targetMarginBasisPoints.optional(),
+  })
+  .refine(
+    (item) => (item.sellingPrice === undefined) !== (item.targetMarginBasisPoints === undefined),
+    {
+      message: "Give either sellingPrice or targetMarginBasisPoints.",
+      path: ["sellingPrice"],
+    },
+  );
+
+export const priceReviewSchema = z.object({
+  items: z
+    .array(priceReviewItem)
+    .min(1)
+    .max(MAX_PRICE_REVIEW_ITEMS)
+    .refine((items) => new Set(items.map((item) => item.variantId)).size === items.length, {
+      message: "Each variant may appear only once.",
+    }),
+  /** `false` (default): preview only. `true`: save the new prices. */
+  apply: z.boolean().optional().default(false),
+  reason: optionalReason,
+});
+
+/** Opening costs typed in by hand (ADR-0023 §4 item 4); a reason is required. */
+export const variantCostSchema = z
+  .object({
+    latestPurchaseCost: costSchema.optional(),
+    weightedAverageCost: costSchema.optional(),
+    reason: z.string().trim().min(1).max(1000),
+  })
+  .refine(
+    (value) => value.latestPurchaseCost !== undefined || value.weightedAverageCost !== undefined,
+    { message: "Provide at least one cost to change." },
+  );

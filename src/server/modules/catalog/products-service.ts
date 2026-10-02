@@ -27,10 +27,14 @@ import {
 } from "@/server/modules/catalog/lifecycle";
 import {
   assertProductChangeable,
+  assertVariantActive,
   lockProduct,
+  lockVariant,
   productNotFound,
 } from "@/server/modules/catalog/product-guards";
+import { marginBasisPoints } from "@/server/modules/catalog/pricing";
 import { slugFromName } from "@/server/modules/catalog/schemas";
+import { toJsonNumber } from "@/server/money/money";
 import { systemClock, type Clock } from "@/server/time/time";
 
 /**
@@ -60,7 +64,10 @@ import { systemClock, type Clock } from "@/server/time/time";
  *   follow `lifecycle.ts` (TASK-017, ADR-0022); a published product is kept
  *   publishable (named variants here, a main image in `media-service.ts`).
  *
- * Prices and costs are TASK-018.
+ * - Variants carry a selling price and costs (TASK-018, ADR-0023). Views
+ *   include the costs; routes remove them for callers without
+ *   `VIEW_COST_PRICE` (`presentation.ts`). Prices and costs change through
+ *   `pricing-service.ts`; a variant may get its first price when created.
  */
 
 /** A technical guard against runaway option lists (ADR-0019). */
@@ -75,6 +82,8 @@ export interface VariantInput {
   nameAr?: string | null;
   nameEn?: string | null;
   attributes?: Record<string, string> | null;
+  /** Piastres, positive; needs `EDIT_PRODUCT_PRICE` (checked by the route). */
+  sellingPrice?: bigint;
 }
 
 export interface ProductInput {
@@ -90,7 +99,17 @@ export interface ProductInput {
 
 export type ProductChanges = Partial<Omit<ProductInput, "defaultVariant">>;
 
-export type VariantChanges = Partial<VariantInput> & { isDefault?: true };
+export type VariantChanges = Partial<Omit<VariantInput, "sellingPrice">> & { isDefault?: true };
+
+/** Cost data of a variant: only for callers with `VIEW_COST_PRICE` (Q74, Q80). */
+export interface VariantCostsView {
+  latestPurchaseCost: number | null;
+  weightedAverageCost: number | null;
+  /** Margin of the selling price over the latest purchase cost, basis points (ADR-0023). */
+  marginBasisPoints: number | null;
+  /** False once a goods receipt has set the costs (ADR-0023 §4 item 4). */
+  costsEditable: boolean;
+}
 
 export interface VariantView {
   id: string;
@@ -101,6 +120,11 @@ export interface VariantView {
   nameEn: string | null;
   attributes: Record<string, string> | null;
   status: "ACTIVE" | "ARCHIVED";
+  /** Tax-inclusive selling price in piastres; null until set (TASK-018). */
+  sellingPrice: number | null;
+  currency: string;
+  /** Removed from responses for callers without `VIEW_COST_PRICE`. */
+  costs?: VariantCostsView;
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
@@ -184,7 +208,7 @@ interface ProductWithTaxonomy {
 
 const variantOrder = [{ createdAt: "asc" }, { id: "asc" }] as const;
 
-function toVariantView(row: VariantRow): VariantView {
+export function toVariantView(row: VariantRow): VariantView {
   return {
     id: row.id,
     productId: row.productId,
@@ -194,10 +218,25 @@ function toVariantView(row: VariantRow): VariantView {
     nameEn: row.variantNameEn,
     attributes: (row.attributesJson as Record<string, string> | null) ?? null,
     status: row.status,
+    sellingPrice: optionalJsonNumber(row.sellingPrice),
+    currency: row.currency,
+    costs: {
+      latestPurchaseCost: optionalJsonNumber(row.latestPurchaseCost),
+      weightedAverageCost: optionalJsonNumber(row.weightedAverageCost),
+      marginBasisPoints:
+        row.sellingPrice !== null && row.latestPurchaseCost !== null
+          ? marginBasisPoints(row.sellingPrice, row.latestPurchaseCost)
+          : null,
+      costsEditable: row.firstGoodsReceiptAt === null,
+    },
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     archivedAt: row.archivedAt?.toISOString() ?? null,
   };
+}
+
+function optionalJsonNumber(amount: bigint | null): number | null {
+  return amount === null ? null : toJsonNumber(amount);
 }
 
 function toTaxonomyRef(row: BrandRow | CategoryRow): TaxonomyRef {
@@ -258,6 +297,7 @@ function variantSnapshot(variant: VariantRow) {
     nameEn: variant.variantNameEn,
     attributes: (variant.attributesJson as Record<string, string> | null) ?? null,
     status: variant.status,
+    sellingPrice: optionalJsonNumber(variant.sellingPrice),
   };
 }
 
@@ -297,10 +337,6 @@ async function assertCategoriesLinkable(tx: Db, categoryIds: string[]): Promise<
       categoryId: inactive,
     });
   }
-}
-
-function variantNotFound(): AppError {
-  return new AppError("NOT_FOUND", "Variant not found.");
 }
 
 function slugTaken(slug: string): AppError {
@@ -384,6 +420,18 @@ async function assertVariantNamesKept(
       "A published product with several variants needs a name on every active variant.",
       { reason: "VARIANT_NAMES_REQUIRED", unnamedVariantIds: unnamed.filter((id) => id !== "") },
     );
+  }
+}
+
+/**
+ * Keeps a published product fully priced (ADR-0023 §4 item 5): a variant
+ * added to it needs a selling price.
+ */
+function assertPriceGiven(product: ProductRow, sellingPrice: bigint | undefined): void {
+  if (product.status === "PUBLISHED" && sellingPrice === undefined) {
+    throw conflict("A variant added to a published product needs a selling price.", {
+      reason: "SELLING_PRICE_REQUIRED",
+    });
   }
 }
 
@@ -477,6 +525,7 @@ export function createProductsService(deps: ProductsServiceDeps) {
               variantNameAr: variantInput.nameAr ?? null,
               variantNameEn: variantInput.nameEn ?? null,
               attributesJson: variantInput.attributes ?? Prisma.DbNull,
+              sellingPrice: variantInput.sellingPrice ?? null,
               status: "ACTIVE",
               createdAt: now,
               updatedAt: now,
@@ -702,6 +751,7 @@ export function createProductsService(deps: ProductsServiceDeps) {
           });
         }
         await assertSkuFree(tx, input.sku);
+        assertPriceGiven(product, input.sellingPrice);
         await assertVariantNamesKept(tx, product, {
           id: null,
           nameAr: input.nameAr ?? null,
@@ -717,6 +767,7 @@ export function createProductsService(deps: ProductsServiceDeps) {
               variantNameAr: input.nameAr ?? null,
               variantNameEn: input.nameEn ?? null,
               attributesJson: input.attributes ?? Prisma.DbNull,
+              sellingPrice: input.sellingPrice ?? null,
               status: "ACTIVE",
               createdAt: now,
               updatedAt: now,
@@ -745,31 +796,6 @@ export function createProductsService(deps: ProductsServiceDeps) {
       actorEmployeeId: actor.employeeId,
     });
     return toVariantView(variant);
-  }
-
-  /** Finds the variant and locks its product. */
-  async function lockVariant(
-    tx: Db,
-    variantId: string,
-  ): Promise<{ product: ProductRow; variant: VariantRow }> {
-    const found = await tx.productVariant.findUnique({
-      where: { id: variantId },
-      select: { productId: true },
-    });
-    if (!found) {
-      throw variantNotFound();
-    }
-    const product = await lockProduct(tx, found.productId);
-    const variant = await tx.productVariant.findUniqueOrThrow({ where: { id: variantId } });
-    return { product, variant };
-  }
-
-  function assertVariantActive(variant: VariantRow): void {
-    if (variant.status === "ARCHIVED") {
-      throw conflict("This variant is archived and can no longer be changed.", {
-        reason: "VARIANT_ARCHIVED",
-      });
-    }
   }
 
   async function updateVariant(
@@ -952,7 +978,7 @@ export function createProductsService(deps: ProductsServiceDeps) {
             tx.productVariant.findMany({
               where: { productId, status: "ACTIVE" },
               orderBy: [...variantOrder],
-              select: { id: true, variantNameAr: true, variantNameEn: true },
+              select: { id: true, variantNameAr: true, variantNameEn: true, sellingPrice: true },
             }),
           ]);
           const check = checkPublishable({
@@ -961,6 +987,7 @@ export function createProductsService(deps: ProductsServiceDeps) {
               id: variant.id,
               nameAr: variant.variantNameAr,
               nameEn: variant.variantNameEn,
+              sellingPrice: variant.sellingPrice,
             })),
           });
           if (check.missing.length > 0) {
@@ -968,6 +995,7 @@ export function createProductsService(deps: ProductsServiceDeps) {
               reason: "PUBLISH_REQUIREMENTS_NOT_MET",
               missing: check.missing,
               unnamedVariantIds: check.unnamedVariantIds,
+              unpricedVariantIds: check.unpricedVariantIds,
             });
           }
         }

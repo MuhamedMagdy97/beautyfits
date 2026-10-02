@@ -268,6 +268,8 @@ Implement Draft/Published/Archived/Disabled states and prevent hard deletion.
 
 Implement selling price, latest purchase cost, weighted average cost, margin warning and price history/audit.
 
+**Status after TASK-018** (`docs/tasks/TASK-018-pricing-cost.md`): variants carry `selling_price`, `latest_purchase_cost`, `weighted_average_cost` (ADR-0023). Prices change through `POST /admin/products/{id}/price-review`; costs are typed by hand only until `product_variants.first_goods_receipt_at` is set. TASK-023 sets that column and updates both costs with `nextWeightedAverageCost` in `src/server/modules/catalog/pricing.ts`; the cart/checkout tasks read `selling_price`; orders store `unit_cost_at_sale` from `weighted_average_cost`.
+
 ---
 
 # Phase 3 — Inventory & Purchasing

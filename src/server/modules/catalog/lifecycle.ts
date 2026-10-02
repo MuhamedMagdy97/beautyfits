@@ -44,23 +44,31 @@ export function transitionOutcome(
   return ALLOWED_FROM[transition].includes(from) ? "change" : "refused";
 }
 
-export type PublishRequirement = "MAIN_IMAGE" | "VARIANT_NAMES";
+export type PublishRequirement = "MAIN_IMAGE" | "VARIANT_NAMES" | "SELLING_PRICE";
 
 export interface PublishFacts {
   hasMainImage: boolean;
-  activeVariants: { id: string; nameAr: string | null; nameEn: string | null }[];
+  activeVariants: {
+    id: string;
+    nameAr: string | null;
+    nameEn: string | null;
+    sellingPrice: bigint | null;
+  }[];
 }
 
 export interface PublishCheck {
   missing: PublishRequirement[];
   unnamedVariantIds: string[];
+  unpricedVariantIds: string[];
 }
 
 /**
  * Active variants customers could not tell apart: with more than one active
  * variant, every one needs its name (ADR-0022 §2).
  */
-export function unnamedVariantIds(activeVariants: PublishFacts["activeVariants"]): string[] {
+export function unnamedVariantIds(
+  activeVariants: { id: string; nameAr: string | null; nameEn: string | null }[],
+): string[] {
   if (activeVariants.length <= 1) {
     return [];
   }
@@ -69,7 +77,12 @@ export function unnamedVariantIds(activeVariants: PublishFacts["activeVariants"]
     .map((variant) => variant.id);
 }
 
-/** The unmet publish requirements (Q178, ADR-0022 §2); empty when publishable. */
+/** Active variants customers could not buy: every one needs a selling price (ADR-0023). */
+export function unpricedVariantIds(activeVariants: PublishFacts["activeVariants"]): string[] {
+  return activeVariants.filter((variant) => variant.sellingPrice === null).map((v) => v.id);
+}
+
+/** The unmet publish requirements (Q178, ADR-0022 §2, ADR-0023); empty when publishable. */
 export function checkPublishable(facts: PublishFacts): PublishCheck {
   const missing: PublishRequirement[] = [];
   if (!facts.hasMainImage) {
@@ -79,5 +92,9 @@ export function checkPublishable(facts: PublishFacts): PublishCheck {
   if (unnamed.length > 0) {
     missing.push("VARIANT_NAMES");
   }
-  return { missing, unnamedVariantIds: unnamed };
+  const unpriced = unpricedVariantIds(facts.activeVariants);
+  if (unpriced.length > 0) {
+    missing.push("SELLING_PRICE");
+  }
+  return { missing, unnamedVariantIds: unnamed, unpricedVariantIds: unpriced };
 }

@@ -1,5 +1,6 @@
 import { ok } from "@/server/http/response";
 import { withApi } from "@/server/http/route-handler";
+import { presentVariant } from "@/server/modules/catalog/presentation";
 import { getProductsService } from "@/server/modules/catalog/products-service";
 import { requirePermission } from "@/server/modules/rbac/authorization";
 import { pathId } from "@/server/modules/rbac/http";
@@ -15,6 +16,6 @@ export const POST = withApi<RouteContext<"/api/v1/admin/variants/[id]/archive">>
       api.logger,
       api.requestId,
     );
-    return ok(api.requestId, variant);
+    return ok(api.requestId, presentVariant(variant, employee.permissions));
   },
 );

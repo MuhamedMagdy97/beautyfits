@@ -37,10 +37,19 @@ export const SETTING_KEYS = {
   staffSessionMaxLifetimeMinutes: "staff_session.max_lifetime_minutes",
   staffSessionIdleTimeoutMinutes: "staff_session.idle_timeout_minutes",
   catalogMaxImagesPerProduct: "catalog.max_images_per_product",
+  pricingMinMarginBasisPoints: "pricing.min_margin_basis_points",
 } as const;
 
 /** Default image limit per product (Q177 "configurable"; ADR-0021). */
 export const DEFAULT_MAX_IMAGES_PER_PRODUCT = 20;
+
+/** Margin below which a selling-price review warns: 10% (Q102, Q111; ADR-0023 §4 item 2). */
+export const DEFAULT_MIN_MARGIN_BASIS_POINTS = 1000;
+
+/** A margin in basis points from 0% up to, not including, 100%. */
+function isMarginBasisPoints(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value < 10_000;
+}
 
 export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
   {
@@ -63,6 +72,13 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     defaultValue: DEFAULT_MAX_IMAGES_PER_PRODUCT,
     isValid: isPositiveInteger,
     source: "Business Spec Q177 (configurable); default ADR-0021",
+  },
+  {
+    key: SETTING_KEYS.pricingMinMarginBasisPoints,
+    dataType: "INTEGER",
+    defaultValue: DEFAULT_MIN_MARGIN_BASIS_POINTS,
+    isValid: isMarginBasisPoints,
+    source: "Business Spec Q102, Q111; 10% decided by the product owner (ADR-0023)",
   },
 ];
 
@@ -91,6 +107,14 @@ export async function readMaxImagesPerProduct(
   log: Logger = defaultLogger,
 ): Promise<number> {
   return readIntegerSetting(db, SETTING_KEYS.catalogMaxImagesPerProduct, log);
+}
+
+/** The margin (basis points) below which selling-price reviews warn (ADR-0023). */
+export async function readMinMarginBasisPoints(
+  db: Db,
+  log: Logger = defaultLogger,
+): Promise<number> {
+  return readIntegerSetting(db, SETTING_KEYS.pricingMinMarginBasisPoints, log);
 }
 
 /**

@@ -54,6 +54,9 @@ export const AUDIT_ACTIONS = [
   "PRODUCT_UNPUBLISHED",
   "PRODUCT_DISABLED",
   "PRODUCT_ARCHIVED",
+  // Prices and costs (TASK-018)
+  "PRODUCT_VARIANT_PRICE_CHANGED",
+  "PRODUCT_VARIANT_COST_CHANGED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
