@@ -14,6 +14,9 @@ prisma/migrations/
 # Markdown documents (source of truth) are not reformatted yet (TASK-006 decision).
 *.md
 
+# Google Stitch exports: visual reference only, never modified (AGENTS.md).
+design-reference/
+
 # Local mailbox (MAIL_DIR).
 .mail/
 

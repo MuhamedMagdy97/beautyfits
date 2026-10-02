@@ -111,6 +111,28 @@ A task is not complete until:
 - No obvious security/data-integrity regression is introduced.
 - Required documentation is updated.
 
+## Frontend Design Reference
+
+BeautyFits frontend visual references are located at:
+
+`design-reference/google-stitch/`
+
+The Google Stitch exports are the visual source of truth for the intended UI.
+
+Before implementing a frontend screen, inspect the corresponding reference inside:
+
+`design-reference/google-stitch/`
+
+Use the Stitch HTML and image as design references.
+
+Do NOT:
+- Copy the Stitch HTML directly into the production application.
+- Treat Stitch HTML as production code.
+- Modify files inside `design-reference/google-stitch/`.
+- Move Stitch assets into the production application unless explicitly required.
+
+The production frontend must be implemented using the project's actual Next.js/React architecture, components, business rules, and technical specifications.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
