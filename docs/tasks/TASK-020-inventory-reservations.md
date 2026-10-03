@@ -72,5 +72,5 @@ Decided by the product owner on 2026-10-03 (ADR-0025 §3): reserved stock is con
 - [x] Planned
 - [x] In Progress
 - [x] Tests Passing
-- [ ] Reviewed
-- [ ] Done
+- [x] Reviewed
+- [x] Done
