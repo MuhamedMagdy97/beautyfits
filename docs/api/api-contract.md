@@ -1362,3 +1362,43 @@ Added by TASK-023 (`docs/tasks/TASK-023-goods-receiving.md`, ADR-0028). Business
 | Closing without an invoice | `409 CONFLICT`, `details.reason = INVOICE_REQUIRED` |
 | Closing while extras await approval | `409 CONFLICT`, `details.reason = OVER_DELIVERY_PENDING` |
 | Action not allowed in the current status (receiving a draft or closed order, cancelling a partly received one, …) | `409 CONFLICT`, `details.reason = PURCHASE_STATUS_INVALID`, `details.status` |
+
+## TASK-024 Amendments
+
+Added by TASK-024 (`docs/tasks/TASK-024-supplier-returns-ledger.md`, ADR-0029). Business rules: Q105–Q107, Q118–Q120, Audit Correction 6, User Flows §14.4. Same employee session and `Origin` rules as the other admin endpoints. Completes `/admin/purchases/{id}/supplier-return`, `/admin/supplier-returns/{id}/submit|settle` (§21) and the v1.1 "Supplier finance" endpoints; adds `GET /admin/supplier-returns` and `GET /admin/supplier-returns/{id}`.
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `POST /admin/purchases/{id}/supplier-return` | `SUPPLIER_RETURN_MANAGE` | `{ reason, items: [{ goodsReceiptItemId, quantity, reason? }] }` | `201` `supplierReturn` (`DRAFT`) |
+| `POST /admin/supplier-returns/{id}/submit` | `SUPPLIER_RETURN_MANAGE` | `{ reason? }` (body optional) | `200` `supplierReturn` |
+| `POST /admin/supplier-returns/{id}/settle` | `SUPPLIER_PAYMENT_MANAGE` | `{ resolution: "REFUND" \| "CREDIT" \| "OTHER", amount?, notes? }` | `200` `supplierReturn` (`SETTLED`) |
+| `GET /admin/supplier-returns` | any of `SUPPLIER_RETURN_MANAGE`, `SUPPLIER_FINANCE_VIEW`, `SUPPLIER_PAYMENT_MANAGE` | Query `page`, `pageSize`, `status?`, `supplierId?`, `purchaseId?` | `200` `[supplierReturn]`, newest first, with `pagination` |
+| `GET /admin/supplier-returns/{id}` | as above | — | `200` `supplierReturn` |
+| `POST /admin/suppliers/{id}/payments` | `SUPPLIER_PAYMENT_MANAGE` | Header `Idempotency-Key` (required). `{ amount, method: "CASH" \| "BANK_TRANSFER" \| "CHEQUE" \| "OTHER", paidOn, purchaseId?, reference?, notes? }` | `201` `{ payment, balance }` |
+| `GET /admin/suppliers/{id}/ledger` | `SUPPLIER_FINANCE_VIEW` | Query `page`, `pageSize` | `200` `[ledgerEntry]`, newest first, with `pagination` |
+| `GET /admin/suppliers/{id}/balance` | `SUPPLIER_FINANCE_VIEW` | — | `200` `balance` |
+
+- **Create**: each line returns `quantity` (1–100000) damaged units of a goods receipt line of this order; 1–200 lines, each receipt line once. A line can return at most its damaged units minus those on other pending, approved or settled returns (drafts and rejected returns hold nothing). The expected amount is Σ `quantity` × the purchase line's unit cost (Q120).
+- **Submit**: `DRAFT` → `PENDING_APPROVAL` and a `SUPPLIER_RETURN` approval request (entity type `SUPPLIER_RETURN`), resolved through `/admin/approval-requests/{id}/approve|reject` (Q105). A submitter holding `PURCHASE_APPROVE` (Owner/Admin) approves at once. Approval → `APPROVED`: the units leave Damaged stock (`SUPPLIER_RETURN` inventory movement per line, with its unit cost). Rejection → `REJECTED` (final); the units can go on a new return.
+- **Settle**: from `APPROVED`. `amount` (piastres, 1–10^12) defaults to the expected amount and is not allowed for `OTHER`. `notes` is required for `OTHER` and when `amount` differs from the expected amount. Ledger: `CREDIT` writes a `CREDIT` entry (lowers what we owe); `REFUND` writes a `CREDIT` entry and a `REFUND` entry (cash received), so the balance nets to zero; `OTHER` writes none (`financialAmount` 0).
+- `supplierReturn`: `{ id, returnNumber, status, supplier: { id, name }, purchase: { id, purchaseNumber }, reason, expectedAmount, financialResolution, financialAmount, settlementNotes, items: [{ id, goodsReceiptItemId, receiptNumber, purchaseItemId, variantId, sku, quantity, unitCost, lineTotal, reason }], createdBy, createdAt, submittedAt, approvedBy, approvedAt, settledBy, settledAt, updatedAt, approval: { id, status, resolutionReason } | null }`.
+- **Payments**: any positive amount (1–10^12 piastres); partial payments and payments beyond what is owed are allowed (the balance goes negative). `paidOn` `YYYY-MM-DD`. `purchaseId`, when given, must be an order of this supplier in `APPROVED`, `SENT`, `PARTIALLY_RECEIVED`, `RECEIVED` or `CLOSED`. A retry with the same key and body returns the same payment; payments are never changed. `payment`: `{ id, supplierId, purchase: { id, purchaseNumber } | null, amount, method, paidOn, reference, notes, recordedBy, createdAt }`.
+- **Invoices** (`POST /admin/purchases/{id}/invoice`, TASK-023) now also add an `INVOICE` ledger entry for the invoice total.
+- `ledgerEntry`: `{ id, entryType: "INVOICE" | "PAYMENT" | "CREDIT" | "REFUND", direction: "CREDIT" | "DEBIT", amount, signedAmount, purchase: { id, purchaseNumber } | null, supplierReturn: { id, returnNumber } | null, purchaseInvoiceId, supplierPaymentId, reference, createdBy, createdAt }`. `signedAmount` is + when it raises what we owe.
+- `balance`: `{ supplierId, currency, balance, totals: { invoiced, paid, credited, refunded }, purchases: [{ id, purchaseNumber, invoiced, paid, balance, paymentStatus: "PAID" | "PARTIALLY_PAID" | "UNPAID" }] }`. `balance` is what we owe (negative: the supplier owes us). `purchases` lists invoiced orders (Q118): nothing left to pay is `PAID`, otherwise any payment on the order makes it `PARTIALLY_PAID`.
+- Audit actions added: `SUPPLIER_RETURN_CREATED`, `SUPPLIER_RETURN_SUBMITTED`, `SUPPLIER_RETURN_APPROVED`, `SUPPLIER_RETURN_REJECTED`, `SUPPLIER_RETURN_SETTLED` (entity type `SUPPLIER_RETURN`), `SUPPLIER_PAYMENT_RECORDED` (entity type `SUPPLIER`).
+
+### Errors
+| Case | Response |
+|---|---|
+| Missing or malformed `Idempotency-Key` on a payment | `400 VALIDATION_ERROR`, issue code `idempotency_key_required` / `idempotency_key_invalid` |
+| Same `Idempotency-Key` with a different payment | `409 IDEMPOTENCY_CONFLICT` |
+| Goods receipt line not on the order | `400 VALIDATION_ERROR`, issue code `goods_receipt_item_not_found` |
+| More units than can still be returned (create) | `400 VALIDATION_ERROR`, issue code `quantity_exceeds_returnable` |
+| Units taken by another return since the draft (submit, approve) | `409 CONFLICT`, `details.reason = RETURN_QUANTITY_EXCEEDED` |
+| Damaged stock lower than the units to return (e.g. written off) | `409 CONFLICT`, `details.reason = DAMAGED_STOCK_INSUFFICIENT` |
+| `amount` with `OTHER` | `400 VALIDATION_ERROR`, issue code `amount_not_allowed` |
+| Settlement differs from the expected amount, or `OTHER`, without `notes` | `400 VALIDATION_ERROR`, issue code `notes_required` |
+| Payment order unknown or of another supplier | `400 VALIDATION_ERROR`, issue code `purchase_not_found` |
+| Payment order not yet approved or cancelled | `409 CONFLICT`, `details.reason = PURCHASE_STATUS_INVALID` |
+| Return action not allowed in its status | `409 CONFLICT`, `details.reason = SUPPLIER_RETURN_STATUS_INVALID`, `details.status` |

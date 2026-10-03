@@ -35,6 +35,7 @@ import {
   type PurchaseView,
 } from "@/server/modules/purchasing/purchase-orders-service";
 import type { ReceivePurchaseInput, RecordInvoiceInput } from "@/server/modules/purchasing/schemas";
+import { postLedgerEntry } from "@/server/modules/purchasing/supplier-ledger";
 import { readMinMarginBasisPoints } from "@/server/modules/settings/settings";
 import { toJsonNumber } from "@/server/money/money";
 import { MS_PER_DAY, systemClock, type Clock } from "@/server/time/time";
@@ -49,7 +50,8 @@ import { MS_PER_DAY, systemClock, type Clock } from "@/server/time/time";
  *   damaged ones into Damaged. Good units beyond that are extras and wait for
  *   a `PURCHASE_OVER_DELIVERY` approval (Q116); an Owner/Admin's own receipt
  *   accepts them at once, like their purchase orders (ADR-0027 §3).
- * - Invoices are recorded as issued and never edited (Q115, Q117).
+ * - Invoices are recorded as issued and never edited (Q115, Q117); each adds
+ *   what we owe to the supplier ledger (TASK-024).
  * - An order nothing more will arrive for is closed by hand, once invoiced.
  */
 
@@ -378,6 +380,21 @@ export function createGoodsReceiptsService(deps: { db: PrismaClient; clock: Cloc
             createdAt: now,
           },
         });
+        // What we owe the supplier (TASK-024, ADR-0029).
+        const { supplierId } = await tx.purchaseOrder.findUniqueOrThrow({
+          where: { id: purchaseId },
+          select: { supplierId: true },
+        });
+        const ledgerEntryId = await postLedgerEntry(tx, {
+          supplierId,
+          entryType: "INVOICE",
+          amount: input.invoiceTotal,
+          reference: input.invoiceNumber,
+          purchaseOrderId: purchaseId,
+          purchaseInvoiceId: invoice.id,
+          employeeId: actor.employeeId,
+          now,
+        });
         await recordAudit(tx, {
           actor: employeeActor(actor.employeeId),
           action: "PURCHASE_INVOICE_RECORDED",
@@ -390,6 +407,7 @@ export function createGoodsReceiptsService(deps: { db: PrismaClient; clock: Cloc
             invoiceTotal: toJsonNumber(input.invoiceTotal),
             taxAmount: input.taxAmount == null ? null : toJsonNumber(input.taxAmount),
             mediaAssetId: input.mediaAssetId,
+            ledgerEntryId,
           },
           reason: input.notes ?? null,
           correlationId: ctx.correlationId,

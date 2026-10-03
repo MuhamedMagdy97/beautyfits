@@ -1,6 +1,7 @@
 import type { ApprovalHandlers } from "@/server/modules/approvals/approvals";
 import { overDeliveryApprovalHandler } from "@/server/modules/purchasing/goods-receipts";
 import { purchaseOrderApprovalHandler } from "@/server/modules/purchasing/purchase-orders";
+import { supplierReturnApprovalHandler } from "@/server/modules/purchasing/supplier-returns";
 
 /**
  * What happens when each type of approval request is approved or rejected
@@ -9,6 +10,7 @@ import { purchaseOrderApprovalHandler } from "@/server/modules/purchasing/purcha
  *
  * - `PURCHASE_ORDER`: TASK-022 (purchase orders)
  * - `PURCHASE_OVER_DELIVERY`: TASK-023 (goods receiving, Q116)
+ * - `SUPPLIER_RETURN`: TASK-024 (supplier returns, Q105)
  * - `MARKETING_CAMPAIGN`: TASK-048 (campaigns, Q142)
  * - `CRITICAL_SETTING`: TASK-057 (settings, Q180)
  *
@@ -18,4 +20,5 @@ import { purchaseOrderApprovalHandler } from "@/server/modules/purchasing/purcha
 export const APPROVAL_HANDLERS: ApprovalHandlers = {
   PURCHASE_ORDER: purchaseOrderApprovalHandler,
   PURCHASE_OVER_DELIVERY: overDeliveryApprovalHandler,
+  SUPPLIER_RETURN: supplierReturnApprovalHandler,
 };

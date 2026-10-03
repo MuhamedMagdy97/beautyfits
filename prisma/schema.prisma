@@ -325,22 +325,27 @@ model Employee {
   createdBy Employee?  @relation("EmployeeCreatedBy", fields: [createdByEmployeeId], references: [id])
   created   Employee[] @relation("EmployeeCreatedBy")
 
-  roles              EmployeeRole[]       @relation("EmployeeRoleHolder")
-  rolesAssigned      EmployeeRole[]       @relation("EmployeeRoleAssigner")
-  rolesCreated       Role[]               @relation("RoleCreatedBy")
-  invitationsSent    EmployeeInvitation[] @relation("InvitationInvitedBy")
-  invitationsRevoked EmployeeInvitation[] @relation("InvitationRevokedBy")
-  invitation         EmployeeInvitation?  @relation("InvitationAcceptedAs")
-  settingsUpdated    Setting[]            @relation("SettingUpdatedBy")
-  approvalsRequested ApprovalRequest[]    @relation("ApprovalRequestedBy")
-  approvalsResolved  ApprovalRequest[]    @relation("ApprovalResolvedBy")
-  mediaUploaded      MediaAsset[]         @relation("MediaAssetCreatedBy")
-  purchasesCreated   PurchaseOrder[]      @relation("PurchaseOrderCreatedBy")
-  purchasesApproved  PurchaseOrder[]      @relation("PurchaseOrderApprovedBy")
-  purchasesCancelled PurchaseOrder[]      @relation("PurchaseOrderCancelledBy")
-  purchasesClosed    PurchaseOrder[]      @relation("PurchaseOrderClosedBy")
-  goodsReceipts      GoodsReceipt[]       @relation("GoodsReceiptReceivedBy")
-  invoicesRecorded   PurchaseInvoice[]    @relation("PurchaseInvoiceRecordedBy")
+  roles              EmployeeRole[]        @relation("EmployeeRoleHolder")
+  rolesAssigned      EmployeeRole[]        @relation("EmployeeRoleAssigner")
+  rolesCreated       Role[]                @relation("RoleCreatedBy")
+  invitationsSent    EmployeeInvitation[]  @relation("InvitationInvitedBy")
+  invitationsRevoked EmployeeInvitation[]  @relation("InvitationRevokedBy")
+  invitation         EmployeeInvitation?   @relation("InvitationAcceptedAs")
+  settingsUpdated    Setting[]             @relation("SettingUpdatedBy")
+  approvalsRequested ApprovalRequest[]     @relation("ApprovalRequestedBy")
+  approvalsResolved  ApprovalRequest[]     @relation("ApprovalResolvedBy")
+  mediaUploaded      MediaAsset[]          @relation("MediaAssetCreatedBy")
+  purchasesCreated   PurchaseOrder[]       @relation("PurchaseOrderCreatedBy")
+  purchasesApproved  PurchaseOrder[]       @relation("PurchaseOrderApprovedBy")
+  purchasesCancelled PurchaseOrder[]       @relation("PurchaseOrderCancelledBy")
+  purchasesClosed    PurchaseOrder[]       @relation("PurchaseOrderClosedBy")
+  goodsReceipts      GoodsReceipt[]        @relation("GoodsReceiptReceivedBy")
+  invoicesRecorded   PurchaseInvoice[]     @relation("PurchaseInvoiceRecordedBy")
+  returnsCreated     SupplierReturn[]      @relation("SupplierReturnCreatedBy")
+  returnsApproved    SupplierReturn[]      @relation("SupplierReturnApprovedBy")
+  returnsSettled     SupplierReturn[]      @relation("SupplierReturnSettledBy")
+  paymentsRecorded   SupplierPayment[]     @relation("SupplierPaymentRecordedBy")
+  ledgerEntries      SupplierLedgerEntry[] @relation("SupplierLedgerEntryCreatedBy")
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -532,6 +537,8 @@ model AuditLog {
 enum ApprovalType {
   PURCHASE_ORDER
   PURCHASE_OVER_DELIVERY
+  /// Owner review of a supplier return (TASK-024, Q105).
+  SUPPLIER_RETURN
   MARKETING_CAMPAIGN
   CRITICAL_SETTING
 
@@ -672,6 +679,7 @@ model ProductVariant {
   inventoryMovements    InventoryMovement[]
   inventoryReservations InventoryReservation[]
   purchaseItems         PurchaseItem[]
+  supplierReturnItems   SupplierReturnItem[]
 
   @@unique([productId], map: "product_variants_one_default_key", where: raw("is_default"))
   @@index([productId, createdAt])
@@ -874,6 +882,8 @@ enum InventoryMovementType {
   /// Goods received from a supplier (TASK-023, Q104): accepted units into
   /// Available, damaged ones into Damaged, with the purchase unit cost.
   PURCHASE_RECEIPT
+  /// Damaged units sent back to the supplier (TASK-024, Q105): Damaged out.
+  SUPPLIER_RETURN
 
   @@map("inventory_movement_type")
 }
@@ -961,6 +971,9 @@ model Supplier {
   updatedAt DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
 
   purchaseOrders PurchaseOrder[]
+  returns        SupplierReturn[]
+  payments       SupplierPayment[]
+  ledgerEntries  SupplierLedgerEntry[]
 
   @@index([status, name])
   @@map("suppliers")
@@ -1011,14 +1024,17 @@ model PurchaseOrder {
   createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime            @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  supplier    Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  createdBy   Employee          @relation("PurchaseOrderCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
-  approvedBy  Employee?         @relation("PurchaseOrderApprovedBy", fields: [approvedByEmployeeId], references: [id], onDelete: Restrict)
-  cancelledBy Employee?         @relation("PurchaseOrderCancelledBy", fields: [cancelledByEmployeeId], references: [id], onDelete: Restrict)
-  closedBy    Employee?         @relation("PurchaseOrderClosedBy", fields: [closedByEmployeeId], references: [id], onDelete: Restrict)
+  supplier    Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy   Employee              @relation("PurchaseOrderCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
+  approvedBy  Employee?             @relation("PurchaseOrderApprovedBy", fields: [approvedByEmployeeId], references: [id], onDelete: Restrict)
+  cancelledBy Employee?             @relation("PurchaseOrderCancelledBy", fields: [cancelledByEmployeeId], references: [id], onDelete: Restrict)
+  closedBy    Employee?             @relation("PurchaseOrderClosedBy", fields: [closedByEmployeeId], references: [id], onDelete: Restrict)
   items       PurchaseItem[]
   receipts    GoodsReceipt[]
   invoices    PurchaseInvoice[]
+  returns     SupplierReturn[]
+  payments    SupplierPayment[]
+  ledger      SupplierLedgerEntry[]
 
   @@index([status, createdAt])
   @@index([supplierId, createdAt])
@@ -1037,9 +1053,10 @@ model PurchaseItem {
   /// ordered_quantity × unit_cost.
   lineTotal        BigInt @map("line_total")
 
-  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
-  variant       ProductVariant     @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder        @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  variant       ProductVariant       @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
   receiptItems  GoodsReceiptItem[]
+  returnItems   SupplierReturnItem[]
 
   @@unique([purchaseOrderId, productVariantId])
   @@index([productVariantId])
@@ -1085,8 +1102,9 @@ model GoodsReceiptItem {
   overDeliveryQuantity Int     @map("over_delivery_quantity")
   inspectionNotes      String? @map("inspection_notes")
 
-  goodsReceipt GoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Restrict)
-  purchaseItem PurchaseItem @relation(fields: [purchaseItemId], references: [id], onDelete: Restrict)
+  goodsReceipt GoodsReceipt         @relation(fields: [goodsReceiptId], references: [id], onDelete: Restrict)
+  purchaseItem PurchaseItem         @relation(fields: [purchaseItemId], references: [id], onDelete: Restrict)
+  returnItems  SupplierReturnItem[]
 
   @@unique([goodsReceiptId, purchaseItemId])
   @@index([purchaseItemId])
@@ -1110,10 +1128,186 @@ model PurchaseInvoice {
   recordedByEmployeeId String   @map("recorded_by_employee_id") @db.Uuid
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
-  mediaAsset    MediaAsset    @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
-  recordedBy    Employee      @relation("PurchaseInvoiceRecordedBy", fields: [recordedByEmployeeId], references: [id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder        @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  mediaAsset    MediaAsset           @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+  recordedBy    Employee             @relation("PurchaseInvoiceRecordedBy", fields: [recordedByEmployeeId], references: [id], onDelete: Restrict)
+  ledgerEntry   SupplierLedgerEntry?
 
   @@unique([purchaseOrderId, invoiceNumber])
   @@map("purchase_invoices")
+}
+
+// ---------------------------------------------------------------------------
+// Supplier returns, payments and ledger (TASK-024, DB design §11 and v1.1,
+// ADR-0029). Return lines, payments and ledger entries are append-only.
+// ---------------------------------------------------------------------------
+
+enum SupplierReturnStatus {
+  DRAFT
+  /// Waiting for Owner/Admin review (Q105).
+  PENDING_APPROVAL
+  /// Approved: the units left Damaged stock and went back to the supplier.
+  APPROVED
+  /// Final; the units may go on a new return.
+  REJECTED
+  /// Refund, credit or other settlement recorded (Q107).
+  SETTLED
+
+  @@map("supplier_return_status")
+}
+
+enum SupplierReturnResolution {
+  REFUND
+  CREDIT
+  /// No money (e.g. replacement goods); described in the notes.
+  OTHER
+
+  @@map("supplier_return_resolution")
+}
+
+/// Damaged units of a purchase order sent back to its supplier (Q105, Q106,
+/// Q107, Q120). Never deleted.
+model SupplierReturn {
+  id                   String                    @id @default(uuid(7)) @db.Uuid
+  /// "SR-000001", from the sequence `supplier_return_number_seq`.
+  returnNumber         String                    @unique @default(dbgenerated("('SR-'::text || lpad((nextval('supplier_return_number_seq'::regclass))::text, 6, '0'::text))")) @map("return_number")
+  supplierId           String                    @map("supplier_id") @db.Uuid
+  purchaseOrderId      String                    @map("purchase_order_id") @db.Uuid
+  status               SupplierReturnStatus      @default(DRAFT)
+  reason               String
+  /// Σ quantity × purchase unit cost, in piastres (Q120).
+  expectedAmount       BigInt                    @map("expected_amount")
+  financialResolution  SupplierReturnResolution? @map("financial_resolution")
+  /// Piastres settled; 0 for OTHER.
+  financialAmount      BigInt?                   @map("financial_amount")
+  settlementNotes      String?                   @map("settlement_notes")
+  createdByEmployeeId  String                    @map("created_by_employee_id") @db.Uuid
+  submittedAt          DateTime?                 @map("submitted_at") @db.Timestamptz(3)
+  approvedByEmployeeId String?                   @map("approved_by_employee_id") @db.Uuid
+  approvedAt           DateTime?                 @map("approved_at") @db.Timestamptz(3)
+  settledByEmployeeId  String?                   @map("settled_by_employee_id") @db.Uuid
+  settledAt            DateTime?                 @map("settled_at") @db.Timestamptz(3)
+  createdAt            DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime                  @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  supplier      Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  createdBy     Employee              @relation("SupplierReturnCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
+  approvedBy    Employee?             @relation("SupplierReturnApprovedBy", fields: [approvedByEmployeeId], references: [id], onDelete: Restrict)
+  settledBy     Employee?             @relation("SupplierReturnSettledBy", fields: [settledByEmployeeId], references: [id], onDelete: Restrict)
+  items         SupplierReturnItem[]
+  ledgerEntries SupplierLedgerEntry[]
+
+  @@index([purchaseOrderId, createdAt])
+  @@index([supplierId, createdAt])
+  @@index([status, createdAt])
+  @@map("supplier_returns")
+}
+
+/// Damaged units of one goods receipt line being returned.
+model SupplierReturnItem {
+  id                 String  @id @default(uuid(7)) @db.Uuid
+  supplierReturnId   String  @map("supplier_return_id") @db.Uuid
+  goodsReceiptItemId String  @map("goods_receipt_item_id") @db.Uuid
+  purchaseItemId     String  @map("purchase_item_id") @db.Uuid
+  productVariantId   String  @map("product_variant_id") @db.Uuid
+  quantity           Int
+  /// The purchase line's unit cost, in piastres.
+  unitCost           BigInt  @map("unit_cost")
+  reason             String?
+
+  supplierReturn   SupplierReturn   @relation(fields: [supplierReturnId], references: [id], onDelete: Restrict)
+  goodsReceiptItem GoodsReceiptItem @relation(fields: [goodsReceiptItemId], references: [id], onDelete: Restrict)
+  purchaseItem     PurchaseItem     @relation(fields: [purchaseItemId], references: [id], onDelete: Restrict)
+  variant          ProductVariant   @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@unique([supplierReturnId, goodsReceiptItemId])
+  @@index([goodsReceiptItemId])
+  @@map("supplier_return_items")
+}
+
+enum SupplierPaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+  OTHER
+
+  @@map("supplier_payment_method")
+}
+
+/// Money paid to a supplier (API v1.1 "Supplier finance"). Its ledger entry
+/// lowers what we owe.
+model SupplierPayment {
+  id                   String                @id @default(uuid(7)) @db.Uuid
+  supplierId           String                @map("supplier_id") @db.Uuid
+  /// The purchase order paid for, when there is one (Q118).
+  purchaseOrderId      String?               @map("purchase_order_id") @db.Uuid
+  /// Piastres.
+  amount               BigInt
+  method               SupplierPaymentMethod
+  paidOn               DateTime              @map("paid_on") @db.Date
+  reference            String?
+  notes                String?
+  recordedByEmployeeId String                @map("recorded_by_employee_id") @db.Uuid
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  supplier      Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder?       @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  recordedBy    Employee             @relation("SupplierPaymentRecordedBy", fields: [recordedByEmployeeId], references: [id], onDelete: Restrict)
+  ledgerEntry   SupplierLedgerEntry?
+
+  @@index([supplierId, createdAt])
+  @@map("supplier_payments")
+}
+
+enum SupplierLedgerEntryType {
+  INVOICE
+  PAYMENT
+  /// Supplier credit for returned goods.
+  CREDIT
+  /// Cash received back from the supplier.
+  REFUND
+  /// Not created in v1 (ADR-0029).
+  ADJUSTMENT
+
+  @@map("supplier_ledger_entry_type")
+}
+
+/// The supplier's account: CREDIT raises what we owe, DEBIT lowers it.
+enum SupplierLedgerDirection {
+  CREDIT
+  DEBIT
+
+  @@map("supplier_ledger_direction")
+}
+
+/// Supplier payable history (Audit Correction 6, Q119). The balance (what we
+/// owe) is Σ CREDIT − Σ DEBIT.
+model SupplierLedgerEntry {
+  id                  String                  @id @default(uuid(7)) @db.Uuid
+  supplierId          String                  @map("supplier_id") @db.Uuid
+  purchaseOrderId     String?                 @map("purchase_order_id") @db.Uuid
+  supplierReturnId    String?                 @map("supplier_return_id") @db.Uuid
+  purchaseInvoiceId   String?                 @unique @map("purchase_invoice_id") @db.Uuid
+  supplierPaymentId   String?                 @unique @map("supplier_payment_id") @db.Uuid
+  entryType           SupplierLedgerEntryType @map("entry_type")
+  direction           SupplierLedgerDirection
+  /// Piastres, > 0; the direction gives the sign.
+  amount              BigInt
+  /// Invoice number, return number or payment reference.
+  reference           String?
+  createdByEmployeeId String                  @map("created_by_employee_id") @db.Uuid
+  createdAt           DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  supplier        Supplier         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseOrder   PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  supplierReturn  SupplierReturn?  @relation(fields: [supplierReturnId], references: [id], onDelete: Restrict)
+  purchaseInvoice PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Restrict)
+  supplierPayment SupplierPayment? @relation(fields: [supplierPaymentId], references: [id], onDelete: Restrict)
+  createdBy       Employee         @relation("SupplierLedgerEntryCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
+
+  @@unique([supplierReturnId, entryType])
+  @@index([supplierId, createdAt])
+  @@index([purchaseOrderId])
+  @@map("supplier_ledger_entries")
 }

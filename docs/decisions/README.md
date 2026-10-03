@@ -33,5 +33,6 @@
 | [ADR-0026](ADR-0026-suppliers.md) | Suppliers | TASK-021 |
 | [ADR-0027](ADR-0027-purchase-orders.md) | Purchase orders and approval | TASK-022 |
 | [ADR-0028](ADR-0028-goods-receiving.md) | Goods receiving and supplier invoices | TASK-023 |
+| [ADR-0029](ADR-0029-supplier-returns-ledger.md) | Supplier returns, payments and ledger | TASK-024 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

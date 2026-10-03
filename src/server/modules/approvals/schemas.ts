@@ -10,6 +10,7 @@ const ENTITY_ID_MAX = 200;
 export const approvalTypeSchema = z.enum([
   "PURCHASE_ORDER",
   "PURCHASE_OVER_DELIVERY",
+  "SUPPLIER_RETURN",
   "MARKETING_CAMPAIGN",
   "CRITICAL_SETTING",
 ]);

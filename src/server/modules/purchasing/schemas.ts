@@ -116,6 +116,67 @@ export const recordInvoiceSchema = z
     message: "The tax cannot be more than the invoice total.",
   });
 
+/** `POST /admin/purchases/{id}/supplier-return` (TASK-024, Q105, ADR-0029): damaged units going back. */
+export const createSupplierReturnSchema = z.object({
+  reason,
+  items: z
+    .array(
+      z.object({
+        /** The goods receipt line whose damaged units go back. */
+        goodsReceiptItemId: uuidParam,
+        quantity: z.int().min(1).max(100_000),
+        reason: reason.optional(),
+      }),
+    )
+    .min(1)
+    .max(PURCHASE_ITEMS_MAX)
+    .refine(
+      (lines) => new Set(lines.map((line) => line.goodsReceiptItemId)).size === lines.length,
+      { message: "Each goods receipt line may appear only once." },
+    ),
+});
+
+export const supplierReturnStatusSchema = z.enum([
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED",
+  "SETTLED",
+]);
+
+export const listSupplierReturnsQuerySchema = z.object({
+  ...pageQuery,
+  status: supplierReturnStatusSchema.optional(),
+  supplierId: uuidParam.optional(),
+  purchaseId: uuidParam.optional(),
+});
+
+/** `POST /admin/supplier-returns/{id}/settle` (Q107, Q120). */
+export const settleSupplierReturnSchema = z.object({
+  resolution: z.enum(["REFUND", "CREDIT", "OTHER"]),
+  /** Piastres; defaults to the expected amount. Not allowed for OTHER. */
+  amount: invoiceAmount(1).optional(),
+  /** Required for OTHER and when the amount differs from the expected one. */
+  notes: notes.optional(),
+});
+
+/** `POST /admin/suppliers/{id}/payments` (API v1.1 "Supplier finance"). */
+export const recordSupplierPaymentSchema = z.object({
+  amount: invoiceAmount(1),
+  method: z.enum(["CASH", "BANK_TRANSFER", "CHEQUE", "OTHER"]),
+  paidOn: z.iso.date({ message: "Use a date such as 2026-10-03." }),
+  /** The purchase order paid for, when there is one (Q118). */
+  purchaseId: uuidParam.optional(),
+  reference: z.string().trim().min(1).max(200).optional(),
+  notes: notes.optional(),
+});
+
+export const supplierLedgerQuerySchema = z.object({ ...pageQuery });
+
+export type CreateSupplierReturnInput = z.infer<typeof createSupplierReturnSchema>;
+export type ListSupplierReturnsQuery = z.infer<typeof listSupplierReturnsQuerySchema>;
+export type SettleSupplierReturnInput = z.infer<typeof settleSupplierReturnSchema>;
+export type RecordSupplierPaymentInput = z.infer<typeof recordSupplierPaymentSchema>;
 export type ReceivePurchaseInput = z.infer<typeof receivePurchaseSchema>;
 export type RecordInvoiceInput = z.infer<typeof recordInvoiceSchema>;
 export type CreatePurchaseInput = z.infer<typeof createPurchaseSchema>;

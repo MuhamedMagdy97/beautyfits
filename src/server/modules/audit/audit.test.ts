@@ -39,10 +39,11 @@ describe("listAuditLogsQuerySchema", () => {
 });
 
 describe("approval request schemas", () => {
-  it("lists exactly the R19 approval types", () => {
+  it("lists exactly the R19 approval types (plus supplier returns, ADR-0029)", () => {
     expect(approvalTypeSchema.options).toEqual([
       "PURCHASE_ORDER",
       "PURCHASE_OVER_DELIVERY",
+      "SUPPLIER_RETURN",
       "MARKETING_CAMPAIGN",
       "CRITICAL_SETTING",
     ]);
