@@ -63,7 +63,7 @@ Migration `suppliers`. DB Design "v1.2 TASK-021 Amendments".
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-Technical defaults for the product owner to confirm (ADR-0026 §2):
+Confirmed by the product owner on 2026-10-03 (ADR-0026 §2):
 1. **Status**: `ACTIVE` / `INACTIVE`; inactive suppliers get no new purchase orders, history continues; reactivation allowed.
 2. **Contacts**: one phone, email and address per supplier; other contacts in `notes`.
 3. **Names**: unique ignoring case.
@@ -73,5 +73,5 @@ Technical defaults for the product owner to confirm (ADR-0026 §2):
 - [x] Planned
 - [x] In Progress
 - [x] Tests Passing
-- [ ] Reviewed
-- [ ] Done
+- [x] Reviewed
+- [x] Done

@@ -1,4 +1,5 @@
 import type { ApprovalHandlers } from "@/server/modules/approvals/approvals";
+import { purchaseOrderApprovalHandler } from "@/server/modules/purchasing/purchase-orders";
 
 /**
  * What happens when each type of approval request is approved or rejected
@@ -13,4 +14,6 @@ import type { ApprovalHandlers } from "@/server/modules/approvals/approvals";
  * Approving a request whose type has no handler fails, so a request can only
  * be approved once its feature knows how to apply it.
  */
-export const APPROVAL_HANDLERS: ApprovalHandlers = {};
+export const APPROVAL_HANDLERS: ApprovalHandlers = {
+  PURCHASE_ORDER: purchaseOrderApprovalHandler,
+};

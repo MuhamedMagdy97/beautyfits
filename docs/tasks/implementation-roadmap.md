@@ -300,6 +300,8 @@ Implement supplier records, contacts, active state and historical relationships.
 
 Implement Draft → Pending Approval → Approved → Sent lifecycle with role/approval rules.
 
+**Status after TASK-022** (`docs/tasks/TASK-022-purchase-orders.md`): `purchase_orders` / `purchase_items` (`PO-000001` numbers, never deleted, lines frozen after Draft); `/admin/purchases` endpoints for Draft → Pending Approval → Approved → Sent, reject back to Draft, cancel (ADR-0027). Submitting opens a `PURCHASE_ORDER` approval request (Owner/Admin submits are approved at once); no stock changes. TASK-023 receives against `purchase_items`, sets `PARTIALLY_RECEIVED`/`RECEIVED`/`CLOSED` and updates costs.
+
 ### TASK-023 — Goods Receiving & Supplier Invoices
 **Depends on:** TASK-022, TASK-019
 

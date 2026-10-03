@@ -1724,3 +1724,21 @@ Added by TASK-021 (`docs/tasks/TASK-021-suppliers.md`, ADR-0026). Migrated in `p
 - `status` enum `supplier_status` (`ACTIVE`, `INACTIVE`); `INACTIVE` suppliers get no new purchase orders (TASK-022).
 - Index `(status, name)`. Names are unique ignoring case (service check).
 - Trigger `suppliers_no_delete`: rows are deactivated, never deleted.
+
+## v1.2 TASK-022 Amendments
+
+Added by TASK-022 (`docs/tasks/TASK-022-purchase-orders.md`, ADR-0027). Migrated in `prisma/migrations/*_purchase_orders`.
+
+### `purchase_orders` (§11, migrated)
+- Fields of §11 plus `currency` (`EGP`), `submitted_at`, `sent_at`, `cancelled_by_employee_id`, `cancelled_at`, `cancellation_reason`. `ordered_total` is piastres (`bigint`, ≥ 0), the sum of the line totals.
+- `invoice_media_id` is not created: supplier invoices are `purchase_invoices` rows (v1.1 amendments, TASK-023).
+- `purchase_number`: `PO-` + six digits from the sequence `purchase_order_number_seq`, unique.
+- `status` enum `purchase_order_status` as in §11. TASK-022 uses `DRAFT`, `PENDING_APPROVAL`, `APPROVED`, `SENT`, `CANCELLED`; goods receiving (TASK-023) sets the others.
+- `supplier_id`, `created_by_employee_id`, `approved_by_employee_id`, `cancelled_by_employee_id`: foreign keys, `RESTRICT`.
+- Indexes `(status, created_at)`, `(supplier_id, created_at)`.
+- Trigger `purchase_orders_no_delete`: orders are cancelled, never deleted.
+
+### `purchase_items` (§11, migrated)
+- Fields of §11. `unit_cost`, `line_total` in piastres; check `ordered_quantity > 0`, `unit_cost > 0`, `line_total = ordered_quantity × unit_cost`.
+- Unique `(purchase_order_id, product_variant_id)`; foreign keys `RESTRICT`.
+- Trigger `purchase_items_draft_only`: lines are inserted, changed or deleted only while their order is `DRAFT`.
