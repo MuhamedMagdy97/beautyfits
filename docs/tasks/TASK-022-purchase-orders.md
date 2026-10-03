@@ -71,7 +71,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 Decided by the product owner on 2026-10-03: ADR-0027 §3.
-Technical defaults for the product owner to confirm (ADR-0027 §4):
+Technical defaults confirmed by the product owner on 2026-10-03 (ADR-0027 §4):
 1. Only drafts are edited; an approved/sent order is changed by cancelling and re-creating it.
 2. Cancelling needs a reason.
 3. Unit costs positive; quantity 1–100000; max 200 lines, each variant once.

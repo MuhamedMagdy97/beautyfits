@@ -1,6 +1,6 @@
 # ADR-0027 — Purchase orders and approval
 
-- **Status:** Accepted (TASK-022); §3 decided by the product owner on 2026-10-03; the defaults in §4 await the product owner's confirmation
+- **Status:** Accepted (TASK-022); §3 decided by the product owner on 2026-10-03; the defaults in §4 confirmed by the product owner on 2026-10-03
 - **Date:** 2026-10-03
 - **Relates to:** ADR-0018 (approval requests), ADR-0026 (suppliers), ADR-0011 (money); Business Spec Q101, Q102, Q112, Q113, R19; User Flows §14; DB Design §11 and "v1.2 TASK-022 Amendments"; API Contract §21 and "TASK-022 Amendments"; permission catalog (`PURCHASE_VIEW`, `PURCHASE_CREATE`, `PURCHASE_APPROVE`)
 
@@ -24,7 +24,7 @@ Goods receipts, invoices and over-delivery approvals (TASK-023); supplier return
 3. **"Send" only records the status.** Staff send the order themselves; the system sends nothing.
 4. **Draft and published products can be ordered** (new products can be stocked before launch); archived products or variants cannot. Disabled products are not archived and can be ordered.
 
-## 4. Technical defaults (owner to confirm)
+## 4. Technical defaults (confirmed by the product owner, 2026-10-03)
 
 1. Only drafts are edited; changing an approved or sent order means cancelling it and creating a new one.
 2. Cancelling needs a reason. Before approval it needs `PURCHASE_CREATE`; once `APPROVED` or `SENT`, `PURCHASE_APPROVE` (API §21).
