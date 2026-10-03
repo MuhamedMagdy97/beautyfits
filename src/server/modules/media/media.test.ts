@@ -120,7 +120,7 @@ describe("startUploadSchema", () => {
       false,
     );
     expect(startUploadSchema.safeParse({ ...valid, sizeBytes: 0 }).success).toBe(false);
-    expect(startUploadSchema.safeParse({ ...valid, purpose: "SUPPLIER_INVOICE" }).success).toBe(
+    expect(startUploadSchema.safeParse({ ...valid, purpose: "RETURN_EVIDENCE" }).success).toBe(
       false,
     );
     const mismatch = startUploadSchema.safeParse({ ...valid, filename: "lipstick.png" });

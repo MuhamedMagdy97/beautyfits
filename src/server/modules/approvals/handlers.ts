@@ -1,4 +1,5 @@
 import type { ApprovalHandlers } from "@/server/modules/approvals/approvals";
+import { overDeliveryApprovalHandler } from "@/server/modules/purchasing/goods-receipts";
 import { purchaseOrderApprovalHandler } from "@/server/modules/purchasing/purchase-orders";
 
 /**
@@ -16,4 +17,5 @@ import { purchaseOrderApprovalHandler } from "@/server/modules/purchasing/purcha
  */
 export const APPROVAL_HANDLERS: ApprovalHandlers = {
   PURCHASE_ORDER: purchaseOrderApprovalHandler,
+  PURCHASE_OVER_DELIVERY: overDeliveryApprovalHandler,
 };

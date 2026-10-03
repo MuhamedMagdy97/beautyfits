@@ -24,6 +24,7 @@ import type {
   PurchaseItemInput,
   UpdatePurchaseInput,
 } from "@/server/modules/purchasing/schemas";
+import { mediaContentUrl } from "@/server/modules/media/uploads-service";
 import { permissionDenied, type PermissionSet } from "@/server/modules/rbac/authorization";
 import { toJsonNumber } from "@/server/money/money";
 import { systemClock, type Clock } from "@/server/time/time";
@@ -65,8 +66,65 @@ export interface PurchaseItemView {
   variantNameAr: string | null;
   variantNameEn: string | null;
   orderedQuantity: number;
-  unitCost: number;
-  lineTotal: number;
+  /** Amounts only with `PURCHASE_VIEW` (absent for receiving staff). */
+  unitCost?: number;
+  lineTotal?: number;
+  /** Received against the order: accepted + damaged (TASK-023). */
+  receivedQuantity: number;
+  acceptedQuantity: number;
+  damagedQuantity: number;
+  /** Over-delivered units accepted by an Owner/Admin (Q116). */
+  extraAcceptedQuantity: number;
+  /** Still due: ordered − received, not below zero. */
+  remainingQuantity: number;
+}
+
+export interface GoodsReceiptView {
+  id: string;
+  receiptNumber: string;
+  receivedBy: PersonRef;
+  receivedAt: string;
+  notes: string | null;
+  items: {
+    purchaseItemId: string;
+    variantId: string;
+    sku: string;
+    deliveredQuantity: number;
+    acceptedQuantity: number;
+    damagedQuantity: number;
+    overDeliveryQuantity: number;
+    inspectionNotes: string | null;
+  }[];
+  /** The approval of the extras, when there were any (Q116). */
+  overDelivery: { approvalRequestId: string; status: string } | null;
+}
+
+export interface PurchaseInvoiceView {
+  id: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  invoiceTotal: number;
+  taxAmount: number | null;
+  file: { mediaAssetId: string; url: string };
+  notes: string | null;
+  recordedBy: PersonRef;
+  createdAt: string;
+}
+
+/** What the caller may see of an order. */
+export interface PurchaseAccess {
+  /** Unit costs and totals: `PURCHASE_VIEW`. */
+  amounts: boolean;
+  /** Supplier invoices: `SUPPLIER_FINANCE_VIEW` or `SUPPLIER_PAYMENT_MANAGE`. */
+  invoices: boolean;
+}
+
+export function purchaseAccess(permissions: PermissionSet): PurchaseAccess {
+  return {
+    amounts: permissions.has("PURCHASE_VIEW"),
+    invoices:
+      permissions.has("SUPPLIER_FINANCE_VIEW") || permissions.has("SUPPLIER_PAYMENT_MANAGE"),
+  };
 }
 
 export interface PurchaseSummaryView {
@@ -74,7 +132,8 @@ export interface PurchaseSummaryView {
   purchaseNumber: string;
   status: PurchaseOrderStatus;
   supplier: { id: string; name: string };
-  orderedTotal: number;
+  /** Only with `PURCHASE_VIEW`. */
+  orderedTotal?: number;
   currency: string;
   notes: string | null;
   createdBy: PersonRef;
@@ -85,12 +144,18 @@ export interface PurchaseSummaryView {
   cancelledBy: PersonRef | null;
   cancelledAt: string | null;
   cancellationReason: string | null;
+  closedBy: PersonRef | null;
+  closedAt: string | null;
+  closingReason: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface PurchaseView extends PurchaseSummaryView {
   items: PurchaseItemView[];
+  receipts: GoodsReceiptView[];
+  /** Only for supplier finance (`PurchaseAccess.invoices`). */
+  invoices?: PurchaseInvoiceView[];
   /** The latest approval request: shows a rejection reason to the creator. */
   approval: {
     id: string;
@@ -107,6 +172,7 @@ const summaryInclude = {
   createdBy: person,
   approvedBy: person,
   cancelledBy: person,
+  closedBy: person,
 } as const satisfies Prisma.PurchaseOrderInclude;
 
 const viewInclude = {
@@ -124,6 +190,22 @@ const viewInclude = {
       },
     },
   },
+  receipts: {
+    orderBy: [{ receivedAt: "asc" }, { id: "asc" }],
+    include: {
+      receivedBy: person,
+      items: {
+        orderBy: { id: "asc" },
+        include: {
+          purchaseItem: { select: { productVariantId: true, variant: { select: { sku: true } } } },
+        },
+      },
+    },
+  },
+  invoices: {
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    include: { recordedBy: person },
+  },
 } as const satisfies Prisma.PurchaseOrderInclude;
 
 type SummaryRow = Prisma.PurchaseOrderGetPayload<{ include: typeof summaryInclude }>;
@@ -132,13 +214,13 @@ function iso(value: Date | null): string | null {
   return value?.toISOString() ?? null;
 }
 
-function toSummary(row: SummaryRow): PurchaseSummaryView {
+function toSummary(row: SummaryRow, access: PurchaseAccess): PurchaseSummaryView {
   return {
     id: row.id,
     purchaseNumber: row.purchaseNumber,
     status: row.status,
     supplier: row.supplier,
-    orderedTotal: toJsonNumber(row.orderedTotal),
+    ...(access.amounts ? { orderedTotal: toJsonNumber(row.orderedTotal) } : {}),
     currency: row.currency,
     notes: row.notes,
     createdBy: row.createdBy,
@@ -149,12 +231,19 @@ function toSummary(row: SummaryRow): PurchaseSummaryView {
     cancelledBy: row.cancelledBy,
     cancelledAt: iso(row.cancelledAt),
     cancellationReason: row.cancellationReason,
+    closedBy: row.closedBy,
+    closedAt: iso(row.closedAt),
+    closingReason: row.closingReason,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
-async function loadView(db: Db, purchaseId: string): Promise<PurchaseView> {
+export async function loadView(
+  db: Db,
+  purchaseId: string,
+  access: PurchaseAccess,
+): Promise<PurchaseView> {
   const row = await db.purchaseOrder.findUnique({
     where: { id: purchaseId },
     include: viewInclude,
@@ -162,28 +251,103 @@ async function loadView(db: Db, purchaseId: string): Promise<PurchaseView> {
   if (!row) {
     throw purchaseNotFound();
   }
-  const approval = await db.approvalRequest.findFirst({
-    where: {
-      approvalType: "PURCHASE_ORDER",
-      entityType: AUDIT_ENTITY_TYPES.purchaseOrder,
-      entityId: purchaseId,
-    },
-    orderBy: [{ requestedAt: "desc" }, { id: "desc" }],
-  });
+  const [approval, extrasApprovals] = await Promise.all([
+    db.approvalRequest.findFirst({
+      where: {
+        approvalType: "PURCHASE_ORDER",
+        entityType: AUDIT_ENTITY_TYPES.purchaseOrder,
+        entityId: purchaseId,
+      },
+      orderBy: [{ requestedAt: "desc" }, { id: "desc" }],
+    }),
+    db.approvalRequest.findMany({
+      where: {
+        approvalType: "PURCHASE_OVER_DELIVERY",
+        entityType: AUDIT_ENTITY_TYPES.goodsReceipt,
+        entityId: { in: row.receipts.map((receipt) => receipt.id) },
+      },
+      orderBy: [{ requestedAt: "asc" }, { id: "asc" }],
+    }),
+  ]);
+  // The latest request per receipt (one, unless an Owner/Admin received it
+  // and the extras were accepted at once, which has none).
+  const extrasByReceipt = new Map(extrasApprovals.map((request) => [request.entityId, request]));
+  const accepted = new Map<string, { accepted: number; damaged: number; extra: number }>();
+  for (const receipt of row.receipts) {
+    const approved = extrasByReceipt.get(receipt.id);
+    // Extras with no request were accepted on receipt (Owner/Admin).
+    const extrasAccepted = approved ? approved.status === "APPROVED" : true;
+    for (const item of receipt.items) {
+      const sum = accepted.get(item.purchaseItemId) ?? { accepted: 0, damaged: 0, extra: 0 };
+      sum.accepted += item.acceptedQuantity;
+      sum.damaged += item.damagedQuantity;
+      sum.extra += extrasAccepted ? item.overDeliveryQuantity : 0;
+      accepted.set(item.purchaseItemId, sum);
+    }
+  }
   return {
-    ...toSummary(row),
-    items: row.items.map((item) => ({
-      id: item.id,
-      variantId: item.productVariantId,
-      sku: item.variant.sku,
-      productNameAr: item.variant.product.nameAr,
-      productNameEn: item.variant.product.nameEn,
-      variantNameAr: item.variant.variantNameAr,
-      variantNameEn: item.variant.variantNameEn,
-      orderedQuantity: item.orderedQuantity,
-      unitCost: toJsonNumber(item.unitCost),
-      lineTotal: toJsonNumber(item.lineTotal),
-    })),
+    ...toSummary(row, access),
+    items: row.items.map((item) => {
+      const sum = accepted.get(item.id) ?? { accepted: 0, damaged: 0, extra: 0 };
+      const received = sum.accepted + sum.damaged;
+      return {
+        id: item.id,
+        variantId: item.productVariantId,
+        sku: item.variant.sku,
+        productNameAr: item.variant.product.nameAr,
+        productNameEn: item.variant.product.nameEn,
+        variantNameAr: item.variant.variantNameAr,
+        variantNameEn: item.variant.variantNameEn,
+        orderedQuantity: item.orderedQuantity,
+        ...(access.amounts
+          ? { unitCost: toJsonNumber(item.unitCost), lineTotal: toJsonNumber(item.lineTotal) }
+          : {}),
+        receivedQuantity: received,
+        acceptedQuantity: sum.accepted,
+        damagedQuantity: sum.damaged,
+        extraAcceptedQuantity: sum.extra,
+        remainingQuantity: Math.max(item.orderedQuantity - received, 0),
+      };
+    }),
+    receipts: row.receipts.map((receipt) => {
+      const extras = extrasByReceipt.get(receipt.id);
+      return {
+        id: receipt.id,
+        receiptNumber: receipt.receiptNumber,
+        receivedBy: receipt.receivedBy,
+        receivedAt: receipt.receivedAt.toISOString(),
+        notes: receipt.notes,
+        items: receipt.items.map((item) => ({
+          purchaseItemId: item.purchaseItemId,
+          variantId: item.purchaseItem.productVariantId,
+          sku: item.purchaseItem.variant.sku,
+          deliveredQuantity: item.deliveredQuantity,
+          acceptedQuantity: item.acceptedQuantity,
+          damagedQuantity: item.damagedQuantity,
+          overDeliveryQuantity: item.overDeliveryQuantity,
+          inspectionNotes: item.inspectionNotes,
+        })),
+        overDelivery: extras ? { approvalRequestId: extras.id, status: extras.status } : null,
+      };
+    }),
+    ...(access.invoices
+      ? {
+          invoices: row.invoices.map((invoice) => ({
+            id: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceDate: invoice.invoiceDate.toISOString().slice(0, 10),
+            invoiceTotal: toJsonNumber(invoice.invoiceTotal),
+            taxAmount: invoice.taxAmount === null ? null : toJsonNumber(invoice.taxAmount),
+            file: {
+              mediaAssetId: invoice.mediaAssetId,
+              url: mediaContentUrl(invoice.mediaAssetId),
+            },
+            notes: invoice.notes,
+            recordedBy: invoice.recordedBy,
+            createdAt: invoice.createdAt.toISOString(),
+          })),
+        }
+      : {}),
     approval: approval && {
       id: approval.id,
       status: approval.status,
@@ -309,7 +473,7 @@ export function createPurchaseOrdersService(deps: { db: PrismaClient; clock: Clo
         correlationId: ctx.correlationId,
         createdAt: now,
       });
-      return loadView(tx, created.id);
+      return loadView(tx, created.id, purchaseAccess(actor.permissions));
     });
     ctx.logger.info("purchase order created", {
       purchaseId: view.id,
@@ -336,7 +500,7 @@ export function createPurchaseOrdersService(deps: { db: PrismaClient; clock: Clo
       const previous = snapshot(existing.supplierId, existing.notes, oldLines);
       const next = snapshot(supplierId, notes, lines);
       if (JSON.stringify(previous) === JSON.stringify(next)) {
-        return loadView(tx, purchaseId);
+        return loadView(tx, purchaseId, purchaseAccess(actor.permissions));
       }
       if (supplierId !== existing.supplierId) {
         await assertSupplierActive(tx, supplierId);
@@ -361,7 +525,7 @@ export function createPurchaseOrdersService(deps: { db: PrismaClient; clock: Clo
         correlationId: ctx.correlationId,
         createdAt: now,
       });
-      return loadView(tx, purchaseId);
+      return loadView(tx, purchaseId, purchaseAccess(actor.permissions));
     });
   }
 
@@ -420,7 +584,7 @@ export function createPurchaseOrdersService(deps: { db: PrismaClient; clock: Clo
           { now, correlationId: ctx.correlationId },
         );
       }
-      return loadView(tx, purchaseId);
+      return loadView(tx, purchaseId, purchaseAccess(actor.permissions));
     });
   }
 
@@ -463,7 +627,7 @@ export function createPurchaseOrdersService(deps: { db: PrismaClient; clock: Clo
         ctx.correlationId,
       );
     }
-    return loadView(db, purchaseId);
+    return loadView(db, purchaseId, purchaseAccess(actor.permissions));
   }
 
   async function sendPurchase(
@@ -484,7 +648,7 @@ export function createPurchaseOrdersService(deps: { db: PrismaClient; clock: Clo
         { employeeId: actor.employeeId, now, correlationId: ctx.correlationId },
         { sentAt: now },
       );
-      return loadView(tx, purchaseId);
+      return loadView(tx, purchaseId, purchaseAccess(actor.permissions));
     });
   }
 
@@ -543,16 +707,17 @@ export function createPurchaseOrdersService(deps: { db: PrismaClient; clock: Clo
           cancellationReason: input.reason,
         },
       );
-      return loadView(tx, purchaseId);
+      return loadView(tx, purchaseId, purchaseAccess(actor.permissions));
     });
   }
 
-  function getPurchase(purchaseId: string): Promise<PurchaseView> {
-    return loadView(db, purchaseId);
+  function getPurchase(purchaseId: string, access: PurchaseAccess): Promise<PurchaseView> {
+    return loadView(db, purchaseId, access);
   }
 
   async function listPurchases(
     query: ListPurchasesQuery,
+    access: PurchaseAccess,
   ): Promise<{ items: PurchaseSummaryView[]; pagination: Pagination }> {
     const where: Prisma.PurchaseOrderWhereInput = {
       ...(query.status ? { status: query.status } : {}),
@@ -570,7 +735,7 @@ export function createPurchaseOrdersService(deps: { db: PrismaClient; clock: Clo
       }),
     ]);
     return {
-      items: rows.map(toSummary),
+      items: rows.map((row) => toSummary(row, access)),
       pagination: {
         page: query.page,
         pageSize: query.pageSize,

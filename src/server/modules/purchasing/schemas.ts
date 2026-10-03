@@ -70,6 +70,54 @@ export const listPurchasesQuerySchema = z.object({
   search: z.string().trim().min(1).max(50).optional(),
 });
 
+/** `POST /admin/purchases/{id}/receive` (TASK-023, ADR-0028): one delivery, line by line. */
+export const receivePurchaseSchema = z.object({
+  notes: notes.nullable().optional(),
+  items: z
+    .array(
+      z.object({
+        purchaseItemId: uuidParam,
+        /** Units counted in this delivery for the line. */
+        deliveredQuantity: z.int().min(1).max(100_000),
+        /** Of those, units found damaged on inspection. */
+        damagedQuantity: z.int().min(0).max(100_000).default(0),
+        /** Required when the line differs from what was due (User Flows §14.1). */
+        notes: z.string().trim().min(1).max(1000).optional(),
+      }),
+    )
+    .min(1)
+    .max(PURCHASE_ITEMS_MAX)
+    .refine((lines) => new Set(lines.map((line) => line.purchaseItemId)).size === lines.length, {
+      message: "Each purchase line may appear only once.",
+    }),
+});
+
+/** Piastres; far below 2^53. */
+const invoiceAmount = (min: number) =>
+  z
+    .int()
+    .min(min)
+    .max(1_000_000_000_000)
+    .transform((value) => BigInt(value));
+
+/** `POST /admin/purchases/{id}/invoice` (Q115, Q117): the invoice as issued. */
+export const recordInvoiceSchema = z
+  .object({
+    invoiceNumber: z.string().trim().min(1).max(100),
+    invoiceDate: z.iso.date({ message: "Use a date such as 2026-10-03." }),
+    invoiceTotal: invoiceAmount(1),
+    taxAmount: invoiceAmount(0).nullable().optional(),
+    /** A completed upload of purpose SUPPLIER_INVOICE. */
+    mediaAssetId: uuidParam,
+    notes: notes.nullable().optional(),
+  })
+  .refine((value) => value.taxAmount == null || value.taxAmount <= value.invoiceTotal, {
+    path: ["taxAmount"],
+    message: "The tax cannot be more than the invoice total.",
+  });
+
+export type ReceivePurchaseInput = z.infer<typeof receivePurchaseSchema>;
+export type RecordInvoiceInput = z.infer<typeof recordInvoiceSchema>;
 export type CreatePurchaseInput = z.infer<typeof createPurchaseSchema>;
 export type UpdatePurchaseInput = z.infer<typeof updatePurchaseSchema>;
 export type PurchaseItemInput = z.infer<typeof item>;

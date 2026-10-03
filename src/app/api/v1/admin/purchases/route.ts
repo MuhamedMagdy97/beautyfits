@@ -1,18 +1,27 @@
 import { ok } from "@/server/http/response";
 import { withApi } from "@/server/http/route-handler";
 import { parseJsonBody, parseQuery } from "@/server/http/validation";
-import { getPurchaseOrdersService } from "@/server/modules/purchasing/purchase-orders-service";
+import {
+  getPurchaseOrdersService,
+  purchaseAccess,
+} from "@/server/modules/purchasing/purchase-orders-service";
 import {
   createPurchaseSchema,
   listPurchasesQuerySchema,
 } from "@/server/modules/purchasing/schemas";
-import { requirePermission } from "@/server/modules/rbac/authorization";
+import { requireAnyPermission, requirePermission } from "@/server/modules/rbac/authorization";
 
-/** GET /api/v1/admin/purchases — list purchase orders (`PURCHASE_VIEW`). */
+/**
+ * GET /api/v1/admin/purchases — list purchase orders (`PURCHASE_VIEW`, or
+ * `RECEIVE_PURCHASE` without amounts, so receiving staff find deliveries).
+ */
 export const GET = withApi(async (request, api) => {
-  await requirePermission(request, "PURCHASE_VIEW");
+  const employee = await requireAnyPermission(request, ["PURCHASE_VIEW", "RECEIVE_PURCHASE"]);
   const query = parseQuery(request, listPurchasesQuerySchema);
-  const page = await getPurchaseOrdersService().listPurchases(query);
+  const page = await getPurchaseOrdersService().listPurchases(
+    query,
+    purchaseAccess(employee.permissions),
+  );
   return ok(api.requestId, page.items, { pagination: page.pagination });
 });
 

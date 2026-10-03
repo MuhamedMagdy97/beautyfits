@@ -307,6 +307,8 @@ Implement Draft → Pending Approval → Approved → Sent lifecycle with role/a
 
 Implement delivery inspection, short/over receipt, goods receipt records and immutable supplier invoice records.
 
+**Status after TASK-023** (`docs/tasks/TASK-023-goods-receiving.md`): `goods_receipts` / `goods_receipt_items` (`GR-000001`) and `purchase_invoices`, all append-only; `POST /admin/purchases/{id}/receive` (one step, `Idempotency-Key`), `/invoice`, `/close` (ADR-0028). Receipts write `PURCHASE_RECEIPT` movements (Available + Damaged, with unit cost) and update latest/weighted average costs; extras wait for a `PURCHASE_OVER_DELIVERY` approval. TASK-024 links supplier returns to goods receipts and moves damaged units out of Damaged.
+
 ### TASK-024 — Supplier Returns, Payments & Ledger
 **Depends on:** TASK-023
 
