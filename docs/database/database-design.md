@@ -1770,3 +1770,35 @@ Added by TASK-023 (`docs/tasks/TASK-023-goods-receiving.md`, ADR-0028). Migrated
 ### Enums
 - `inventory_movement_type` gains `PURCHASE_RECEIPT` (reference type `GOODS_RECEIPT`, with `unit_cost`).
 - `media_purpose` gains `SUPPLIER_INVOICE`.
+
+## v1.2 TASK-024 Amendments
+
+Added by TASK-024 (`docs/tasks/TASK-024-supplier-returns-ledger.md`, ADR-0029). Migrated in `prisma/migrations/*_supplier_returns_ledger`.
+
+### `supplier_returns` (§11, migrated)
+- Fields of §11 plus `return_number` (`SR-` + six digits from the sequence `supplier_return_number_seq`, unique), `expected_amount` (piastres, > 0: Σ quantity × unit cost, Q120), `settlement_notes`, `created_by_employee_id`, `submitted_at`, `approved_at`, `settled_by_employee_id`, `settled_at`, `created_at`, `updated_at`. `purchase_order_id` is required (returns come from a purchase order's receipts).
+- `status` enum `supplier_return_status`: `DRAFT`, `PENDING_APPROVAL`, `APPROVED`, `REJECTED`, `SETTLED`. `SHIPPED` and `RECEIVED_BY_SUPPLIER` of §11 are not created: approval sends the units back (owner decision, ADR-0029 §3). `REJECTED` is final.
+- `financial_resolution` enum `supplier_return_resolution` (`REFUND`, `CREDIT`, `OTHER`); `financial_amount` piastres ≥ 0, 0 exactly for `OTHER`.
+- Checks: `approved_at`/`approved_by_employee_id` set exactly for `APPROVED`/`SETTLED`; settlement fields set exactly for `SETTLED`.
+- Indexes `(purchase_order_id, created_at)`, `(supplier_id, created_at)`, `(status, created_at)`. Trigger `supplier_returns_no_delete`.
+
+### `supplier_return_items` (§11, migrated)
+- Fields of §11 plus `goods_receipt_item_id` (required): each line returns damaged units of one goods receipt line (Q106). `purchase_item_id` is required. `quantity` > 0, `unit_cost` > 0 (the purchase line's cost).
+- Unique `(supplier_return_id, goods_receipt_item_id)`; index `goods_receipt_item_id`. Append-only.
+- A line's quantity, plus the lines of other `PENDING_APPROVAL`/`APPROVED`/`SETTLED` returns, never exceeds the receipt line's `damaged_quantity` (service check under the purchase order lock).
+
+### `supplier_payments` (v1.1, migrated)
+- `id`, `supplier_id`, `purchase_order_id` nullable, `amount` (piastres, > 0), `method` enum `supplier_payment_method` (`CASH`, `BANK_TRANSFER`, `CHEQUE`, `OTHER`), `paid_on` date, `reference`, `notes`, `recorded_by_employee_id`, `created_at`. Index `(supplier_id, created_at)`. Append-only.
+
+### `supplier_ledger_entries` (v1.1, migrated)
+- Fields of v1.1 plus `purchase_invoice_id` (unique) and `supplier_payment_id` (unique). `entry_type` enum `supplier_ledger_entry_type`; `direction` enum `supplier_ledger_direction`: `CREDIT` raises what we owe the supplier, `DEBIT` lowers it. `amount` piastres > 0. The balance is Σ `CREDIT` − Σ `DEBIT`.
+- Check `supplier_ledger_entries_check`: `INVOICE` is `CREDIT` with its invoice, `PAYMENT` is `DEBIT` with its payment, `CREDIT` is `DEBIT` and `REFUND` is `CREDIT`, both with their return. `ADJUSTMENT` is not created in v1.
+- Unique `(supplier_return_id, entry_type)`. Indexes `(supplier_id, created_at)`, `purchase_order_id`. Append-only.
+- The migration adds an `INVOICE` entry for every invoice already recorded.
+
+### Append-only
+- `purchasing_reject_change` also guards `supplier_ledger_entries`, `supplier_payments`, `supplier_return_items` (update and delete) and `supplier_returns` (delete).
+
+### Enums
+- `inventory_movement_type` gains `SUPPLIER_RETURN` (Damaged out; reference type `SUPPLIER_RETURN`, with `unit_cost`).
+- `approval_type` gains `SUPPLIER_RETURN` (entity type `SUPPLIER_RETURN`).

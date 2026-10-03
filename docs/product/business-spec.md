@@ -933,6 +933,7 @@ Product-owner decisions made on 2026-09-30 during TASK-002A (`docs/tasks/TASK-00
 ### R19 — Order status approvals in v1 (D-07)
 - In v1 no order status transition requires an approval request; order actions are controlled by their permissions (Q76 allows, but does not require, pending approval).
 - The approval-request mechanism (Audit Correction 7) is used in v1 for purchase orders, over-delivery extras, marketing campaigns and critical settings.
+- Added by the product owner on 2026-10-03 (TASK-024, ADR-0029): the Owner review of supplier returns (Q105) also uses it.
 
 ## v1.2 TASK-005 Closure Decisions
 

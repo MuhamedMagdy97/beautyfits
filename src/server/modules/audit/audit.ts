@@ -76,6 +76,13 @@ export const AUDIT_ACTIONS = [
   "PURCHASE_OVER_DELIVERY_REJECTED",
   "PURCHASE_INVOICE_RECORDED",
   "PURCHASE_ORDER_CLOSED",
+  // Supplier returns, payments and ledger (TASK-024)
+  "SUPPLIER_RETURN_CREATED",
+  "SUPPLIER_RETURN_SUBMITTED",
+  "SUPPLIER_RETURN_APPROVED",
+  "SUPPLIER_RETURN_REJECTED",
+  "SUPPLIER_RETURN_SETTLED",
+  "SUPPLIER_PAYMENT_RECORDED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -94,6 +101,7 @@ export const AUDIT_ENTITY_TYPES = {
   supplier: "SUPPLIER",
   purchaseOrder: "PURCHASE_ORDER",
   goodsReceipt: "GOODS_RECEIPT",
+  supplierReturn: "SUPPLIER_RETURN",
 } as const;
 
 export interface AuditActor {
