@@ -1742,3 +1742,31 @@ Added by TASK-022 (`docs/tasks/TASK-022-purchase-orders.md`, ADR-0027). Migrated
 - Fields of §11. `unit_cost`, `line_total` in piastres; check `ordered_quantity > 0`, `unit_cost > 0`, `line_total = ordered_quantity × unit_cost`.
 - Unique `(purchase_order_id, product_variant_id)`; foreign keys `RESTRICT`.
 - Trigger `purchase_items_draft_only`: lines are inserted, changed or deleted only while their order is `DRAFT`.
+
+## v1.2 TASK-023 Amendments
+
+Added by TASK-023 (`docs/tasks/TASK-023-goods-receiving.md`, ADR-0028). Migrated in `prisma/migrations/*_goods_receipts`.
+
+### `purchase_orders` (§11, migrated)
+- Added `closed_by_employee_id` (foreign key, `RESTRICT`), `closed_at`, `closing_reason`: set together exactly when `status = 'CLOSED'` (check `purchase_orders_closed_check`).
+- Goods receiving sets `PARTIALLY_RECEIVED` / `RECEIVED`; closing sets `CLOSED`.
+
+### `goods_receipts` (§11, migrated)
+- Fields of §11 without `status` and `reviewed_by_employee_id`: receiving is one step (ADR-0028 §3 item 1), so a receipt is final when recorded.
+- `receipt_number`: `GR-` + six digits from the sequence `goods_receipt_number_seq`, unique. Index `(purchase_order_id, received_at)`.
+
+### `goods_receipt_items` (§11, migrated)
+- Fields of §11. Check: all quantities ≥ 0, `delivered_quantity > 0`, `delivered_quantity = accepted_quantity + damaged_quantity + over_delivery_quantity`.
+- Accepted units went to Available, damaged ones to Damaged; over-delivered units enter Available only when their `PURCHASE_OVER_DELIVERY` approval request (entity `GOODS_RECEIPT`, the receipt id) is approved. The request records the decision; the row is never changed.
+- Unique `(goods_receipt_id, purchase_item_id)`; index `purchase_item_id`.
+
+### `purchase_invoices` (v1.1, migrated)
+- Fields of v1.1 plus `notes`, `recorded_by_employee_id`. `invoice_date` is a date; `invoice_total` (> 0) and `tax_amount` (0 to the total, nullable) are piastres as on the invoice.
+- `media_asset_id` unique: a file of purpose `SUPPLIER_INVOICE`. Unique `(purchase_order_id, invoice_number)`.
+
+### Append-only
+- Trigger function `purchasing_reject_change` rejects `UPDATE` and `DELETE` on `goods_receipts`, `goods_receipt_items` and `purchase_invoices` (Q115, Q117).
+
+### Enums
+- `inventory_movement_type` gains `PURCHASE_RECEIPT` (reference type `GOODS_RECEIPT`, with `unit_cost`).
+- `media_purpose` gains `SUPPLIER_INVOICE`.

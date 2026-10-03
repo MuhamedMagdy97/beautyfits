@@ -1322,3 +1322,43 @@ Added by TASK-022 (`docs/tasks/TASK-022-purchase-orders.md`, ADR-0027). Business
 | Action not allowed in the current status (edit outside `DRAFT`, approve when not pending, …) | `409 CONFLICT`, `details.reason = PURCHASE_STATUS_INVALID`, `details.status` |
 | Cancelling an `APPROVED`/`SENT` order without `PURCHASE_APPROVE` | `403 PERMISSION_DENIED`, `details.reason = PURCHASE_APPROVE_REQUIRED` |
 | Unknown or malformed purchase order id | `404 NOT_FOUND` |
+
+## TASK-023 Amendments
+
+Added by TASK-023 (`docs/tasks/TASK-023-goods-receiving.md`, ADR-0028). Business rules: Q101–Q104, Q114–Q117, User Flows §14. Same employee session and `Origin` rules as the other admin endpoints. Completes `/admin/purchases/{id}/receive` (§21) and `/admin/purchases/{id}/invoice` (v1.1 "Supplier finance"), and adds `POST /admin/purchases/{id}/close`.
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `POST /admin/purchases/{id}/receive` | `RECEIVE_PURCHASE` | Header `Idempotency-Key` (required, 8–200 of `A-Z a-z 0-9 . _ : -`). `{ notes?, items: [{ purchaseItemId, deliveredQuantity, damagedQuantity?, notes? }] }` | `201` `{ receipt, purchase, costReview? }` |
+| `POST /admin/purchases/{id}/invoice` | `SUPPLIER_PAYMENT_MANAGE` | `{ invoiceNumber, invoiceDate, invoiceTotal, taxAmount?, mediaAssetId, notes? }` | `201` `purchase` |
+| `POST /admin/purchases/{id}/close` | `PURCHASE_CREATE` | `{ reason }` (required) | `200` `purchase` (`CLOSED`) |
+
+- **Receive**: allowed when the order is `APPROVED`, `SENT` or `PARTIALLY_RECEIVED`. Per line, `deliveredQuantity` 1–100000 and `damagedQuantity` 0–100000 (default 0), 1–200 lines, each purchase line once. Units up to what is still due are received: damaged ones into Damaged, the rest into Available. Good units beyond that are extras: they open one `PURCHASE_OVER_DELIVERY` approval request for the receipt (entity type `GOODS_RECEIPT`), resolved through `/admin/approval-requests/{id}/approve|reject`. When the receiver holds `PURCHASE_APPROVE` (Owner/Admin), the extras are accepted at once. A line's `notes` is required when the line is short, has damaged units or has extras. The order becomes `RECEIVED` once every line is fully received (accepted + damaged), otherwise `PARTIALLY_RECEIVED`. A retry with the same key and body returns the same receipt.
+- **Costs**: accepted units set the variant's latest purchase cost and weighted average cost (Q103), and lock hand-typed costs (`COSTS_LOCKED`, TASK-018). Callers with `VIEW_COST_PRICE` get `costReview: [{ variantId, previousLatestPurchaseCost, latestPurchaseCost, weightedAverageCost, sellingPrice, marginBasisPoints, marginReduced, warnings }]` (Q102); prices never change on their own.
+- **Invoice**: allowed when the order is `APPROVED`, `SENT`, `PARTIALLY_RECEIVED` or `RECEIVED`. `invoiceDate` `YYYY-MM-DD`; `invoiceTotal` 1–10^12 and `taxAmount` 0–`invoiceTotal` in piastres, as on the invoice. `mediaAssetId` is a `SAFE` upload of purpose `SUPPLIER_INVOICE` (§28: `POST /files/upload-init` with `purpose: "SUPPLIER_INVOICE"` needs `SUPPLIER_PAYMENT_MANAGE`; JPEG/PNG/WebP). Recorded invoices never change.
+- **Close**: allowed from `PARTIALLY_RECEIVED` or `RECEIVED`, once at least one invoice is recorded and no extras await approval.
+- **Reading orders**: `GET /admin/purchases` and `GET /admin/purchases/{id}` also accept `RECEIVE_PURCHASE`. Without `PURCHASE_VIEW`, `orderedTotal`, `unitCost` and `lineTotal` are absent.
+- `purchaseSummary` adds `closedBy`, `closedAt`, `closingReason`.
+- `purchase` adds:
+  - per item: `receivedQuantity` (accepted + damaged), `acceptedQuantity`, `damagedQuantity`, `extraAcceptedQuantity` and `remainingQuantity`;
+  - `receipts: [receipt]`;
+  - for callers with `SUPPLIER_FINANCE_VIEW` or `SUPPLIER_PAYMENT_MANAGE` only, `invoices: [{ id, invoiceNumber, invoiceDate, invoiceTotal, taxAmount, file: { mediaAssetId, url }, notes, recordedBy, createdAt }]`.
+- `receipt`: `{ id, receiptNumber, receivedBy, receivedAt, notes, items: [{ purchaseItemId, variantId, sku, deliveredQuantity, acceptedQuantity, damagedQuantity, overDeliveryQuantity, inspectionNotes }], overDelivery: { approvalRequestId, status } | null }`.
+- Invoice files are served by `GET /files/{id}/content` to staff with `SUPPLIER_FINANCE_VIEW` or `SUPPLIER_PAYMENT_MANAGE`.
+- Audit actions added (entity type `PURCHASE_ORDER`): `GOODS_RECEIPT_RECORDED`, `PURCHASE_OVER_DELIVERY_ACCEPTED`, `PURCHASE_OVER_DELIVERY_REJECTED`, `PURCHASE_INVOICE_RECORDED`, `PURCHASE_ORDER_CLOSED`.
+
+### Errors
+| Case | Response |
+|---|---|
+| Missing or malformed `Idempotency-Key` | `400 VALIDATION_ERROR`, issue code `idempotency_key_required` / `idempotency_key_invalid` |
+| Same `Idempotency-Key` with a different request | `409 IDEMPOTENCY_CONFLICT` |
+| Purchase line not on the order | `400 VALIDATION_ERROR`, issue code `purchase_item_not_found` |
+| Damaged units more than delivered, or more than still due | `400 VALIDATION_ERROR`, issue code `damaged_exceeds_delivered` / `damaged_exceeds_due` |
+| Line differs from what was due without `notes` | `400 VALIDATION_ERROR`, issue code `notes_required` |
+| Invoice file unknown or of another purpose | `400 VALIDATION_ERROR`, issue code `media_asset_not_found` |
+| Invoice file not yet checked | `409 CONFLICT`, `details.reason = MEDIA_NOT_READY` |
+| Invoice number already recorded on the order | `409 CONFLICT`, `details.reason = INVOICE_NUMBER_TAKEN` |
+| Invoice file already attached | `409 CONFLICT`, `details.reason = MEDIA_ALREADY_ATTACHED` |
+| Closing without an invoice | `409 CONFLICT`, `details.reason = INVOICE_REQUIRED` |
+| Closing while extras await approval | `409 CONFLICT`, `details.reason = OVER_DELIVERY_PENDING` |
+| Action not allowed in the current status (receiving a draft or closed order, cancelling a partly received one, …) | `409 CONFLICT`, `details.reason = PURCHASE_STATUS_INVALID`, `details.status` |

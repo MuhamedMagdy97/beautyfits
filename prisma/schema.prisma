@@ -338,6 +338,9 @@ model Employee {
   purchasesCreated   PurchaseOrder[]      @relation("PurchaseOrderCreatedBy")
   purchasesApproved  PurchaseOrder[]      @relation("PurchaseOrderApprovedBy")
   purchasesCancelled PurchaseOrder[]      @relation("PurchaseOrderCancelledBy")
+  purchasesClosed    PurchaseOrder[]      @relation("PurchaseOrderClosedBy")
+  goodsReceipts      GoodsReceipt[]       @relation("GoodsReceiptReceivedBy")
+  invoicesRecorded   PurchaseInvoice[]    @relation("PurchaseInvoiceRecordedBy")
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -757,6 +760,8 @@ enum MediaScanStatus {
 /// What an upload is for; it decides who may upload and see the file.
 enum MediaPurpose {
   PRODUCT_MEDIA
+  /// A supplier invoice image (TASK-023, Q117).
+  SUPPLIER_INVOICE
 
   @@map("media_purpose")
 }
@@ -792,8 +797,9 @@ model MediaAsset {
   createdByEmployeeId String?         @map("created_by_employee_id") @db.Uuid
   createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  createdBy    Employee?      @relation("MediaAssetCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
-  productMedia ProductMedia[]
+  createdBy        Employee?         @relation("MediaAssetCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
+  productMedia     ProductMedia[]
+  purchaseInvoices PurchaseInvoice[]
 
   @@index([createdByEmployeeId, createdAt])
   @@map("media_assets")
@@ -865,6 +871,9 @@ enum InventoryMovementType {
   RELEASE_RESERVATION
   /// An order's hold consumed at Shipped: Reserved out (ADR-0025).
   CUSTOMER_ORDER_COMMIT
+  /// Goods received from a supplier (TASK-023, Q104): accepted units into
+  /// Available, damaged ones into Damaged, with the purchase unit cost.
+  PURCHASE_RECEIPT
 
   @@map("inventory_movement_type")
 }
@@ -995,14 +1004,21 @@ model PurchaseOrder {
   cancelledByEmployeeId String?             @map("cancelled_by_employee_id") @db.Uuid
   cancelledAt           DateTime?           @map("cancelled_at") @db.Timestamptz(3)
   cancellationReason    String?             @map("cancellation_reason")
+  /// Closed by hand once nothing more will be received (TASK-023).
+  closedByEmployeeId    String?             @map("closed_by_employee_id") @db.Uuid
+  closedAt              DateTime?           @map("closed_at") @db.Timestamptz(3)
+  closingReason         String?             @map("closing_reason")
   createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime            @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  supplier    Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  createdBy   Employee       @relation("PurchaseOrderCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
-  approvedBy  Employee?      @relation("PurchaseOrderApprovedBy", fields: [approvedByEmployeeId], references: [id], onDelete: Restrict)
-  cancelledBy Employee?      @relation("PurchaseOrderCancelledBy", fields: [cancelledByEmployeeId], references: [id], onDelete: Restrict)
+  supplier    Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy   Employee          @relation("PurchaseOrderCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
+  approvedBy  Employee?         @relation("PurchaseOrderApprovedBy", fields: [approvedByEmployeeId], references: [id], onDelete: Restrict)
+  cancelledBy Employee?         @relation("PurchaseOrderCancelledBy", fields: [cancelledByEmployeeId], references: [id], onDelete: Restrict)
+  closedBy    Employee?         @relation("PurchaseOrderClosedBy", fields: [closedByEmployeeId], references: [id], onDelete: Restrict)
   items       PurchaseItem[]
+  receipts    GoodsReceipt[]
+  invoices    PurchaseInvoice[]
 
   @@index([status, createdAt])
   @@index([supplierId, createdAt])
@@ -1021,10 +1037,83 @@ model PurchaseItem {
   /// ordered_quantity × unit_cost.
   lineTotal        BigInt @map("line_total")
 
-  purchaseOrder PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
-  variant       ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  variant       ProductVariant     @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  receiptItems  GoodsReceiptItem[]
 
   @@unique([purchaseOrderId, productVariantId])
   @@index([productVariantId])
   @@map("purchase_items")
+}
+
+// ---------------------------------------------------------------------------
+// Goods receipts and supplier invoices (TASK-023, DB design §11, ADR-0028).
+// Both are append-only: the database rejects UPDATE and DELETE.
+// ---------------------------------------------------------------------------
+
+/// One delivery received and inspected against a purchase order (Q101,
+/// Q104, Q114-Q116). Recording it changes stock at once (one step, ADR-0028).
+model GoodsReceipt {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  /// "GR-000001", from the sequence `goods_receipt_number_seq`.
+  receiptNumber        String   @unique @default(dbgenerated("('GR-'::text || lpad((nextval('goods_receipt_number_seq'::regclass))::text, 6, '0'::text))")) @map("receipt_number")
+  purchaseOrderId      String   @map("purchase_order_id") @db.Uuid
+  receivedByEmployeeId String   @map("received_by_employee_id") @db.Uuid
+  receivedAt           DateTime @map("received_at") @db.Timestamptz(3)
+  notes                String?
+
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  receivedBy    Employee           @relation("GoodsReceiptReceivedBy", fields: [receivedByEmployeeId], references: [id], onDelete: Restrict)
+  items         GoodsReceiptItem[]
+
+  @@index([purchaseOrderId, receivedAt])
+  @@map("goods_receipts")
+}
+
+/// One purchase line in a delivery. delivered = accepted + damaged +
+/// over-delivery; the extras wait for a PURCHASE_OVER_DELIVERY approval.
+model GoodsReceiptItem {
+  id                   String  @id @default(uuid(7)) @db.Uuid
+  goodsReceiptId       String  @map("goods_receipt_id") @db.Uuid
+  purchaseItemId       String  @map("purchase_item_id") @db.Uuid
+  deliveredQuantity    Int     @map("delivered_quantity")
+  /// Into Available stock.
+  acceptedQuantity     Int     @map("accepted_quantity")
+  /// Into Damaged stock (Q104, Q109); counts against the ordered quantity.
+  damagedQuantity      Int     @map("damaged_quantity")
+  /// Beyond the ordered quantity; enters stock only once approved (Q116).
+  overDeliveryQuantity Int     @map("over_delivery_quantity")
+  inspectionNotes      String? @map("inspection_notes")
+
+  goodsReceipt GoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Restrict)
+  purchaseItem PurchaseItem @relation(fields: [purchaseItemId], references: [id], onDelete: Restrict)
+
+  @@unique([goodsReceiptId, purchaseItemId])
+  @@index([purchaseItemId])
+  @@map("goods_receipt_items")
+}
+
+/// A supplier invoice as issued (Q115, Q117): never edited to match what was
+/// received; discrepancies live on the goods receipts.
+model PurchaseInvoice {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  purchaseOrderId      String   @map("purchase_order_id") @db.Uuid
+  /// The supplier's own number.
+  invoiceNumber        String   @map("invoice_number")
+  invoiceDate          DateTime @map("invoice_date") @db.Date
+  /// Piastres, as on the invoice (tax included).
+  invoiceTotal         BigInt   @map("invoice_total")
+  taxAmount            BigInt?  @map("tax_amount")
+  /// The uploaded invoice file (purpose SUPPLIER_INVOICE).
+  mediaAssetId         String   @unique @map("media_asset_id") @db.Uuid
+  notes                String?
+  recordedByEmployeeId String   @map("recorded_by_employee_id") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  mediaAsset    MediaAsset    @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+  recordedBy    Employee      @relation("PurchaseInvoiceRecordedBy", fields: [recordedByEmployeeId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseOrderId, invoiceNumber])
+  @@map("purchase_invoices")
 }

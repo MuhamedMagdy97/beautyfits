@@ -137,3 +137,19 @@ export async function requirePermission(
   }
   return employee;
 }
+
+/** Like `requirePermission`, but one of the listed permissions is enough. */
+export async function requireAnyPermission(
+  request: Request,
+  anyOf: readonly PermissionCode[],
+  options: AuthorizationOptions = {},
+): Promise<AuthorizedEmployee> {
+  const employee = await requireStaff(request, options);
+  if (!anyOf.some((code) => employee.permissions.has(code))) {
+    throw permissionDenied("You do not have permission to do this.", {
+      requiredPermissions: anyOf,
+      anyOf: true,
+    });
+  }
+  return employee;
+}

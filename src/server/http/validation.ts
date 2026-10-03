@@ -81,6 +81,31 @@ export async function parseOptionalJsonBody<S extends z.ZodType>(
   return parseWith(schema, body);
 }
 
+const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{8,200}$/;
+
+/**
+ * The required `Idempotency-Key` header (API §9): 8–200 letters, digits or
+ * `. _ : -`, e.g. a UUID.
+ */
+export function requireIdempotencyKey(request: Request): string {
+  const key = request.headers.get("idempotency-key");
+  if (key === null || !IDEMPOTENCY_KEY.test(key)) {
+    throw new AppError("VALIDATION_ERROR", "Request validation failed.", {
+      details: {
+        issues: [
+          {
+            path: "Idempotency-Key",
+            code: key === null ? "idempotency_key_required" : "idempotency_key_invalid",
+            message:
+              "Send an Idempotency-Key header of 8-200 letters, digits or . _ : - (e.g. a UUID).",
+          },
+        ],
+      },
+    });
+  }
+  return key;
+}
+
 /**
  * Validates URL query parameters. Repeated keys become arrays; schemas should
  * use z.coerce for numeric values such as page/pageSize.

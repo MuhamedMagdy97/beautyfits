@@ -14,7 +14,8 @@ export const MIN_IMAGE_SIDE = 500;
 export const MAX_IMAGE_SIDE = 6000;
 export const FILENAME_MAX = 255;
 
-export const MEDIA_PURPOSES = ["PRODUCT_MEDIA"] as const;
+/** Supplier invoices are photographed or scanned images too (ADR-0028). */
+export const MEDIA_PURPOSES = ["PRODUCT_MEDIA", "SUPPLIER_INVOICE"] as const;
 
 /** The last path segment of a client file name, without control characters. */
 function baseName(value: string): string {

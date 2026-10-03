@@ -62,11 +62,13 @@ export const UPLOAD_START_LIMIT: RateLimitPolicy = {
 /** The permission needed to upload, attach and manage files of each purpose. */
 export const PURPOSE_PERMISSION: Record<MediaPurpose, PermissionCode> = {
   PRODUCT_MEDIA: "MANAGE_PRODUCT_MEDIA",
+  SUPPLIER_INVOICE: "SUPPLIER_PAYMENT_MANAGE",
 };
 
 /** Object key prefix per purpose. */
 const PURPOSE_FOLDER: Record<MediaPurpose, string> = {
   PRODUCT_MEDIA: "product-media",
+  SUPPLIER_INVOICE: "supplier-invoices",
 };
 
 export const UPLOAD_TOKEN_HEADER = "x-upload-token";
@@ -116,7 +118,10 @@ export function mediaContentUrl(mediaAssetId: string): string {
   return `/api/v1/files/${mediaAssetId}/content`;
 }
 
-/** Staff who may see files of a purpose: for product images, anyone who can see products or manage their images. */
+/**
+ * Staff who may see files of a purpose: product images, anyone who can see
+ * products or manage their images; supplier invoices, supplier finance.
+ */
 export function canViewPurpose(
   permissions: ReadonlySet<PermissionCode>,
   purpose: MediaPurpose,
@@ -124,6 +129,10 @@ export function canViewPurpose(
   switch (purpose) {
     case "PRODUCT_MEDIA":
       return permissions.has("PRODUCT_VIEW") || permissions.has(PURPOSE_PERMISSION[purpose]);
+    case "SUPPLIER_INVOICE":
+      return (
+        permissions.has("SUPPLIER_FINANCE_VIEW") || permissions.has(PURPOSE_PERMISSION[purpose])
+      );
   }
 }
 
