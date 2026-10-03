@@ -1289,3 +1289,36 @@ Added by TASK-021 (`docs/tasks/TASK-021-suppliers.md`, ADR-0026). Same employee 
 | Invalid body or query | `400 VALIDATION_ERROR` |
 | Name used by another supplier (any case) | `409 CONFLICT`, `details.reason = NAME_TAKEN` |
 | Unknown or malformed supplier id | `404 NOT_FOUND` |
+
+## TASK-022 Amendments (purchase orders)
+
+Added by TASK-022 (`docs/tasks/TASK-022-purchase-orders.md`, ADR-0027). Business rules: Q101, Q102, Q112, Q113, User Flows §14. Same employee session and `Origin` rules as the other admin endpoints. Adds `GET` and `PATCH /admin/purchases/{id}` and `POST /admin/purchases/{id}/reject` to §21.
+
+### Endpoints (§21)
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `GET /admin/purchases` | `PURCHASE_VIEW` | query `page`, `pageSize` (max 100), `status`, `supplierId`, `search` (purchase number) | `200` `[purchaseSummary]` newest first + `meta.pagination` |
+| `GET /admin/purchases/{id}` | `PURCHASE_VIEW` | — | `200` `purchase` |
+| `POST /admin/purchases` | `PURCHASE_CREATE` | `{ supplierId, notes?, items: [{ variantId, quantity, unitCost }] }` | `201` `purchase` (status `DRAFT`) |
+| `PATCH /admin/purchases/{id}` | `PURCHASE_CREATE` | any of `{ supplierId, notes, items }`; `items` replaces every line; `notes: null` clears | `200` `purchase` |
+| `POST /admin/purchases/{id}/submit` | `PURCHASE_CREATE` | optional `{ reason? }` | `200` `purchase`: `PENDING_APPROVAL` with a `PURCHASE_ORDER` approval request, or `APPROVED` when the submitter holds `PURCHASE_APPROVE` (Owner/Admin) |
+| `POST /admin/purchases/{id}/approve` | `PURCHASE_APPROVE` | optional `{ reason? }` | `200` `purchase` (`APPROVED`) |
+| `POST /admin/purchases/{id}/reject` | `PURCHASE_APPROVE` | `{ reason }` (required) | `200` `purchase` (back to `DRAFT`) |
+| `POST /admin/purchases/{id}/send` | `PURCHASE_CREATE` | — | `200` `purchase` (`SENT`). Records that staff sent the order; the system sends nothing. |
+| `POST /admin/purchases/{id}/cancel` | `PURCHASE_CREATE`; `PURCHASE_APPROVE` when `APPROVED` or `SENT` | `{ reason }` (required) | `200` `purchase` (`CANCELLED`); a pending approval request is cancelled |
+
+- `purchaseSummary`: `{ id, purchaseNumber, status, supplier: { id, name }, orderedTotal, currency, notes, createdBy, submittedAt, approvedBy, approvedAt, sentAt, cancelledBy, cancelledAt, cancellationReason, createdAt, updatedAt }`; people are `{ id, displayName }` or null.
+- `purchase`: `purchaseSummary` + `items: [{ id, variantId, sku, productNameAr, productNameEn, variantNameAr, variantNameEn, orderedQuantity, unitCost, lineTotal }]` + `approval: { id, status, resolutionReason, resolvedAt } | null` (the latest approval request, so the creator sees why it was rejected).
+- Money (`unitCost`, `lineTotal`, `orderedTotal`) is integer piastres. `quantity` 1–100000, `unitCost` 1–100000000, 1–200 lines, each variant once. The server computes the totals.
+- `PURCHASE_ORDER` requests can also be resolved through `/admin/approval-requests/{id}/approve|reject` (TASK-013 Amendments) with the same outcome. Nobody resolves their own request.
+- Audit actions added (entity type `PURCHASE_ORDER`): `PURCHASE_ORDER_CREATED`, `PURCHASE_ORDER_UPDATED`, `PURCHASE_ORDER_SUBMITTED`, `PURCHASE_ORDER_APPROVED`, `PURCHASE_ORDER_REJECTED`, `PURCHASE_ORDER_SENT`, `PURCHASE_ORDER_CANCELLED`.
+
+### Errors
+| Case | Response |
+|---|---|
+| Invalid body or query; unknown `supplierId` or `variantId` | `400 VALIDATION_ERROR` |
+| Supplier inactive (create, supplier change, submit) | `409 CONFLICT`, `details.reason = SUPPLIER_INACTIVE` |
+| Variant or its product archived | `409 CONFLICT`, `details.reason = VARIANT_ARCHIVED` |
+| Action not allowed in the current status (edit outside `DRAFT`, approve when not pending, …) | `409 CONFLICT`, `details.reason = PURCHASE_STATUS_INVALID`, `details.status` |
+| Cancelling an `APPROVED`/`SENT` order without `PURCHASE_APPROVE` | `403 PERMISSION_DENIED`, `details.reason = PURCHASE_APPROVE_REQUIRED` |
+| Unknown or malformed purchase order id | `404 NOT_FOUND` |

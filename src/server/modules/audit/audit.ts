@@ -62,6 +62,14 @@ export const AUDIT_ACTIONS = [
   // Suppliers (TASK-021)
   "SUPPLIER_CREATED",
   "SUPPLIER_UPDATED",
+  // Purchase orders (TASK-022)
+  "PURCHASE_ORDER_CREATED",
+  "PURCHASE_ORDER_UPDATED",
+  "PURCHASE_ORDER_SUBMITTED",
+  "PURCHASE_ORDER_APPROVED",
+  "PURCHASE_ORDER_REJECTED",
+  "PURCHASE_ORDER_SENT",
+  "PURCHASE_ORDER_CANCELLED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -78,6 +86,7 @@ export const AUDIT_ENTITY_TYPES = {
   category: "CATEGORY",
   productMedia: "PRODUCT_MEDIA",
   supplier: "SUPPLIER",
+  purchaseOrder: "PURCHASE_ORDER",
 } as const;
 
 export interface AuditActor {

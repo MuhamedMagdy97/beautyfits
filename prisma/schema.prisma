@@ -335,6 +335,9 @@ model Employee {
   approvalsRequested ApprovalRequest[]    @relation("ApprovalRequestedBy")
   approvalsResolved  ApprovalRequest[]    @relation("ApprovalResolvedBy")
   mediaUploaded      MediaAsset[]         @relation("MediaAssetCreatedBy")
+  purchasesCreated   PurchaseOrder[]      @relation("PurchaseOrderCreatedBy")
+  purchasesApproved  PurchaseOrder[]      @relation("PurchaseOrderApprovedBy")
+  purchasesCancelled PurchaseOrder[]      @relation("PurchaseOrderCancelledBy")
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -665,6 +668,7 @@ model ProductVariant {
   inventoryBalance      InventoryBalance?
   inventoryMovements    InventoryMovement[]
   inventoryReservations InventoryReservation[]
+  purchaseItems         PurchaseItem[]
 
   @@unique([productId], map: "product_variants_one_default_key", where: raw("is_default"))
   @@index([productId, createdAt])
@@ -947,6 +951,80 @@ model Supplier {
   createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
 
+  purchaseOrders PurchaseOrder[]
+
   @@index([status, name])
   @@map("suppliers")
+}
+
+// ---------------------------------------------------------------------------
+// Purchase orders (TASK-022, DB design §11, ADR-0027)
+// ---------------------------------------------------------------------------
+
+enum PurchaseOrderStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  /// Set by goods receiving (TASK-023).
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CLOSED
+  CANCELLED
+
+  @@map("purchase_order_status")
+}
+
+/// An order to a supplier. Never deleted; it never changes stock (Q101):
+/// stock enters through goods receipts (TASK-023).
+model PurchaseOrder {
+  id                    String              @id @default(uuid(7)) @db.Uuid
+  /// "PO-000001", from the sequence `purchase_order_number_seq`.
+  purchaseNumber        String              @unique @default(dbgenerated("('PO-'::text || lpad((nextval('purchase_order_number_seq'::regclass))::text, 6, '0'::text))")) @map("purchase_number")
+  supplierId            String              @map("supplier_id") @db.Uuid
+  status                PurchaseOrderStatus @default(DRAFT)
+  /// Sum of the line totals, in piastres.
+  orderedTotal          BigInt              @map("ordered_total")
+  currency              String              @default("EGP") @db.Char(3)
+  notes                 String?
+  createdByEmployeeId   String              @map("created_by_employee_id") @db.Uuid
+  submittedAt           DateTime?           @map("submitted_at") @db.Timestamptz(3)
+  approvedByEmployeeId  String?             @map("approved_by_employee_id") @db.Uuid
+  approvedAt            DateTime?           @map("approved_at") @db.Timestamptz(3)
+  sentAt                DateTime?           @map("sent_at") @db.Timestamptz(3)
+  cancelledByEmployeeId String?             @map("cancelled_by_employee_id") @db.Uuid
+  cancelledAt           DateTime?           @map("cancelled_at") @db.Timestamptz(3)
+  cancellationReason    String?             @map("cancellation_reason")
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime            @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  supplier    Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy   Employee       @relation("PurchaseOrderCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
+  approvedBy  Employee?      @relation("PurchaseOrderApprovedBy", fields: [approvedByEmployeeId], references: [id], onDelete: Restrict)
+  cancelledBy Employee?      @relation("PurchaseOrderCancelledBy", fields: [cancelledByEmployeeId], references: [id], onDelete: Restrict)
+  items       PurchaseItem[]
+
+  @@index([status, createdAt])
+  @@index([supplierId, createdAt])
+  @@map("purchase_orders")
+}
+
+/// One variant on a purchase order, with its own unit cost (Q102). Lines
+/// change only while the order is a draft (trigger).
+model PurchaseItem {
+  id               String @id @default(uuid(7)) @db.Uuid
+  purchaseOrderId  String @map("purchase_order_id") @db.Uuid
+  productVariantId String @map("product_variant_id") @db.Uuid
+  orderedQuantity  Int    @map("ordered_quantity")
+  /// Piastres per unit.
+  unitCost         BigInt @map("unit_cost")
+  /// ordered_quantity × unit_cost.
+  lineTotal        BigInt @map("line_total")
+
+  purchaseOrder PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  variant       ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseOrderId, productVariantId])
+  @@index([productVariantId])
+  @@map("purchase_items")
 }
