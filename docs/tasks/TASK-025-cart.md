@@ -63,11 +63,11 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 ## Open Items
 - Decided by the product owner on 2026-10-04: in a merge the stock cap never lowers the customer's own quantity (R33 clarification, ADR-0031 §4).
 - Decided by the product owner on 2026-10-04 (R35): guest carts expire after 30 configurable days without changes, customer carts never expire, deactivation removes the active cart. Implemented here; TASK-066 schedules `npm run jobs:expire-guest-carts` daily.
-- Record R33 (clarification) and R35 in `docs/decisions/business-rules-ledger.xlsx`.
+- R32–R35 (with the R33 clarification) recorded in `docs/decisions/business-rules-ledger.xlsx` on 2026-10-04.
 
 ## Status
 - [x] Planned
 - [x] In Progress
 - [x] Tests Passing
-- [ ] Reviewed
-- [ ] Done
+- [x] Reviewed
+- [x] Done
