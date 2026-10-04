@@ -1525,3 +1525,43 @@ Added by TASK-026 (`docs/tasks/TASK-026-discounts.md`, ADR-0032). Business rules
 | End not after start | `400 VALIDATION_ERROR`, issue code `before_start` |
 | Code used by another discount | `409 CONFLICT`, `details.reason = CODE_TAKEN` |
 | Unknown discount | `404 NOT_FOUND` |
+
+## TASK-027 Amendments
+
+Added by TASK-027 (`docs/tasks/TASK-027-shipping-rules.md`, ADR-0033). Business rules: Q121–Q126, R37. Completes the §16 company and rule endpoints and `GET /shipping/options`; `assign-shipping` comes with the shipment tasks.
+
+### Admin (§16)
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /admin/shipping/companies` | `SHIPPING_VIEW` | query `status` | `200` `[company]`, by name |
+| `POST /admin/shipping/companies` | `SHIPPING_MANAGE` | `{ code, name, contactInfo?, status? }` | `201` `company` |
+| `PATCH /admin/shipping/companies/{id}` | `SHIPPING_MANAGE` | any field of create; `contactInfo: null` clears it | `200` `company` |
+| `GET /admin/shipping/rules` | `SHIPPING_VIEW` | query `page`, `pageSize`, `status`, `governorateId`, `shippingCompanyId` | `200` `[rule]` with pagination, newest first |
+| `POST /admin/shipping/rules` | `SHIPPING_MANAGE` | `{ shippingFee, shippingCompanyId?, governorateId?, areaId?, minOrderTotal?, maxOrderTotal?, priority?, activeFrom?, activeTo?, status? }` | `201` `rule` |
+| `PATCH /admin/shipping/rules/{id}` | `SHIPPING_MANAGE` | any field of create; `null` clears an optional field | `200` `rule` |
+
+- `company`: `{ id, code, name, contactInfo, status, createdAt, updatedAt }`. `code`: 2–32 of `A–Z 0–9 - _`, stored uppercase, unique. `status`: `ACTIVE` (default) or `INACTIVE`; nothing is deleted.
+- `rule`: `{ id, shippingCompanyId, governorateId, areaId, minOrderTotal, maxOrderTotal, shippingFee, priority, activeFrom, activeTo, status, createdAt, updatedAt }`. Money in piastres. No governorate and no area: everywhere. An area implies its governorate (filled in when omitted). `minOrderTotal` inclusive, `maxOrderTotal` exclusive; `priority` −1000…1000, default 0.
+- Audit actions added: `SHIPPING_COMPANY_CREATED`, `SHIPPING_COMPANY_UPDATED` (entity `SHIPPING_COMPANY`), `SHIPPING_RULE_CREATED`, `SHIPPING_RULE_UPDATED` (entity `SHIPPING_RULE`).
+
+### Quote (§16)
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /shipping/options` | Guest/Customer (cart as in §14) | query `areaId` | `200` `{ areaId, orderTotal, shippingFee, freeShipping, freeShippingThreshold, amountToFreeShipping, total, currency: "EGP" }` |
+
+- `orderTotal` is the current cart `total` (after the discount, R37). The fee is the one of the most specific matching active rule (area, then governorate, then everywhere; then higher `priority`, lower fee); rules of an inactive company are skipped. From `freeShippingThreshold` on, `shippingFee` is 0. `total = orderTotal + shippingFee`.
+- One fee, no carrier choice: the rule's company is only proposed for the order; staff may change it (`ASSIGN_SHIPPING`) without changing the fee (Q126, R37). Checkout (TASK-029) recomputes the same quote.
+
+### Errors
+| Case | Response |
+|---|---|
+| No active rule covers the area | `422 SHIPPING_UNAVAILABLE`, `details.areaId` |
+| Unknown / inactive area (quote) | `400 VALIDATION_ERROR`, issue code `area_not_found` / `area_inactive` (path `areaId`) |
+| Area outside the given governorate | `400 VALIDATION_ERROR`, issue code `other_governorate` (path `areaId`) |
+| Unknown company, governorate or area (rule) | `400 VALIDATION_ERROR`, issue code `not_found` |
+| `maxOrderTotal` not above `minOrderTotal` | `400 VALIDATION_ERROR`, issue code `below_minimum` |
+| `activeTo` not after `activeFrom` | `400 VALIDATION_ERROR`, issue code `before_start` |
+| Code used by another company | `409 CONFLICT`, `details.reason = CODE_TAKEN` |
+| Unknown company or rule | `404 NOT_FOUND` |

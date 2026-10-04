@@ -1039,6 +1039,13 @@ Product-owner decisions made on 2026-10-04.
 6. **Counting a use:** a use counts when the order is created; it is given back if the order is cancelled or expires before shipping.
 7. **Percentage and editing:** whole percentages from 1% to 100%. A discount can be edited at any time (orders keep a snapshot of the discount they used); creating, editing, activating and deactivating are audited.
 
+### R37 — Shipping fee and free shipping (TASK-027; complete Q6, Q121–Q126)
+Product-owner decisions made on 2026-10-04.
+1. **One fee, no carrier choice at checkout:** the customer pays one shipping fee for the delivery area, from the best-matching shipping rule. The rule's shipping company is only proposed for the order; authorized staff may change the company later (Q126) without changing what the customer pays.
+2. **Free-shipping threshold:** one store-wide amount, starting at 2500 EGP, compared with the order total after discounts (Q123). Changing it needs Owner/Admin approval (Q180).
+3. **Which rule applies:** the most specific one: an area rule beats a governorate rule, which beats an all-Egypt rule. The rule priority only breaks ties between equally specific rules.
+4. **No rule:** when no active rule covers the address, the order cannot be placed ("we do not ship to this area yet"), even above the free-shipping threshold.
+
 ## Key non-negotiables
 - Backend is authoritative for price, stock, discount, shipping, permissions and order state.
 - Checkout core DB changes are atomic; external notifications happen after commit.
@@ -1064,3 +1071,4 @@ Product-owner decisions made on 2026-10-04.
 - v1.4 locations, cart and account decisions (R32–R34): governorates and areas as a managed list shared by addresses and shipping rules; guest cart merge adds quantities capped at availability; customer deactivation anonymizes at once, is refused while orders, returns or a wallet balance are open, and frees the email and phone.
 - v1.5 cart retention (R35, 2026-10-04): guest carts expire after 30 configurable days without changes; customer carts never expire; deactivation removes the active cart. R33 clarified: the merge cap never lowers the customer's own quantity.
 - v1.6 discount application rules (R36, 2026-10-04): codeless offers listed in the cart, codes entered; the customer always chooses; percentage on targeted items, minimum on the whole subtotal, cap per order; categories include subcategories; per-customer limits need sign-in; uses count from order creation and are given back on cancellation/expiry before shipping; 1–100%, editable any time.
+- v1.7 shipping rules (R37, 2026-10-04): one fee per delivery area from the most specific rule (area, governorate, everywhere; priority breaks ties), the proposed company can be changed by staff without changing the fee; one store-wide free-shipping threshold (2500 EGP) on the total after discounts; no rule means no shipping.
