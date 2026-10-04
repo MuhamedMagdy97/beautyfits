@@ -1006,6 +1006,24 @@ Product-owner decisions made on 2026-10-01 (project thread "Settle Phase 1 busin
 - Only guest orders whose phone **and** email both match the account are linked; a phone match alone is never sufficient (User Flows §3.5).
 - Guest orders with a different or missing email are linked only through support.
 
+## v1.4 Locations, Cart and Account Decisions
+
+Product-owner decisions made on 2026-10-04 (TASK-009). They answer TASK-002A open decision 7, the cart merge rule of API Contract §14 and the account deactivation details of Q154.
+
+### R32 — Governorates and areas are a managed list (TASK-002A open decision 7)
+- Governorates and their areas form one **managed location list** shared by customer addresses and shipping rules (Q122). Free text is not used for either.
+- The 27 Egyptian governorates are preloaded. The Owner/Admin (permission `SHIPPING_MANAGE`) adds areas to a governorate, renames them and deactivates them.
+- A customer address names one governorate and one of its areas. A deactivated governorate or area can no longer be chosen; addresses that already use it keep it.
+
+### R33 — Cart merge after login (API Contract §14)
+- When a guest cart is merged into the customer's cart, an item present in both carts gets the **sum of the two quantities, capped at the quantity available** for that variant. Items present in only one cart are kept as they are.
+
+### R34 — Customer account deactivation (Q154)
+- The customer deactivates the account from their profile after entering the current password. It is **final**: the account is signed out everywhere and **anonymized immediately**.
+- Deactivation is **refused while the customer has an open order, an open return or a non-zero wallet balance**; the customer settles them first or contacts support.
+- Anonymizing removes the name, email, phone, date of birth and saved addresses. Orders, returns, audit and financial records keep their own snapshots (Q46, Q154).
+- The email and phone are freed: the same person may register again later as a new account (previous orders are not re-linked).
+
 ## Key non-negotiables
 - Backend is authoritative for price, stock, discount, shipping, permissions and order state.
 - Checkout core DB changes are atomic; external notifications happen after commit.
@@ -1028,3 +1046,4 @@ Product-owner decisions made on 2026-10-01 (project thread "Settle Phase 1 busin
 - TASK-005 closure decisions (R20–R22): Africa/Cairo business timezone, calendar-day return window and 72-hour elapsed COD maximum, HALF-UP ties away from zero for negative amounts.
 - v1.3 Phase 1 staff and OTP decisions (R28–R31): email OTP for all staff with 30-day trusted devices, 12 h / 60 min staff session defaults and staff reset revoking all sessions, email as the only OTP channel (no phone OTP at registration; phone change OTP to the verified email), guest order claim OTP to the order's email.
 - TASK-007 closure decisions (R23–R27): sessions after password reset/change and absolute 30-day sessions, login throttling, WhatsApp phone verification and activation with non-reserving pending registrations, no login with an unverified email, Egyptian mobile numbers only.
+- v1.4 locations, cart and account decisions (R32–R34): governorates and areas as a managed list shared by addresses and shipping rules; guest cart merge adds quantities capped at availability; customer deactivation anonymizes at once, is refused while orders, returns or a wallet balance are open, and frees the email and phone.

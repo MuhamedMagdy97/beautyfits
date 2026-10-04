@@ -111,3 +111,10 @@ export const employeeResendOtpSchema = z.object({ loginTicket: opaqueToken });
 export const employeeForgotPasswordSchema = z.object({ email });
 
 export const employeeResetPasswordSchema = z.object({ email, code: otpCode, newPassword });
+
+/** Shared with the profile endpoints (TASK-009). */
+export {
+  email as emailSchema,
+  existingPassword as existingPasswordSchema,
+  phone as egyptianMobileSchema,
+};

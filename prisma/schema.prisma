@@ -165,10 +165,14 @@ model Customer {
   phoneVerifiedAt DateTime? @map("phone_verified_at") @db.Timestamptz(3)
   fullName        String    @map("full_name")
   preferredLocale Locale    @default(ar) @map("preferred_locale")
+  dateOfBirth     DateTime? @map("date_of_birth") @db.Date
+  /// Set when the customer deactivated the account and the profile was wiped (Q154, R34).
+  anonymizedAt    DateTime? @map("anonymized_at") @db.Timestamptz(3)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  account Account? @relation(fields: [accountId], references: [id])
+  account   Account?          @relation(fields: [accountId], references: [id])
+  addresses CustomerAddress[]
 
   @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
   @@index([phone])
@@ -276,6 +280,9 @@ model OtpChallenge {
   grantTokenHash String?    @unique @map("grant_token_hash")
   grantExpiresAt DateTime?  @map("grant_expires_at") @db.Timestamptz(3)
   grantUsedAt    DateTime?  @map("grant_used_at") @db.Timestamptz(3)
+  /// The value a code confirms when it is not the destination: PHONE_CHANGE
+  /// keeps the new phone here (the code goes to the account email, R30).
+  pendingValue   String?    @map("pending_value")
   ipAddress      String?    @map("ip_address")
   createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -1310,4 +1317,80 @@ model SupplierLedgerEntry {
   @@index([supplierId, createdAt])
   @@index([purchaseOrderId])
   @@map("supplier_ledger_entries")
+}
+
+// ---------------------------------------------------------------------------
+// Locations and customer addresses (TASK-009, Business Spec R32, ADR-0030)
+
+enum LocationStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("location_status")
+}
+
+/// The 27 Egyptian governorates, preloaded by the migration. Never deleted.
+model Governorate {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  /// ISO 3166-2:EG subdivision code without the "EG-" prefix, e.g. "C", "ALX".
+  code      String         @unique
+  nameAr    String         @map("name_ar")
+  nameEn    String         @map("name_en")
+  status    LocationStatus @default(ACTIVE)
+  sortOrder Int            @map("sort_order")
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  areas Area[]
+
+  @@map("governorates")
+}
+
+/// An area of a governorate, added by the Owner/Admin (R32). Never deleted.
+model Area {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  governorateId String         @map("governorate_id") @db.Uuid
+  nameAr        String         @map("name_ar")
+  nameEn        String         @map("name_en")
+  status        LocationStatus @default(ACTIVE)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  governorate Governorate       @relation(fields: [governorateId], references: [id], onDelete: Restrict)
+  addresses   CustomerAddress[]
+
+  @@unique([governorateId, nameAr])
+  @@unique([governorateId, nameEn])
+  @@map("areas")
+}
+
+/// A saved delivery address (DB design §3.3). Orders copy it into a snapshot
+/// (Q46), so nothing references an address and it can be deleted.
+model CustomerAddress {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  customerId    String   @map("customer_id") @db.Uuid
+  label         String?
+  recipientName String   @map("recipient_name")
+  /// Egyptian mobile in E.164 (R27).
+  phone         String
+  /// The governorate is the area's governorate (R32).
+  areaId        String   @map("area_id") @db.Uuid
+  city          String?
+  street        String
+  building      String?
+  floor         String?
+  apartment     String?
+  landmark      String?
+  notes         String?
+  isDefault     Boolean  @default(false) @map("is_default")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  area     Area     @relation(fields: [areaId], references: [id], onDelete: Restrict)
+
+  @@unique([customerId], map: "customer_addresses_one_default_key", where: raw("is_default"))
+  @@index([customerId, createdAt])
+  @@index([areaId])
+  @@map("customer_addresses")
 }

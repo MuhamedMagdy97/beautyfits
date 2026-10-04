@@ -83,6 +83,13 @@ export const AUDIT_ACTIONS = [
   "SUPPLIER_RETURN_REJECTED",
   "SUPPLIER_RETURN_SETTLED",
   "SUPPLIER_PAYMENT_RECORDED",
+  // Customer profile and locations (TASK-009)
+  "CUSTOMER_EMAIL_CHANGED",
+  "CUSTOMER_PHONE_CHANGED",
+  "CUSTOMER_DEACTIVATED",
+  "GOVERNORATE_UPDATED",
+  "AREA_CREATED",
+  "AREA_UPDATED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -102,6 +109,9 @@ export const AUDIT_ENTITY_TYPES = {
   purchaseOrder: "PURCHASE_ORDER",
   goodsReceipt: "GOODS_RECEIPT",
   supplierReturn: "SUPPLIER_RETURN",
+  customer: "CUSTOMER",
+  governorate: "GOVERNORATE",
+  area: "AREA",
 } as const;
 
 export interface AuditActor {
