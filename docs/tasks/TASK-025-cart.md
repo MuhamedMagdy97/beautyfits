@@ -61,7 +61,7 @@ Customer requests need a valid `ACTIVE` customer session (cookie writes pass the
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-- Interpretation to confirm: in a merge the stock cap never lowers the customer's own quantity (ADR-0031 §4). R33 only says the sum is capped.
+- Decided by the product owner on 2026-10-04: in a merge the stock cap never lowers the customer's own quantity (R33 clarification, ADR-0031 §4).
 - `[BUSINESS DECISION REQUIRED]` Guest cart retention: how long an inactive guest cart (and an inactive customer cart) is kept before `ABANDONED`/`EXPIRED`. Until decided, carts stay `ACTIVE`.
 
 ## Status

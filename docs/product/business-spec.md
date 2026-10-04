@@ -1017,6 +1017,7 @@ Product-owner decisions made on 2026-10-04 (TASK-009). They answer TASK-002A ope
 
 ### R33 — Cart merge after login (API Contract §14)
 - When a guest cart is merged into the customer's cart, an item present in both carts gets the **sum of the two quantities, capped at the quantity available** for that variant. Items present in only one cart are kept as they are.
+- **Clarified 2026-10-04 (TASK-025):** the cap never lowers the quantity already in the customer's own cart. Example: customer 3, guest 2, 1 available → 3 stays.
 
 ### R34 — Customer account deactivation (Q154)
 - The customer deactivates the account from their profile after entering the current password. It is **final**: the account is signed out everywhere and **anonymized immediately**.

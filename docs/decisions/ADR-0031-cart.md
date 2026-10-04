@@ -1,6 +1,6 @@
 # ADR-0031 — Guest and Customer Cart
 
-- **Status:** Accepted (TASK-025)
+- **Status:** Accepted (TASK-025); the merge cap of §4 was confirmed by the product owner on 2026-10-04
 - **Date:** 2026-10-04
 - **Relates to:** ADR-0008/ADR-0013 (opaque tokens, customer sessions, throttling), ADR-0024/ADR-0025 (inventory balances); Business Spec Q37, R33; User Flows §6.1; DB Design §7 and "v1.2 TASK-025 Amendments"; API Contract §14 and "TASK-025 Amendments"
 
