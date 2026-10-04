@@ -1017,12 +1017,18 @@ Product-owner decisions made on 2026-10-04 (TASK-009). They answer TASK-002A ope
 
 ### R33 — Cart merge after login (API Contract §14)
 - When a guest cart is merged into the customer's cart, an item present in both carts gets the **sum of the two quantities, capped at the quantity available** for that variant. Items present in only one cart are kept as they are.
+- **Clarified 2026-10-04 (TASK-025):** the cap never lowers the quantity already in the customer's own cart. Example: customer 3, guest 2, 1 available → 3 stays.
 
 ### R34 — Customer account deactivation (Q154)
 - The customer deactivates the account from their profile after entering the current password. It is **final**: the account is signed out everywhere and **anonymized immediately**.
 - Deactivation is **refused while the customer has an open order, an open return or a non-zero wallet balance**; the customer settles them first or contacts support.
 - Anonymizing removes the name, email, phone, date of birth and saved addresses. Orders, returns, audit and financial records keep their own snapshots (Q46, Q154).
 - The email and phone are freed: the same person may register again later as a new account (previous orders are not re-linked).
+### R35 — Cart retention (TASK-025)
+- A **guest cart** expires after **30 days without changes** (any add, update, removal or reprice is a change). Its token then starts a new empty cart. The number of days is configurable by the Owner/Admin (setting `cart.guest_expiry_days`).
+- A **customer cart** never expires; it is kept until checkout.
+- `ABANDONED` is not used for expiry: it is left to analytics (TASK-050, checkout abandonment).
+- When a customer deactivates the account (R34), the active cart is removed.
 
 ## Key non-negotiables
 - Backend is authoritative for price, stock, discount, shipping, permissions and order state.
@@ -1047,3 +1053,4 @@ Product-owner decisions made on 2026-10-04 (TASK-009). They answer TASK-002A ope
 - v1.3 Phase 1 staff and OTP decisions (R28–R31): email OTP for all staff with 30-day trusted devices, 12 h / 60 min staff session defaults and staff reset revoking all sessions, email as the only OTP channel (no phone OTP at registration; phone change OTP to the verified email), guest order claim OTP to the order's email.
 - TASK-007 closure decisions (R23–R27): sessions after password reset/change and absolute 30-day sessions, login throttling, WhatsApp phone verification and activation with non-reserving pending registrations, no login with an unverified email, Egyptian mobile numbers only.
 - v1.4 locations, cart and account decisions (R32–R34): governorates and areas as a managed list shared by addresses and shipping rules; guest cart merge adds quantities capped at availability; customer deactivation anonymizes at once, is refused while orders, returns or a wallet balance are open, and frees the email and phone.
+- v1.5 cart retention (R35, 2026-10-04): guest carts expire after 30 configurable days without changes; customer carts never expire; deactivation removes the active cart. R33 clarified: the merge cap never lowers the customer's own quantity.

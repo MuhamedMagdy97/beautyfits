@@ -34,5 +34,7 @@
 | [ADR-0027](ADR-0027-purchase-orders.md) | Purchase orders and approval | TASK-022 |
 | [ADR-0028](ADR-0028-goods-receiving.md) | Goods receiving and supplier invoices | TASK-023 |
 | [ADR-0029](ADR-0029-supplier-returns-ledger.md) | Supplier returns, payments and ledger | TASK-024 |
+| [ADR-0030](ADR-0030-customer-profile-addresses-locations.md) | Customer profile, addresses and locations | TASK-009 |
+| [ADR-0031](ADR-0031-cart.md) | Guest and customer cart | TASK-025 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

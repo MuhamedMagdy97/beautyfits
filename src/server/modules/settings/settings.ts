@@ -38,6 +38,7 @@ export const SETTING_KEYS = {
   staffSessionIdleTimeoutMinutes: "staff_session.idle_timeout_minutes",
   catalogMaxImagesPerProduct: "catalog.max_images_per_product",
   pricingMinMarginBasisPoints: "pricing.min_margin_basis_points",
+  cartGuestExpiryDays: "cart.guest_expiry_days",
 } as const;
 
 /** Default image limit per product (Q177 "configurable"; ADR-0021). */
@@ -45,6 +46,9 @@ export const DEFAULT_MAX_IMAGES_PER_PRODUCT = 20;
 
 /** Margin below which a selling-price review warns: 10% (Q102, Q111; ADR-0023 §4 item 2). */
 export const DEFAULT_MIN_MARGIN_BASIS_POINTS = 1000;
+
+/** A guest cart expires after 30 days without changes (Business Spec R35). */
+export const DEFAULT_GUEST_CART_EXPIRY_DAYS = 30;
 
 /** A margin in basis points from 0% up to, not including, 100%. */
 function isMarginBasisPoints(value: unknown): value is number {
@@ -79,6 +83,13 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     defaultValue: DEFAULT_MIN_MARGIN_BASIS_POINTS,
     isValid: isMarginBasisPoints,
     source: "Business Spec Q102, Q111; 10% decided by the product owner (ADR-0023)",
+  },
+  {
+    key: SETTING_KEYS.cartGuestExpiryDays,
+    dataType: "INTEGER",
+    defaultValue: DEFAULT_GUEST_CART_EXPIRY_DAYS,
+    isValid: isPositiveInteger,
+    source: "Business Spec R35 (30 days)",
   },
 ];
 
@@ -115,6 +126,14 @@ export async function readMinMarginBasisPoints(
   log: Logger = defaultLogger,
 ): Promise<number> {
   return readIntegerSetting(db, SETTING_KEYS.pricingMinMarginBasisPoints, log);
+}
+
+/** Days without changes after which a guest cart expires (R35). */
+export async function readGuestCartExpiryDays(
+  db: Db,
+  log: Logger = defaultLogger,
+): Promise<number> {
+  return readIntegerSetting(db, SETTING_KEYS.cartGuestExpiryDays, log);
 }
 
 /**

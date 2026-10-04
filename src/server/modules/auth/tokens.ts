@@ -5,7 +5,8 @@ import { createHash, randomBytes } from "node:crypto";
  * with a prefix naming the kind. Only the SHA-256 hash is stored, so a
  * database leak does not yield usable tokens.
  */
-export type TokenKind = "access" | "refresh" | "reset" | "login" | "device" | "invite" | "upload";
+export type TokenKind =
+  "access" | "refresh" | "reset" | "login" | "device" | "invite" | "upload" | "cart";
 
 /**
  * `reset`: the single-use password-reset grant (TASK-008, ADR-0014).
@@ -13,6 +14,7 @@ export type TokenKind = "access" | "refresh" | "reset" | "login" | "device" | "i
  * `device`: an employee trusted device (TASK-011, ADR-0015).
  * `invite`: an employee invitation (TASK-012, ADR-0016).
  * `upload`: a single file upload authorization (TASK-016, ADR-0021).
+ * `cart`: a guest cart (TASK-025, ADR-0031).
  */
 const PREFIX: Record<TokenKind, string> = {
   access: "bfa_",
@@ -22,6 +24,7 @@ const PREFIX: Record<TokenKind, string> = {
   device: "bfd_",
   invite: "bfi_",
   upload: "bfu_",
+  cart: "bfc_",
 };
 const TOKEN_FORMAT: Record<TokenKind, RegExp> = {
   access: /^bfa_[A-Za-z0-9_-]{43}$/,
@@ -31,6 +34,7 @@ const TOKEN_FORMAT: Record<TokenKind, RegExp> = {
   device: /^bfd_[A-Za-z0-9_-]{43}$/,
   invite: /^bfi_[A-Za-z0-9_-]{43}$/,
   upload: /^bfu_[A-Za-z0-9_-]{43}$/,
+  cart: /^bfc_[A-Za-z0-9_-]{43}$/,
 };
 
 export function generateToken(kind: TokenKind): string {

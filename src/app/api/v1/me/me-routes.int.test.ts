@@ -713,6 +713,7 @@ describe("deactivation (Q154, R34)", () => {
       }),
       201,
     );
+    await db.cart.create({ data: { customerId: profile.id } });
 
     await errorOf(
       await call(deactivate, "/me/deactivate", {
@@ -750,6 +751,7 @@ describe("deactivation (Q154, R34)", () => {
     });
     expect(after.customer?.anonymizedAt).not.toBeNull();
     expect(await db.customerAddress.count({ where: { customerId: profile.id } })).toBe(0);
+    expect(await db.cart.count({ where: { customerId: profile.id } })).toBe(0); // R35
     expect(await db.authSession.count({ where: { accountId: account.id, revokedAt: null } })).toBe(
       0,
     );
