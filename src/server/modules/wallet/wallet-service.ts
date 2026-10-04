@@ -243,6 +243,12 @@ export async function walletBalance(tx: Db, customerId: string): Promise<bigint>
   return wallet?.balance ?? ZERO;
 }
 
+/** What the customer can spend now: balance − held credit (0 without a wallet). */
+export async function availableWalletCredit(db: Db, customerId: string): Promise<bigint> {
+  const wallet = await db.wallet.findUnique({ where: { customerId } });
+  return wallet ? wallet.balance - (await reservedTotal(db, wallet.id)) : ZERO;
+}
+
 export interface WalletView {
   customerId: string;
   currency: string;

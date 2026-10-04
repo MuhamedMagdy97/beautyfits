@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  allocate,
   add,
   basisPointsOf,
   compare,
@@ -143,5 +144,23 @@ describe("major-unit strings", () => {
     expect(formatMajor(b(-1230))).toBe("-12.30");
     expect(formatMajor(b(0))).toBe("0.00");
     expect(parseMajor(formatMajor(b(-7)))).toBe(b(-7));
+  });
+});
+
+describe("allocate", () => {
+  it("splits exactly, giving leftovers to the largest remainders", () => {
+    expect(allocate(b(100), [b(1), b(1), b(1)])).toEqual([b(34), b(33), b(33)]);
+    expect(allocate(b(1000), [b(15000), b(5000)])).toEqual([b(750), b(250)]);
+    expect(allocate(b(7), [b(10), b(20), b(30)])).toEqual([b(1), b(2), b(4)]);
+    expect(allocate(b(0), [b(5), b(5)])).toEqual([b(0), b(0)]);
+    expect(allocate(b(10), [b(0), b(10)])).toEqual([b(0), b(10)]);
+  });
+
+  it("never gives a share above its weight when the amount fits", () => {
+    const weights = [b(1), b(2), b(3), b(997)];
+    const shares = allocate(b(1003), weights);
+    expect(shares).toEqual(weights);
+    expect(() => allocate(b(1), [])).toThrow(RangeError);
+    expect(() => allocate(b(-1), [b(1)])).toThrow(RangeError);
   });
 });

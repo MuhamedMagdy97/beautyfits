@@ -58,7 +58,7 @@ export type DiscountProblem =
 export type DiscountResult =
   { ok: true; amount: bigint; eligibleSubtotal: bigint } | { ok: false; problem: DiscountProblem };
 
-function isTargeted(rule: DiscountRule, line: DiscountLine): boolean {
+export function isTargeted(rule: DiscountRule, line: DiscountLine): boolean {
   return (
     rule.scope === "STORE_WIDE" ||
     rule.productIds.has(line.productId) ||

@@ -59,7 +59,7 @@ const optionalText = (max: number) =>
     .nullable()
     .optional();
 
-const addressFields = {
+export const addressFields = {
   label: optionalText(50),
   recipientName: text(AUTH_POLICY.fullNameMaxLength),
   phone: egyptianMobileSchema,

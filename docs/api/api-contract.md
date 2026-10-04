@@ -1584,3 +1584,32 @@ Added by TASK-028 (`docs/tasks/TASK-028-wallet.md`, ADR-0034). Business rules: Q
 - Audit action added: `WALLET_ADJUSTED` (entity `CUSTOMER`, reason = the adjustment reason).
 - R34: `POST /me/deactivate` is `409 CONFLICT` with `details = { reason: "ACCOUNT_HAS_OPEN_ITEMS", openItems: ["WALLET_BALANCE"] }` while the balance is not zero.
 - Checkout (TASK-029) reserves wallet credit; `WALLET_INSUFFICIENT_FUNDS` and `WALLET_RESERVATION_CONFLICT` come from there.
+
+## TASK-029 Amendments
+
+Added by TASK-029 (`docs/tasks/TASK-029-checkout.md`, ADR-0035). Business rules: Q28, Q37–Q40, Q46, C4, R31, R36, R37. Completes the Checkout table of §15. Both endpoints use the cart of the caller (customer session, or `X-Guest-Cart-Token`).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /checkout/validate` | Guest/Customer | `quote` | `200` `{ items, subtotal, discount, discountTotal, shippingFee, freeShipping, freeShippingThreshold, total, walletAmount, codAmount, codConfirmationRequired, currency }` |
+| `POST /checkout` | Guest/Customer + `Idempotency-Key` | `quote` + `expectedTotal` | `201` `order`; the same key and body returns the same order |
+
+- `quote`: `{ contact?, addressId?, address?, walletAmount? }`. Exactly one of `addressId` (customers: a saved address) or `address` (`recipientName`, `phone`, `areaId`, `street`, optional `city`, `building`, `floor`, `apartment`, `landmark`, `notes`, as for `/me/addresses`). Guests must send `contact: { fullName, phone, email? }` (Egyptian mobile; email optional, R31); customers' contact is their profile. `walletAmount` piastres, default 0, customers only, at most the total.
+- `expectedTotal`: the total the customer confirmed, compared with the recomputed total, never trusted.
+- `order`: `{ id, orderNumber, status, currency, subtotal, discountTotal, shippingFee, total, walletAmount, codAmount, codConfirmationRequired, items: [{ variantId, sku, name, variantName, quantity, unitPrice, discountAmount, lineTotal }], createdAt }`. `status` is `PENDING_CONFIRMATION`, or `NEW` when the wallet covers the total (C4). `orderNumber` like `BF-100001`.
+
+| Situation | Response |
+|---|---|
+| No cart or an empty cart | `409 CONFLICT`, `details.reason = CART_EMPTY` |
+| A line unavailable or above stock (at validation or when reserving) | `409 STOCK_CHANGED`, `details.items` |
+| A price changed since the shopper saw it (Q37) | `409 PRICE_CHANGED`, `details.items: [{ cartItemId, previousUnitPrice, unitPrice }]`; `POST /cart/reprice` accepts the prices |
+| `expectedTotal` differs | `409 PRICE_CHANGED`, `details = { reason: "TOTAL_CHANGED", total }` |
+| The chosen discount no longer applies (Q38) or its limit was reached meanwhile | `422 DISCOUNT_INVALID` / `DISCOUNT_EXPIRED` with `details.reason` |
+| No shipping rule for the area (R37) | `422 SHIPPING_UNAVAILABLE` |
+| Wallet credit below `walletAmount` | `422 WALLET_INSUFFICIENT_FUNDS`, `details.available` |
+| Guest without `contact`; guest with `addressId` or `walletAmount`; `walletAmount` above the total; unusable area | `400 VALIDATION_ERROR`, issue codes `required`, `sign_in_required`, `above_total`, `area_not_found`/`area_inactive` |
+| Another customer's `addressId` | `404 NOT_FOUND` |
+| Same `Idempotency-Key`, other body | `409 IDEMPOTENCY_CONFLICT` |
+| More than 20 checkout requests per IP per hour | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
+
+- Event `ORDER_CREATED` (§31) is written to the outbox in the checkout transaction: `{ orderId, orderNumber, status, codAmount }`.
