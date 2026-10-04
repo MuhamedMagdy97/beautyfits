@@ -1805,7 +1805,7 @@ Added by TASK-024 (`docs/tasks/TASK-024-supplier-returns-ledger.md`, ADR-0029). 
 
 ## v1.2 TASK-009 Amendments
 
-Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Migrated in `prisma/migrations/*_customer_profile_addresses`.
+Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Migrated in `prisma/migrations/*_customer_profile_addresses` and `*_customer_deactivation`.
 
 ### `governorates` (new, R32)
 - `id`, `code` (ISO 3166-2:EG without `EG-`, unique), `name_ar`, `name_en`, `status` enum `location_status` (`ACTIVE`, `INACTIVE`), `sort_order`, `created_at`, `updated_at`.
@@ -1822,7 +1822,8 @@ Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Migrat
 - Rows can be deleted: orders keep an address snapshot (Q46) and nothing references an address.
 
 ### `customers` (§3.2)
-- Adds `date_of_birth` (date, nullable). `status` is not added (the account status covers it). `anonymized_at` waits for the deactivation decision (Q154).
+- Adds `date_of_birth` (date, nullable) and `anonymized_at` (nullable). `status` is not added (the account status covers it).
+- Deactivation (Q154, R34): `full_name` becomes `Deleted customer`, `phone` empty, `phone_verified_at` and `date_of_birth` null, `anonymized_at` set; the account gets `status = DEACTIVATED`, `deactivated_at`, `email = deleted-<account id>@invalid` and `email_verified_at` null, so the partial unique indexes free the email and phone. Addresses and OTP challenges of the account are deleted; sessions are revoked (`DEACTIVATED`).
 
 ### `otp_challenges`
 - Adds `pending_value` (nullable): the new phone of a `PHONE_CHANGE` code, which is sent to the account email (R30). `EMAIL_CHANGE` codes use `destination` (the new email).

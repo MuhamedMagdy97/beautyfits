@@ -22,6 +22,7 @@ import {
 } from "@/server/modules/auth/otp";
 import { createScryptHasher, type PasswordHasher } from "@/server/modules/auth/password-hash";
 import { LOGIN_ACCOUNT_LIMIT } from "@/server/modules/auth/policy";
+import { revokeAccountSessions } from "@/server/modules/auth/sessions";
 import { conflict, isUniqueViolation, validationError } from "@/server/modules/catalog/errors";
 import { changeNoticeEmail, type ChangeNotice } from "@/server/modules/customers/notices";
 import type { UpdateProfileInput } from "@/server/modules/customers/schemas";
@@ -71,6 +72,22 @@ function phoneTaken(): AppError {
 function customerActor(principal: CustomerPrincipal): AuditActor {
   return { type: "CUSTOMER", id: principal.customerId };
 }
+
+/** The name left on a deactivated, anonymized customer (R34). */
+export const DELETED_NAME = "Deleted customer";
+
+async function lockCustomerRow(tx: Db, customerId: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM customers WHERE id = ${customerId}::uuid FOR UPDATE`;
+}
+
+/**
+ * R34: deactivation is refused while the customer has an open order, an open
+ * return or a non-zero wallet balance. None of these exist yet: TASK-030
+ * (orders), TASK-037 (returns) and TASK-028 (wallet) add their check here,
+ * throwing `409 CONFLICT` with `details.reason = ACCOUNT_HAS_OPEN_ITEMS`.
+ */
+// ponytail: no-op until those tables exist; add (tx, customerId) with the first real check.
+async function assertNothingOpen(): Promise<void> {}
 
 function ipKey(prefix: string, ip: string | null): string {
   return `${prefix}:ip:${ip ?? "unknown"}`;
@@ -380,12 +397,69 @@ export function createProfileService(deps: {
     return loadView(principal.accountId);
   }
 
+  /**
+   * `POST /me/deactivate` (Q154, R34): current password, then in one
+   * transaction the account is deactivated, every session revoked and the
+   * profile wiped: name, email, phone, date of birth, addresses and codes.
+   * The email and phone are freed for a new registration. Orders, audit and
+   * financial records keep their own snapshots. Cannot be undone.
+   */
+  async function deactivate(
+    principal: CustomerPrincipal,
+    input: { currentPassword: string },
+    meta: RequestMeta,
+  ): Promise<void> {
+    const now = clock.now();
+    await checkPassword(principal, input.currentPassword, meta, now);
+    await runInTransaction(
+      async (tx) => {
+        await lockCustomerRow(tx, principal.customerId);
+        await assertNothingOpen();
+        await revokeAccountSessions(tx, principal.accountId, "DEACTIVATED", now);
+        await tx.otpChallenge.deleteMany({ where: { accountId: principal.accountId } });
+        await tx.customerAddress.deleteMany({ where: { customerId: principal.customerId } });
+        await tx.customer.update({
+          where: { id: principal.customerId },
+          data: {
+            fullName: DELETED_NAME,
+            phone: "",
+            phoneVerifiedAt: null,
+            dateOfBirth: null,
+            anonymizedAt: now,
+          },
+        });
+        await tx.account.update({
+          where: { id: principal.accountId },
+          data: {
+            // A placeholder that can never be a real login; frees the email (R34).
+            email: `deleted-${principal.accountId}@invalid`,
+            emailVerifiedAt: null,
+            status: "DEACTIVATED",
+            deactivatedAt: now,
+          },
+        });
+        await recordAudit(tx, {
+          actor: customerActor(principal),
+          action: "CUSTOMER_DEACTIVATED",
+          entityType: AUDIT_ENTITY_TYPES.customer,
+          entityId: principal.customerId,
+          correlationId: meta.requestId ?? null,
+          createdAt: now,
+        });
+      },
+      {},
+      db,
+    );
+    meta.logger.info("customer deactivated and anonymized", { accountId: principal.accountId });
+  }
+
   return {
     updateProfile,
     requestEmailChange,
     confirmEmailChange,
     requestPhoneChange,
     confirmPhoneChange,
+    deactivate,
   };
 }
 

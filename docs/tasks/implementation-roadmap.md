@@ -211,7 +211,7 @@ Implement email verification, forgot-password OTP, resend cooldown, expiry and r
 
 Implement profile, multiple addresses, default address, email/phone changes with re-authentication and verification.
 
-**Status after TASK-009** (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030): `/me` profile, email change (code to the new email) and phone change (code to the account email, R30), addresses with one default and a 20-address limit. Governorates (27, preloaded) and areas are a managed list (R32) with `/locations` and admin endpoints (`SHIPPING_VIEW`/`SHIPPING_MANAGE`); TASK-027 reuses it for shipping rules and TASK-029 snapshots the chosen address. `/me/deactivate` waits for the Q154 decision.
+**Status after TASK-009** (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030): `/me` profile, email change (code to the new email) and phone change (code to the account email, R30), addresses with one default and a 20-address limit. Governorates (27, preloaded) and areas are a managed list (R32) with `/locations` and admin endpoints (`SHIPPING_VIEW`/`SHIPPING_MANAGE`); TASK-027 reuses it for shipping rules and TASK-029 snapshots the chosen address. `/me/deactivate` anonymizes at once (R34); TASK-028/030/037 add their open-item checks to it.
 
 ### TASK-010 — Guest Identity & Order Claiming
 **Depends on:** TASK-009, TASK-030 later for full order linking

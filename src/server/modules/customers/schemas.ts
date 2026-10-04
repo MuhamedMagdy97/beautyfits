@@ -90,3 +90,5 @@ export const updateAddressSchema = z
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CreateAddressInput = z.infer<typeof createAddressSchema>;
 export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
+
+export const deactivateSchema = z.object({ currentPassword: existingPasswordSchema });

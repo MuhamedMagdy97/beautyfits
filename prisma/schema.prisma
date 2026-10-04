@@ -166,6 +166,8 @@ model Customer {
   fullName        String    @map("full_name")
   preferredLocale Locale    @default(ar) @map("preferred_locale")
   dateOfBirth     DateTime? @map("date_of_birth") @db.Date
+  /// Set when the customer deactivated the account and the profile was wiped (Q154, R34).
+  anonymizedAt    DateTime? @map("anonymized_at") @db.Timestamptz(3)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 

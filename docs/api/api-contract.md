@@ -1405,7 +1405,7 @@ Added by TASK-024 (`docs/tasks/TASK-024-supplier-returns-ledger.md`, ADR-0029). 
 
 ## TASK-009 Amendments
 
-Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Business rules: Q45, Q46, Q152, Q153, R24, R27, R30, R32. `/me` endpoints need an `ACTIVE` customer session (cookie requests pass the `Origin` check); admin endpoints follow the usual employee session rules. `/me/deactivate` is not available yet (open business decision); `/me/notifications` and `/me/preferences` come with TASK-045.
+Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Business rules: Q45, Q46, Q152, Q153, Q154, R24, R27, R30, R32, R34. `/me` endpoints need an `ACTIVE` customer session (cookie requests pass the `Origin` check); admin endpoints follow the usual employee session rules. `/me/notifications` and `/me/preferences` come with TASK-045.
 
 | Endpoint | Auth | Request | Success |
 |---|---|---|---|
@@ -1415,6 +1415,7 @@ Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Busine
 | `POST /me/change-email/verify` | Customer | `{ code }` | `200` `{ account, customer }`; the previous email gets a notice |
 | `POST /me/change-phone` | Customer | `{ currentPassword, newPhone }` | `202` `{ codeSent, cooldownSeconds: 60 }`; the code goes to the account email (R30) |
 | `POST /me/change-phone/verify` | Customer | `{ code }` | `200` `{ account, customer }`; the account email gets a notice |
+| `POST /me/deactivate` | Customer | `{ currentPassword }` | `204`; signs out everywhere (cookie transport: cookies cleared) and anonymizes the account at once (R34). Cannot be undone. |
 | `GET /me/addresses` | Customer | — | `200` `[address]`, default first, then newest |
 | `POST /me/addresses` | Customer | `{ recipientName, phone, areaId, street, label?, city?, building?, floor?, apartment?, landmark?, notes? }` | `201` `address` |
 | `PATCH /me/addresses/{addressId}` | Customer | any field of create; `null` or blank clears an optional one | `200` `address` |
@@ -1430,7 +1431,8 @@ Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Busine
 - Email and phone change: the current password is checked first (wrong passwords count toward the R24 lock); codes follow the TASK-008 rules (6 digits, 5 minutes, 5 attempts, 60 s cooldown, 5 per hour per purpose and email, 20 sends per IP per hour). Only the newest code of each kind works. `codeSent: false` means the email could not be sent; request again after the cooldown. Sessions are kept.
 - `address`: `{ id, label, recipientName, phone, governorate: { id, code, name, active }, area: { id, name, active }, city, street, building, floor, apartment, landmark, notes, isDefault, createdAt, updatedAt }`. `phone` is an Egyptian mobile (R27), returned in E.164. Up to 20 addresses; the first becomes the default; deleting the default makes the most recently updated remaining address the default. An address keeps its area if the area is deactivated later (`area.active: false`); a new area must be active.
 - Admin `area`: `{ id, governorateId, nameAr, nameEn, status }`. Area names are unique within their governorate, per language. Governorates are fixed (27, ISO 3166-2:EG codes); nothing is deleted.
-- Audit actions added: `CUSTOMER_EMAIL_CHANGED`, `CUSTOMER_PHONE_CHANGED` (actor `CUSTOMER`, entity `CUSTOMER`), `GOVERNORATE_UPDATED` (entity `GOVERNORATE`), `AREA_CREATED`, `AREA_UPDATED` (entity `AREA`).
+- Deactivation (R34) wipes the name, email, phone, date of birth, saved addresses and codes; orders, returns, audit and financial records keep their snapshots. The email and phone can register again as a new account. It is refused while an order, return or wallet balance is open (checks added by TASK-028/030/037).
+- Audit actions added: `CUSTOMER_EMAIL_CHANGED`, `CUSTOMER_PHONE_CHANGED`, `CUSTOMER_DEACTIVATED` (actor `CUSTOMER`, entity `CUSTOMER`; deactivation stores no personal data), `GOVERNORATE_UPDATED` (entity `GOVERNORATE`), `AREA_CREATED`, `AREA_UPDATED` (entity `AREA`).
 
 ### Errors
 | Case | Response |
@@ -1446,3 +1448,4 @@ Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Busine
 | 21st address | `409 CONFLICT`, `details.reason = ADDRESS_LIMIT_REACHED`, `details.limit = 20` |
 | Address of another customer, unknown address/governorate/area | `404 NOT_FOUND` |
 | Area name already used in the governorate | `409 CONFLICT`, `details.reason = NAME_TAKEN` |
+| Deactivation while an order, return or wallet balance is open | `409 CONFLICT`, `details.reason = ACCOUNT_HAS_OPEN_ITEMS` |

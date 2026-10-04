@@ -12,10 +12,12 @@ import {
 } from "@/app/api/v1/me/addresses/[addressId]/route";
 import { POST as setDefault } from "@/app/api/v1/me/addresses/[addressId]/set-default/route";
 import { GET as listAddresses, POST as createAddress } from "@/app/api/v1/me/addresses/route";
+import { POST as register } from "@/app/api/v1/auth/register/route";
 import { POST as changeEmail } from "@/app/api/v1/me/change-email/route";
 import { POST as verifyEmailChange } from "@/app/api/v1/me/change-email/verify/route";
 import { POST as changePhone } from "@/app/api/v1/me/change-phone/route";
 import { POST as verifyPhoneChange } from "@/app/api/v1/me/change-phone/verify/route";
+import { POST as deactivate } from "@/app/api/v1/me/deactivate/route";
 import { GET as getMe, PATCH as patchMe } from "@/app/api/v1/me/route";
 import type { EmployeeLevel } from "@/generated/prisma/client";
 import { getEnv } from "@/server/config/env";
@@ -692,5 +694,78 @@ describe("addresses (Q45, R32)", () => {
       409,
     );
     expect(error.details).toMatchObject({ reason: "ADDRESS_LIMIT_REACHED", limit: MAX_ADDRESSES });
+  });
+});
+
+describe("deactivation (Q154, R34)", () => {
+  it("needs the password, then signs out, wipes the profile and frees the email and phone", async () => {
+    const {
+      account,
+      customer: profile,
+      token,
+    } = await customer("gone@example.com", "+201012121212");
+    const nasr = await area();
+    await data(
+      await call(createAddress, "/me/addresses", {
+        method: "POST",
+        token,
+        body: addressBody(nasr.id),
+      }),
+      201,
+    );
+
+    await errorOf(
+      await call(deactivate, "/me/deactivate", {
+        method: "POST",
+        token,
+        body: { currentPassword: "not my password" },
+      }),
+      401,
+    );
+    await data(
+      await call(deactivate, "/me/deactivate", {
+        method: "POST",
+        token,
+        body: { currentPassword: PASSWORD },
+      }),
+      204,
+    );
+    expect((await call(getMe, "/me", { token })).status).toBe(401);
+
+    const after = await db.account.findUniqueOrThrow({
+      where: { id: account.id },
+      include: { customer: true },
+    });
+    expect(after).toMatchObject({
+      status: "DEACTIVATED",
+      email: `deleted-${account.id}@invalid`,
+      emailVerifiedAt: null,
+    });
+    expect(after.deactivatedAt).not.toBeNull();
+    expect(after.customer).toMatchObject({
+      fullName: "Deleted customer",
+      phone: "",
+      phoneVerifiedAt: null,
+      dateOfBirth: null,
+    });
+    expect(after.customer?.anonymizedAt).not.toBeNull();
+    expect(await db.customerAddress.count({ where: { customerId: profile.id } })).toBe(0);
+    expect(await db.authSession.count({ where: { accountId: account.id, revokedAt: null } })).toBe(
+      0,
+    );
+    const audit = await db.auditLog.findFirstOrThrow({ where: { action: "CUSTOMER_DEACTIVATED" } });
+    expect(audit).toMatchObject({ actorId: profile.id, entityId: profile.id, newDataJson: null });
+
+    // The same email and phone can open a new account.
+    const again = await call(register, "/auth/register", {
+      method: "POST",
+      body: {
+        email: "gone@example.com",
+        password: PASSWORD,
+        phone: "01012121212",
+        fullName: "Back Again",
+      },
+    });
+    expect(again.status).toBe(201);
   });
 });
