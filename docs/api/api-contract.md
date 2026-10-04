@@ -1469,6 +1469,7 @@ Added by TASK-025 (`docs/tasks/TASK-025-cart.md`, ADR-0031). Business rules: Q37
 - `item`: `{ id, productId, variantId, slug, sku, name, variantName, imageUrl, quantity, unitPrice, lastSeenUnitPrice, priceChanged, lineTotal, status, availableQuantity? }`. Money in piastres. `status`: `AVAILABLE`, `INSUFFICIENT_STOCK` (with `availableQuantity`), `UNAVAILABLE` (product no longer published, variant archived or no price: `unitPrice` and `lineTotal` are `null`). `lastSeenUnitPrice` is the price when the item was added or last repriced; `priceChanged` compares it with `unitPrice`.
 - Only active variants of `PUBLISHED` products with a selling price can be added or switched to. Adding or raising a quantity above the available stock is refused; lowering a quantity always works. Lines that stop being purchasable stay in the cart.
 - Merge (R33): an item in both carts gets the sum of the quantities capped at the available stock, but never less than the customer's own quantity; items in one cart only are kept as they are. When the customer has no cart, the guest cart becomes theirs. An unknown or already merged token changes nothing (safe to retry).
+- Retention (R35): a guest cart unchanged for 30 days (setting `cart.guest_expiry_days`) is gone: its token behaves as unknown. Customer carts never expire; deactivating the account removes the cart.
 - Limits (ADR-0031): quantity 1–999 per request, 50 different items per cart (a merge may go beyond), 30 new guest carts per IP per hour.
 
 ### Errors

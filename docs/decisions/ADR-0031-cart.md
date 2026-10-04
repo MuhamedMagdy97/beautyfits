@@ -32,6 +32,6 @@
 ## Consequences
 
 - Migration `cart`: enum `cart_status` (with `MERGED`), `carts`, `cart_items`, check constraints.
-- No expiry of guest carts yet: carts stay `ACTIVE` until merged or converted. Their retention and the `ABANDONED`/`EXPIRED` transitions are left open (task file).
+- Retention (R35, decided 2026-10-04): every guest lookup ignores a guest cart whose `updated_at` is older than the setting `cart.guest_expiry_days` (default 30), so the rule holds without a scheduler; `npm run jobs:expire-guest-carts` (`expireGuestCarts`) marks those carts `EXPIRED` and is scheduled daily by TASK-066. Customer carts never expire. Deactivation (R34) deletes the customer's active cart. `ABANDONED` is left to TASK-050.
 - Discounts in the cart and reprice come with TASK-026, shipping with TASK-027; TASK-029 marks the cart `CONVERTED`; TASK-042 (move to cart) reuses `addItem`; analytics add-to-cart events come with TASK-050.
 - No new dependency.

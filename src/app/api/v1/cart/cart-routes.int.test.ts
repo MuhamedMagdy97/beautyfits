@@ -9,7 +9,8 @@ import { POST as reprice } from "@/app/api/v1/cart/reprice/route";
 import { GET as getCart } from "@/app/api/v1/cart/route";
 import { getDb } from "@/server/db/client";
 import { createSession } from "@/server/modules/auth/sessions";
-import { MAX_CART_LINES } from "@/server/modules/cart/cart-service";
+import { getCartService, MAX_CART_LINES } from "@/server/modules/cart/cart-service";
+import { SETTING_KEYS } from "@/server/modules/settings/settings";
 import { MS_PER_DAY, MS_PER_HOUR } from "@/server/time/time";
 import { resetDatabase } from "@/test/integration/database";
 
@@ -471,6 +472,55 @@ describe("customer cart", () => {
     const carts = await db.cart.findMany({ where: { customerId }, include: { items: true } });
     expect(carts).toHaveLength(1);
     expect(carts[0].items).toHaveLength(2);
+  });
+});
+
+describe("expiry (R35)", () => {
+  const daysAgo = (days: number) => new Date(Date.now() - days * MS_PER_DAY);
+
+  it("forgets guest carts unchanged for 30 days and the sweep marks them expired", async () => {
+    const { variantIds } = await product();
+    const old = await guestAdd(variantIds[0], 1);
+    const fresh = await guestAdd(variantIds[0], 1);
+    const { token, customerId } = await customer();
+    await call(addItem, "/cart/items", {
+      method: "POST",
+      token,
+      body: { variantId: variantIds[0], quantity: 1 },
+    });
+    await db.cart.update({ where: { id: old.cart.id }, data: { updatedAt: daysAgo(30) } });
+    await db.cart.update({ where: { id: fresh.cart.id }, data: { updatedAt: daysAgo(29) } });
+    await db.cart.updateMany({ where: { customerId }, data: { updatedAt: daysAgo(400) } });
+
+    expect((await data(await call(getCart, "/cart", { guest: old.guest }))).id).toBeNull();
+    expect((await data(await call(getCart, "/cart", { guest: fresh.guest }))).id).toBe(
+      fresh.cart.id,
+    );
+    expect((await data(await call(getCart, "/cart", { token }))).items).toHaveLength(1);
+    // An expired guest cart is not merged.
+    const merged = await data(
+      await call(merge, "/cart/merge", { method: "POST", token, guest: old.guest }),
+    );
+    expect(merged.itemCount).toBe(1);
+    // Writing with its token starts a new cart.
+    const restarted = await guestAdd(variantIds[0], 1, old.guest);
+    expect(restarted.guest).not.toBe(old.guest);
+
+    expect(await getCartService().expireGuestCarts()).toBe(1);
+    const statuses = await db.cart.findMany({ select: { id: true, status: true } });
+    expect(statuses.find((c) => c.id === old.cart.id)?.status).toBe("EXPIRED");
+    expect(statuses.filter((c) => c.status === "ACTIVE")).toHaveLength(3);
+    expect(await getCartService().expireGuestCarts()).toBe(0);
+  });
+
+  it("follows the configured number of days", async () => {
+    const { variantIds } = await product();
+    const { guest, cart } = await guestAdd(variantIds[0], 1);
+    await db.setting.create({
+      data: { key: SETTING_KEYS.cartGuestExpiryDays, valueJson: 7, dataType: "INTEGER" },
+    });
+    await db.cart.update({ where: { id: cart.id }, data: { updatedAt: daysAgo(8) } });
+    expect((await data(await call(getCart, "/cart", { guest }))).id).toBeNull();
   });
 });
 

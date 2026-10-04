@@ -80,6 +80,7 @@ describe("default settings", () => {
     expect(byKey.get(SETTING_KEYS.staffSessionIdleTimeoutMinutes)?.defaultValue).toBe(60);
     expect(byKey.get(SETTING_KEYS.catalogMaxImagesPerProduct)?.defaultValue).toBe(20);
     expect(byKey.get(SETTING_KEYS.pricingMinMarginBasisPoints)?.defaultValue).toBe(1000);
+    expect(byKey.get(SETTING_KEYS.cartGuestExpiryDays)?.defaultValue).toBe(30);
     for (const definition of SETTING_DEFINITIONS) {
       expect(definition.isValid(definition.defaultValue)).toBe(true);
       for (const bad of [-5, 1.5, "60", null]) {

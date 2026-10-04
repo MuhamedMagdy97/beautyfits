@@ -11,7 +11,8 @@ import { mediaContentUrl } from "@/server/modules/media/uploads-service";
 import { add, multiply, toJsonNumber } from "@/server/money/money";
 import { getBlockedUntil, recordHit, type RateLimitPolicy } from "@/server/rate-limit/rate-limit";
 import type { AddCartItemInput, UpdateCartItemInput } from "@/server/modules/cart/schemas";
-import { MS_PER_HOUR, systemClock, type Clock } from "@/server/time/time";
+import { readGuestCartExpiryDays } from "@/server/modules/settings/settings";
+import { MS_PER_DAY, MS_PER_HOUR, systemClock, type Clock } from "@/server/time/time";
 
 /**
  * Guest and customer carts (TASK-025, API §14, DB design §7, Q37, R33,
@@ -24,6 +25,8 @@ import { MS_PER_HOUR, systemClock, type Clock } from "@/server/time/time";
  * - Only active variants of published products with a selling price can be
  *   added; a quantity above the available stock is refused. Lines that stop
  *   being purchasable stay in the cart, marked `UNAVAILABLE`.
+ * - Guest carts expire after the configured days without changes (R35,
+ *   default 30); customer carts never expire.
  * - Writes lock the cart row (customer carts: the customer row first, so the
  *   single active cart is created once).
  */
@@ -181,8 +184,21 @@ async function lockCart(tx: Db, cartId: string): Promise<void> {
   await tx.$queryRaw`SELECT id FROM carts WHERE id = ${cartId}::uuid FOR UPDATE`;
 }
 
+/**
+ * Filter for a live guest cart: active and changed within the expiry period
+ * (R35). An older one is treated as gone even before the sweep marks it.
+ */
+async function liveGuestCart(db: Db, token: string, now: Date) {
+  const days = await readGuestCartExpiryDays(db);
+  return {
+    guestTokenHash: hashToken(token),
+    status: "ACTIVE" as const,
+    updatedAt: { gt: new Date(now.getTime() - days * MS_PER_DAY) },
+  };
+}
+
 /** The owner's active cart id (locked), or null. */
-async function findActiveCart(tx: Db, owner: CartOwner): Promise<string | null> {
+async function findActiveCart(tx: Db, owner: CartOwner, now: Date): Promise<string | null> {
   if (owner.kind === "customer") {
     await tx.$queryRaw`SELECT id FROM customers WHERE id = ${owner.customerId}::uuid FOR UPDATE`;
   } else if (owner.token === null) {
@@ -192,7 +208,7 @@ async function findActiveCart(tx: Db, owner: CartOwner): Promise<string | null> 
     where:
       owner.kind === "customer"
         ? { customerId: owner.customerId, status: "ACTIVE" }
-        : { guestTokenHash: hashToken(owner.token!), status: "ACTIVE" },
+        : await liveGuestCart(tx, owner.token!, now),
     select: { id: true },
   });
   if (!cart) {
@@ -234,9 +250,7 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
       owner.kind === "customer"
         ? await db.cart.findFirst({ where: { customerId: owner.customerId, status: "ACTIVE" } })
         : owner.token
-          ? await db.cart.findFirst({
-              where: { guestTokenHash: hashToken(owner.token), status: "ACTIVE" },
-            })
+          ? await db.cart.findFirst({ where: await liveGuestCart(db, owner.token, clock.now()) })
           : null;
     return cart ? loadView(db, cart.id, locale) : { ...EMPTY_CART };
   }
@@ -268,7 +282,7 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
     if (owner.kind === "guest") {
       const existing = owner.token
         ? await db.cart.findFirst({
-            where: { guestTokenHash: hashToken(owner.token), status: "ACTIVE" },
+            where: await liveGuestCart(db, owner.token, now),
             select: { id: true },
           })
         : null;
@@ -280,7 +294,7 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
 
     const view = await runInTransaction(
       async (tx) => {
-        let cartId = guestCartToken ? null : await findActiveCart(tx, owner);
+        let cartId = guestCartToken ? null : await findActiveCart(tx, owner, now);
         if (cartId === null && owner.kind === "guest") {
           // The guest cart was merged in the meantime: start a new one.
           guestCartToken ??= generateToken("cart");
@@ -350,7 +364,7 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
     const now = clock.now();
     return runInTransaction(
       async (tx) => {
-        const cartId = await findActiveCart(tx, owner);
+        const cartId = await findActiveCart(tx, owner, now);
         const line = await findOwnItem(tx, cartId, itemId);
         const quantity = input.quantity ?? line.quantity;
 
@@ -416,7 +430,7 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
     const now = clock.now();
     return runInTransaction(
       async (tx) => {
-        const cartId = await findActiveCart(tx, owner);
+        const cartId = await findActiveCart(tx, owner, now);
         const line = await findOwnItem(tx, cartId, itemId);
         await tx.cartItem.delete({ where: { id: line.id } });
         await tx.cart.update({ where: { id: cartId! }, data: { updatedAt: now } });
@@ -439,7 +453,7 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
     const now = clock.now();
     return runInTransaction(
       async (tx) => {
-        const cartId = await findActiveCart(tx, owner);
+        const cartId = await findActiveCart(tx, owner, now);
         if (!cartId) {
           return { ...EMPTY_CART, changes: [] };
         }
@@ -483,9 +497,9 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
     return runInTransaction(
       async (tx) => {
         const owner: CartOwner = { kind: "customer", customerId };
-        const customerCartId = await findActiveCart(tx, owner);
+        const customerCartId = await findActiveCart(tx, owner, now);
         const guestCartId = guestToken
-          ? await findActiveCart(tx, { kind: "guest", token: guestToken })
+          ? await findActiveCart(tx, { kind: "guest", token: guestToken }, now)
           : null;
 
         if (!guestCartId) {
@@ -546,7 +560,25 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
     );
   }
 
-  return { getCart, addItem, updateItem, removeItem, reprice, merge };
+  /**
+   * Marks guest carts unchanged for the expiry period `EXPIRED` (R35).
+   * Customer carts never expire. Run daily; safe to run at any time.
+   */
+  async function expireGuestCarts(): Promise<number> {
+    const now = clock.now();
+    const days = await readGuestCartExpiryDays(db);
+    const { count } = await db.cart.updateMany({
+      where: {
+        guestTokenHash: { not: null },
+        status: "ACTIVE",
+        updatedAt: { lte: new Date(now.getTime() - days * MS_PER_DAY) },
+      },
+      data: { status: "EXPIRED", updatedAt: now },
+    });
+    return count;
+  }
+
+  return { getCart, addItem, updateItem, removeItem, reprice, merge, expireGuestCarts };
 }
 
 export type CartService = ReturnType<typeof createCartService>;

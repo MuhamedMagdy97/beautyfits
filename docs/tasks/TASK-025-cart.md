@@ -14,11 +14,11 @@ TASK-014 (variants), TASK-017 (publishing), TASK-018 (selling price), TASK-019 (
 - ADR-0008, ADR-0013, ADR-0024, ADR-0025
 
 ## Scope
-- `carts` (status `MERGED` added), `cart_items`.
+- `carts` (status `MERGED` added), `cart_items`; setting `cart.guest_expiry_days` and the guest cart expiry job (R35); deactivation removes the active cart.
 - `GET /cart`, `POST /cart/items`, `PATCH|DELETE /cart/items/{cartItemId}`, `POST /cart/reprice`, `POST /cart/merge`.
 
 ## Non-Goals
-- Discounts in the cart (TASK-026), shipping estimate (TASK-027), checkout and `CONVERTED` (TASK-029), wishlist move-to-cart (TASK-042), analytics events (TASK-050), guest cart expiry, website UI.
+- Discounts in the cart (TASK-026), shipping estimate (TASK-027), checkout and `CONVERTED` (TASK-029), wishlist move-to-cart (TASK-042), analytics events (TASK-050), scheduling the expiry job (TASK-066), website UI.
 
 ## Files / Modules
 - `prisma/schema.prisma`, `prisma/migrations/*_cart/`
@@ -62,7 +62,8 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 - Decided by the product owner on 2026-10-04: in a merge the stock cap never lowers the customer's own quantity (R33 clarification, ADR-0031 §4).
-- `[BUSINESS DECISION REQUIRED]` Guest cart retention: how long an inactive guest cart (and an inactive customer cart) is kept before `ABANDONED`/`EXPIRED`. Until decided, carts stay `ACTIVE`.
+- Decided by the product owner on 2026-10-04 (R35): guest carts expire after 30 configurable days without changes, customer carts never expire, deactivation removes the active cart. Implemented here; TASK-066 schedules `npm run jobs:expire-guest-carts` daily.
+- Record R33 (clarification) and R35 in `docs/decisions/business-rules-ledger.xlsx`.
 
 ## Status
 - [x] Planned

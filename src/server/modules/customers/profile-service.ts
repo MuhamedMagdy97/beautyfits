@@ -400,7 +400,8 @@ export function createProfileService(deps: {
   /**
    * `POST /me/deactivate` (Q154, R34): current password, then in one
    * transaction the account is deactivated, every session revoked and the
-   * profile wiped: name, email, phone, date of birth, addresses and codes.
+   * profile wiped: name, email, phone, date of birth, addresses, codes and
+   * the active cart (R35).
    * The email and phone are freed for a new registration. Orders, audit and
    * financial records keep their own snapshots. Cannot be undone.
    */
@@ -418,6 +419,8 @@ export function createProfileService(deps: {
         await revokeAccountSessions(tx, principal.accountId, "DEACTIVATED", now);
         await tx.otpChallenge.deleteMany({ where: { accountId: principal.accountId } });
         await tx.customerAddress.deleteMany({ where: { customerId: principal.customerId } });
+        // R35: the active cart goes too (its lines cascade).
+        await tx.cart.deleteMany({ where: { customerId: principal.customerId, status: "ACTIVE" } });
         await tx.customer.update({
           where: { id: principal.customerId },
           data: {

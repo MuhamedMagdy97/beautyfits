@@ -22,7 +22,8 @@
     "db:status": "prisma migrate status",
     "db:reset": "prisma migrate reset && prisma generate",
     "db:seed": "prisma db seed",
-    "db:seed:dev": "tsx prisma/seed-dev.ts"
+    "db:seed:dev": "tsx prisma/seed-dev.ts",
+    "jobs:expire-guest-carts": "tsx scripts/expire-guest-carts.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

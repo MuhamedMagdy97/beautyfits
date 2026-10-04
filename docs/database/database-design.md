@@ -1837,6 +1837,10 @@ Added by TASK-025 (`docs/tasks/TASK-025-cart.md`, ADR-0031). Migrated in `prisma
 - `status` enum `cart_status` gains `MERGED` (a guest cart merged into a customer cart, R33). `currency` `CHAR(3)` default `EGP`.
 - `customer_id` FK (`RESTRICT`). Check `carts_one_owner_check`: exactly one of `customer_id` / `guest_token_hash`. Partial unique index `carts_one_active_per_customer_key` on `(customer_id) WHERE status = 'ACTIVE'`.
 - A guest cart adopted at merge keeps its id and gets `customer_id` (its token hash is cleared).
+- R35: guest carts with `updated_at` older than `cart.guest_expiry_days` (setting, default 30) become `EXPIRED` (daily job); customer carts never expire; deactivation deletes the customer's `ACTIVE` cart.
+
+### `settings`
+- Adds the key `cart.guest_expiry_days` (integer, default 30, R35).
 
 ### `cart_items` (§7, migrated)
 - `last_seen_unit_price` `BIGINT` piastres, `> 0`; `quantity > 0`. Unique `(cart_id, product_variant_id)`; index `product_variant_id`.

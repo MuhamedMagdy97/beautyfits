@@ -327,7 +327,7 @@ Implement supplier returns, supplier credits/refunds, supplier balances, payment
 
 Implement cart lifecycle for Guest and authenticated Customer.
 
-**Status after TASK-025** (`docs/tasks/TASK-025-cart.md`, ADR-0031): `carts`/`cart_items` with hashed guest tokens (`X-Guest-Cart-Token`), one active cart per customer; `/cart` endpoints show current prices and stock, flag price changes (Q37) and accept them with `reprice`; `merge` follows R33. Carts never reserve stock. TASK-026 adds discounts to `reprice`, TASK-029 marks the cart `CONVERTED`, TASK-042 reuses `addItem` in `src/server/modules/cart/cart-service.ts`. Guest cart retention is `[BUSINESS DECISION REQUIRED]`.
+**Status after TASK-025** (`docs/tasks/TASK-025-cart.md`, ADR-0031): `carts`/`cart_items` with hashed guest tokens (`X-Guest-Cart-Token`), one active cart per customer; `/cart` endpoints show current prices and stock, flag price changes (Q37) and accept them with `reprice`; `merge` follows R33. Carts never reserve stock. TASK-026 adds discounts to `reprice`, TASK-029 marks the cart `CONVERTED`, TASK-042 reuses `addItem` in `src/server/modules/cart/cart-service.ts`. Guest carts expire after 30 configurable days (R35); TASK-066 schedules `npm run jobs:expire-guest-carts` daily.
 
 ### TASK-026 — Discount Engine
 **Depends on:** TASK-018, TASK-025
