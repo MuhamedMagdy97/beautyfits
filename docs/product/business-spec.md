@@ -1046,6 +1046,17 @@ Product-owner decisions made on 2026-10-04.
 3. **Which rule applies:** the most specific one: an area rule beats a governorate rule, which beats an all-Egypt rule. The rule priority only breaks ties between equally specific rules.
 4. **No rule:** when no active rule covers the address, the order cannot be placed ("we do not ship to this area yet"), even above the free-shipping threshold.
 
+### R38 — Checkout and order decisions (TASK-029; complete Q37, Q39, Q43, Q155, C1, C4)
+Product-owner decisions made on 2026-10-05.
+1. **Order number:** `BF-` followed by a running number starting at 100001 (e.g. `BF-100001`). It never authorizes access to an order.
+2. **Changes before ordering:** if a price, stock, the discount, the shipping fee or the total changed since the customer reviewed the cart, the order is **not placed**; the customer sees what changed and confirms again. Checkout never re-prices silently.
+3. **Guest contact:** name and Egyptian mobile are required; email is **optional**. A guest order without an email can be claimed only through support (R31).
+4. **Guest marketing consent:** guests are **not** offered marketing opt-in at checkout; marketing consent is collected from registered customers only (Q59, Q155).
+5. **Tax:** BeautyFits is not registered for tax invoices yet. Orders record that prices are tax-inclusive (C1) with no tax rate or amount; these are added when tax invoicing starts, without changing earlier orders.
+6. **Discount per item:** the order discount is split over the discounted items in proportion to their line totals (HALF-UP, leftover piastres to the largest remainders, R9); returns refund an item net of its share.
+7. **Wallet capture:** wallet credit held for an order is spent (captured, `ORDER_WALLET_USE`) when the order is **Shipped**, the same moment stock is consumed (ADR-0025). Before that, cancellation or expiry releases it (Audit Correction 5); after that, money comes back only through a return refund.
+8. **Checkout abuse limit:** at most 20 checkout attempts per IP address per hour.
+
 ## Key non-negotiables
 - Backend is authoritative for price, stock, discount, shipping, permissions and order state.
 - Checkout core DB changes are atomic; external notifications happen after commit.
@@ -1071,4 +1082,5 @@ Product-owner decisions made on 2026-10-04.
 - v1.4 locations, cart and account decisions (R32–R34): governorates and areas as a managed list shared by addresses and shipping rules; guest cart merge adds quantities capped at availability; customer deactivation anonymizes at once, is refused while orders, returns or a wallet balance are open, and frees the email and phone.
 - v1.5 cart retention (R35, 2026-10-04): guest carts expire after 30 configurable days without changes; customer carts never expire; deactivation removes the active cart. R33 clarified: the merge cap never lowers the customer's own quantity.
 - v1.6 discount application rules (R36, 2026-10-04): codeless offers listed in the cart, codes entered; the customer always chooses; percentage on targeted items, minimum on the whole subtotal, cap per order; categories include subcategories; per-customer limits need sign-in; uses count from order creation and are given back on cancellation/expiry before shipping; 1–100%, editable any time.
+- v1.8 checkout and order decisions (R38, 2026-10-05): `BF-` order numbers; changes before ordering refuse the order for review; guest email optional; no guest marketing opt-in; tax-inclusive with no rate until tax invoicing; proportional discount split per item; wallet captured at Shipped; 20 checkouts per IP per hour.
 - v1.7 shipping rules (R37, 2026-10-04): one fee per delivery area from the most specific rule (area, governorate, everywhere; priority breaks ties), the proposed company can be changed by staff without changing the fee; one store-wide free-shipping threshold (2500 EGP) on the total after discounts; no rule means no shipping.

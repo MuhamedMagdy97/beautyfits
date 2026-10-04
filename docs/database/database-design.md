@@ -1385,7 +1385,7 @@ The link only confirms; it never exposes order tracking or cancellation (R16).
 `orders` additionally stores:
 - `cod_amount` (0 when the wallet covers the whole total, C4)
 - `wallet_amount_captured` (0 until captured)
-- `tax_included`, `tax_amount`, `tax_rate` nullable (C1; rate value: `[BUSINESS DECISION REQUIRED]`)
+- `tax_included`, `tax_amount`, `tax_rate` nullable (C1; no rate or amount until tax invoicing starts, Business Spec R38.5)
 - `applied_discount_id` nullable + `discount_snapshot_json` (code, percentage, cap at order time)
 - `shipping_company_id` nullable + `shipping_rule_snapshot_json`
 - `locale` (`ar` | `en`) used for customer messages
@@ -1410,7 +1410,7 @@ The failure threshold that creates a task is a setting.
 - `notification_deliveries.notification_id` becomes nullable and gains `order_id` nullable, `template_key`, `locale`, so transactional WhatsApp/email messages to **guests** (order received, COD confirmation request) are logged without an in-app notification.
 
 ### Marketing consent
-`marketing_consents` (v1.1 amendment) is the only consent store; `customer_marketing_preferences` is removed (§3.4). Consent captured from guests at checkout (Q155, User Flows §16.2): `[BUSINESS DECISION REQUIRED]` — if allowed, rows reference `guest_phone`/`guest_email` instead of `customer_id`.
+`marketing_consents` (v1.1 amendment) is the only consent store; `customer_marketing_preferences` is removed (§3.4). Consent captured from guests at checkout (Q155, User Flows §16.2): not collected: guests are not offered marketing opt-in (Business Spec R38.4).
 
 ### Bilingual content (Business Spec R14)
 Customer-facing text is stored as `_ar` / `_en` column pairs (two fixed languages; no translation tables in v1): products, product variants, brands, categories, product media alt text. Order snapshots store the names in both languages. `customers.preferred_locale` and `orders.locale` choose the language of messages.
@@ -1893,3 +1893,25 @@ Added by TASK-028 (`docs/tasks/TASK-028-wallet.md`, ADR-0034). Migrated in `pris
 - Fields of §13 plus `captured_at`. `status` enum `wallet_reservation_status` (`ACTIVE`, `CAPTURED`, `RELEASED`); check keeps `released_at`/`captured_at` consistent with the status. `amount` piastres `> 0`.
 - At most one `ACTIVE` reservation per order (partial unique index `wallet_reservations_one_active_key`). `order_id` has no foreign key yet: TASK-030 adds it when `orders` exists.
 - Available credit = `balance` − Σ `ACTIVE` reservations. Releasing writes no ledger entry; capturing writes the `ORDER_WALLET_USE` debit.
+
+## v1.2 TASK-029 Amendments
+
+Added by TASK-029 (`docs/tasks/TASK-029-checkout.md`, ADR-0035). Migrated in `prisma/migrations/*_orders_checkout`. Orders are migrated with checkout because the checkout transaction creates them (ADR-0035 §1); TASK-030 adds the `order_id` foreign keys of `inventory_reservations`, `discount_usages` and `wallet_reservations`.
+
+### `orders` (§8 + "Order financial fields", migrated)
+- Fields of §8 and the v1.2 order financial fields, except `billing_snapshot_json` (no billing data in a COD v1 order), `confirmed_at`, `delivered_at`, `cancelled_at`, `expired_at` and the COD confirmation fields, which TASK-030/TASK-031 add with their transitions.
+- `status` enum `order_status`; `payment_method` enum `payment_method` (`COD`); `locale` (`ar`/`en`); money in piastres. `tax_included` default true, `tax_amount`/`tax_rate` null (C1).
+- `order_number` unique, `BF-` + sequence `order_number_seq` (from 100001).
+- Checks: a customer or a `guest_phone`; `subtotal > 0`; `0 <= discount_total <= subtotal`; `total = subtotal − discount_total + shipping_fee`; `0 <= wallet_amount_reserved <= total`; `0 <= wallet_amount_captured <= wallet_amount_reserved`; `cod_amount = total − wallet_amount_reserved`.
+- `applied_discount_id` and `shipping_company_id` FK (`RESTRICT`); `discount_snapshot_json` (id, code, names, percentage, cap, minimum, amount), `shipping_rule_snapshot_json` (rule, company, place, rule fee, free shipping, threshold), `shipping_address_snapshot_json` (recipient, phone, governorate and area with both names, street fields, source address id), `customer_snapshot_json` (customer id, name, phone, email).
+- Indexes `(customer_id, created_at)`, `(status, created_at)`, `guest_phone`.
+
+### `order_items` (§8, migrated)
+- Fields of §8. `product_name_snapshot` and `variant_name_snapshot` are JSON `{ ar, en }`; `image_snapshot` is the main image's media asset id. `unit_cost_at_sale` nullable (weighted average cost at sale). `discount_amount` is the line's share of the order discount (ADR-0035 §4).
+- Unique `(order_id, product_variant_id)`; check `line_total = unit_price × quantity − discount_amount`, `quantity > 0`.
+
+### `order_status_history` (§8, migrated)
+- Fields of §8; `from_status` null for the first status; `changed_by_type` reuses `audit_actor_type`. Append-only (trigger `order_status_history_append_only`).
+
+### `checkout_attempts` (§7, migrated)
+- Fields of §7 plus `scope` (`CUSTOMER:<id>` or `GUEST_CART:<token hash>`); unique `(scope, idempotency_key)`; `result_order_id` unique; check: `SUCCEEDED` exactly when `result_order_id` is set. Only successful checkouts are stored (a failure rolls back).

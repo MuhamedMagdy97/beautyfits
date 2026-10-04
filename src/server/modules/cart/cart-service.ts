@@ -271,7 +271,7 @@ async function evaluateFor(
   }));
 }
 
-async function loadView(
+export async function loadView(
   db: Db,
   cartId: string,
   locale: SupportedLocale,
@@ -356,7 +356,7 @@ async function lockCart(tx: Db, cartId: string): Promise<void> {
  * Filter for a live guest cart: active and changed within the expiry period
  * (R35). An older one is treated as gone even before the sweep marks it.
  */
-async function liveGuestCart(db: Db, token: string, now: Date) {
+export async function liveGuestCart(db: Db, token: string, now: Date) {
   const days = await readGuestCartExpiryDays(db);
   return {
     guestTokenHash: hashToken(token),

@@ -355,6 +355,8 @@ Implement wallet balance, immutable transactions, wallet reservations and Wallet
 
 Implement the critical checkout transaction: revalidate cart, prices, discount, shipping, wallet, stock; reserve inventory; create order; use idempotency; commit; then emit background events.
 
+**Status after TASK-029** (`docs/tasks/TASK-029-checkout.md`, ADR-0035): `POST /checkout/validate` and `POST /checkout` for guests and customers. One transaction creates `orders` (snapshots, `BF-` number, `PENDING_CONFIRMATION` or `NEW` when the wallet covers the total), `order_items` (discount split per targeted line), the first `order_status_history` row, reserves stock, counts the discount use, holds wallet credit, converts the cart, stores the `checkout_attempts` row (idempotency) and the `ORDER_CREATED` outbox event. The orders tables moved here from TASK-030; TASK-030 adds the order APIs, transitions and the remaining `order_id` foreign keys.
+
 ---
 
 # Phase 5 — Orders & COD

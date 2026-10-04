@@ -22,5 +22,5 @@
 
 - Migration `wallet`: enums `wallet_transaction_type`, `wallet_direction`, `wallet_reservation_status`; tables `wallets`, `wallet_transactions`, `wallet_reservations`; checks and triggers.
 - Deactivation (R34) is refused while the balance is not zero.
-- When the reservation is captured (shipped, delivered or another outcome) is decided with the order tasks (TASK-030 → TASK-034); this task only provides the function.
+- The reservation is captured when the order ships (Business Spec R38.7, decided 2026-10-05); the shipping task calls `captureWalletReservation`.
 - No new dependency.

@@ -171,3 +171,27 @@ function parseDecimal(value: string | bigint | number): { numerator: bigint; den
     denominator: TEN ** BigInt(fraction.length),
   };
 }
+
+/**
+ * Splits `amount` across `weights` in proportion, exactly: each share is
+ * rounded down, then the leftover piastres go one each to the largest
+ * remainders (earlier weight first on ties). Shares always sum to `amount`
+ * and, when `amount <= Σ weights`, no share exceeds its weight.
+ */
+export function allocate(amount: MinorUnits, weights: readonly MinorUnits[]): MinorUnits[] {
+  const total = weights.reduce((sum, w) => sum + w, ZERO);
+  if (amount < ZERO || total <= ZERO || weights.some((w) => w < ZERO)) {
+    throw new RangeError("allocate needs a non-negative amount and positive total weight");
+  }
+  const shares = weights.map((w) => (amount * w) / total);
+  let left = amount - shares.reduce((sum, s) => sum + s, ZERO);
+  const order = weights
+    .map((w, i) => ({ i, rest: (amount * w) % total }))
+    .sort((a, b) => (a.rest === b.rest ? a.i - b.i : a.rest > b.rest ? -1 : 1));
+  for (const { i } of order) {
+    if (left === ZERO) break;
+    shares[i] += ONE;
+    left -= ONE;
+  }
+  return shares;
+}

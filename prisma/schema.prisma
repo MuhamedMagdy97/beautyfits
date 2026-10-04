@@ -176,6 +176,7 @@ model Customer {
   carts          Cart[]
   discountUsages DiscountUsage[]
   wallet         Wallet?
+  orders         Order[]
 
   @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
   @@index([phone])
@@ -645,6 +646,7 @@ model Product {
   variants   ProductVariant[]
   categories ProductCategory[]
   media      ProductMedia[]
+  orderItems OrderItem[]
   discounts  DiscountProduct[]
 
   @@index([status, createdAt(sort: Desc)])
@@ -693,6 +695,7 @@ model ProductVariant {
   purchaseItems         PurchaseItem[]
   supplierReturnItems   SupplierReturnItem[]
   cartItems             CartItem[]
+  orderItems            OrderItem[]
 
   @@unique([productId], map: "product_variants_one_default_key", where: raw("is_default"))
   @@index([productId, createdAt])
@@ -1436,9 +1439,10 @@ model Cart {
   createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  customer Customer?  @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  discount Discount?  @relation(fields: [discountId], references: [id], onDelete: Restrict)
-  items    CartItem[]
+  customer         Customer?         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  discount         Discount?         @relation(fields: [discountId], references: [id], onDelete: Restrict)
+  items            CartItem[]
+  checkoutAttempts CheckoutAttempt[]
 
   @@unique([customerId], map: "carts_one_active_per_customer_key", where: raw("status = 'ACTIVE'"))
   @@map("carts")
@@ -1521,6 +1525,7 @@ model Discount {
   brands     DiscountBrand[]
   usages     DiscountUsage[]
   carts      Cart[]
+  orders     Order[]
 
   @@index([status, startsAt])
   @@map("discounts")
@@ -1604,7 +1609,8 @@ model ShippingCompany {
   createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  rules ShippingRule[]
+  rules  ShippingRule[]
+  orders Order[]
 
   @@map("shipping_companies")
 }
@@ -1734,4 +1740,155 @@ model WalletReservation {
   @@index([walletId, status])
   @@index([orderId])
   @@map("wallet_reservations")
+}
+
+// ---------------------------------------------------------------------------
+// Orders & checkout (TASK-029, DB design §7–§8 and "Order financial fields",
+// Business Spec Q28, Q37–Q40, Q46, C1, C4, R36, R37; ADR-0035). TASK-030
+// adds the order APIs, status transitions and the remaining foreign keys.
+// ---------------------------------------------------------------------------
+
+enum OrderStatus {
+  PENDING_CONFIRMATION
+  NEW
+  CONFIRMED
+  PREPARING
+  READY_FOR_SHIPMENT
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  EXPIRED
+
+  @@map("order_status")
+}
+
+enum PaymentMethod {
+  COD
+
+  @@map("payment_method")
+}
+
+/// One customer or guest order. Amounts are piastres; snapshots are the
+/// historical facts of the order (Q46) and never follow later changes.
+model Order {
+  id                      String        @id @default(uuid(7)) @db.Uuid
+  /// Readable, from the `order_number_seq` sequence; never authorizes access.
+  orderNumber             String        @unique @map("order_number")
+  customerId              String?       @map("customer_id") @db.Uuid
+  guestEmail              String?       @map("guest_email")
+  guestPhone              String?       @map("guest_phone")
+  status                  OrderStatus
+  paymentMethod           PaymentMethod @default(COD) @map("payment_method")
+  currency                String        @default("EGP") @db.Char(3)
+  locale                  Locale
+  subtotal                BigInt
+  discountTotal           BigInt        @map("discount_total")
+  shippingFee             BigInt        @map("shipping_fee")
+  /// `subtotal - discountTotal + shippingFee`.
+  total                   BigInt
+  walletAmountReserved    BigInt        @map("wallet_amount_reserved")
+  walletAmountCaptured    BigInt        @default(0) @map("wallet_amount_captured")
+  /// `total - walletAmountReserved`; 0 needs no COD confirmation (C4).
+  codAmount               BigInt        @map("cod_amount")
+  /// Prices are tax-inclusive (C1); amount and rate wait for the tax decision.
+  taxIncluded             Boolean       @default(true) @map("tax_included")
+  taxAmount               BigInt?       @map("tax_amount")
+  taxRate                 Decimal?      @map("tax_rate") @db.Decimal(5, 2)
+  appliedDiscountId       String?       @map("applied_discount_id") @db.Uuid
+  discountSnapshot        Json?         @map("discount_snapshot_json")
+  /// The proposed company (R37); staff may change it later.
+  shippingCompanyId       String?       @map("shipping_company_id") @db.Uuid
+  shippingRuleSnapshot    Json          @map("shipping_rule_snapshot_json")
+  shippingAddressSnapshot Json          @map("shipping_address_snapshot_json")
+  customerSnapshot        Json          @map("customer_snapshot_json")
+  createdAt               DateTime      @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime      @map("updated_at") @db.Timestamptz(3)
+
+  customer        Customer?            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  appliedDiscount Discount?            @relation(fields: [appliedDiscountId], references: [id], onDelete: Restrict)
+  shippingCompany ShippingCompany?     @relation(fields: [shippingCompanyId], references: [id], onDelete: Restrict)
+  items           OrderItem[]
+  statusHistory   OrderStatusHistory[]
+  checkoutAttempt CheckoutAttempt?
+
+  @@index([customerId, createdAt])
+  @@index([status, createdAt])
+  @@index([guestPhone])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  orderId             String   @map("order_id") @db.Uuid
+  productId           String   @map("product_id") @db.Uuid
+  productVariantId    String   @map("product_variant_id") @db.Uuid
+  skuSnapshot         String   @map("sku_snapshot")
+  /// {"ar": …, "en": …}
+  productNameSnapshot Json     @map("product_name_snapshot")
+  variantNameSnapshot Json?    @map("variant_name_snapshot")
+  /// Media asset id of the main image, if any.
+  imageSnapshot       String?  @map("image_snapshot")
+  unitPrice           BigInt   @map("unit_price")
+  /// Weighted average cost at sale (Q103); null when the variant has none.
+  unitCostAtSale      BigInt?  @map("unit_cost_at_sale")
+  quantity            Int
+  /// This line's share of the order discount.
+  discountAmount      BigInt   @map("discount_amount")
+  /// `unitPrice × quantity − discountAmount`.
+  lineTotal           BigInt   @map("line_total")
+  createdAt           DateTime @map("created_at") @db.Timestamptz(3)
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  product Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, productVariantId])
+  @@index([productVariantId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  orderId       String         @map("order_id") @db.Uuid
+  /// Null for the order's first status.
+  fromStatus    OrderStatus?   @map("from_status")
+  toStatus      OrderStatus    @map("to_status")
+  changedByType AuditActorType @map("changed_by_type")
+  changedById   String?        @map("changed_by_id") @db.Uuid
+  reason        String?
+  createdAt     DateTime       @map("created_at") @db.Timestamptz(3)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+enum CheckoutAttemptStatus {
+  STARTED
+  SUCCEEDED
+  FAILED
+
+  @@map("checkout_attempt_status")
+}
+
+/// One successful checkout per Idempotency-Key and shopper (Q39). A failed
+/// checkout rolls back with its transaction, so the key can be retried.
+model CheckoutAttempt {
+  id                 String                @id @default(uuid(7)) @db.Uuid
+  /// "CUSTOMER:<id>" or "GUEST_CART:<token hash>".
+  scope              String
+  idempotencyKey     String                @map("idempotency_key")
+  cartId             String                @map("cart_id") @db.Uuid
+  resultOrderId      String?               @unique @map("result_order_id") @db.Uuid
+  status             CheckoutAttemptStatus
+  requestFingerprint String                @map("request_fingerprint")
+  createdAt          DateTime              @map("created_at") @db.Timestamptz(3)
+  completedAt        DateTime?             @map("completed_at") @db.Timestamptz(3)
+
+  cart        Cart   @relation(fields: [cartId], references: [id], onDelete: Restrict)
+  resultOrder Order? @relation(fields: [resultOrderId], references: [id], onDelete: Restrict)
+
+  @@unique([scope, idempotencyKey])
+  @@map("checkout_attempts")
 }
