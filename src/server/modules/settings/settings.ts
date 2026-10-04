@@ -39,6 +39,7 @@ export const SETTING_KEYS = {
   catalogMaxImagesPerProduct: "catalog.max_images_per_product",
   pricingMinMarginBasisPoints: "pricing.min_margin_basis_points",
   cartGuestExpiryDays: "cart.guest_expiry_days",
+  shippingFreeShippingThreshold: "shipping.free_shipping_threshold",
 } as const;
 
 /** Default image limit per product (Q177 "configurable"; ADR-0021). */
@@ -49,6 +50,9 @@ export const DEFAULT_MIN_MARGIN_BASIS_POINTS = 1000;
 
 /** A guest cart expires after 30 days without changes (Business Spec R35). */
 export const DEFAULT_GUEST_CART_EXPIRY_DAYS = 30;
+
+/** Orders of at least 2500 EGP after discounts ship free (Q123, R37); piastres. */
+export const DEFAULT_FREE_SHIPPING_THRESHOLD = 250_000;
 
 /** A margin in basis points from 0% up to, not including, 100%. */
 function isMarginBasisPoints(value: unknown): value is number {
@@ -90,6 +94,13 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     defaultValue: DEFAULT_GUEST_CART_EXPIRY_DAYS,
     isValid: isPositiveInteger,
     source: "Business Spec R35 (30 days)",
+  },
+  {
+    key: SETTING_KEYS.shippingFreeShippingThreshold,
+    dataType: "INTEGER",
+    defaultValue: DEFAULT_FREE_SHIPPING_THRESHOLD,
+    isValid: isPositiveInteger,
+    source: "Business Spec Q123, R37 (2500 EGP, decided by the product owner)",
   },
 ];
 
@@ -134,6 +145,14 @@ export async function readGuestCartExpiryDays(
   log: Logger = defaultLogger,
 ): Promise<number> {
   return readIntegerSetting(db, SETTING_KEYS.cartGuestExpiryDays, log);
+}
+
+/** The order total (piastres, after discounts) from which shipping is free (Q123, R37). */
+export async function readFreeShippingThreshold(
+  db: Db,
+  log: Logger = defaultLogger,
+): Promise<bigint> {
+  return BigInt(await readIntegerSetting(db, SETTING_KEYS.shippingFreeShippingThreshold, log));
 }
 
 /**

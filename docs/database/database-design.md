@@ -1863,3 +1863,16 @@ Added by TASK-026 (`docs/tasks/TASK-026-discounts.md`, ADR-0032). Migrated in `p
 
 ### `carts`
 - Adds `discount_id` nullable FK (`RESTRICT`): the shopper's chosen discount, rechecked on every read.
+
+## v1.2 TASK-027 Amendments
+
+Added by TASK-027 (`docs/tasks/TASK-027-shipping-rules.md`, ADR-0033). Migrated in `prisma/migrations/*_shipping_rules`.
+
+### `shipping_companies` (§9, migrated)
+- Fields of §9; `code` uppercase (check), unique; `contact_info` nullable free text. `status` enum `shipping_status` (`ACTIVE`, `INACTIVE`), default `ACTIVE`; `created_at`, `updated_at`. Trigger `shipping_companies_no_delete`.
+
+### `shipping_rules` (§9, migrated)
+- `governorate`/`area` are `governorate_id`/`area_id` (nullable FKs, `RESTRICT`, R32); an area rule also stores the area's governorate (check `area_id IS NULL OR governorate_id IS NOT NULL`, consistency kept by the service).
+- `shipping_company_id` nullable FK (`RESTRICT`): the company proposed for the orders the rule prices; null leaves the choice to staff.
+- `min_order_total` (inclusive) and `max_order_total` (exclusive) piastres, nullable, compared with the total after discounts; `shipping_fee` piastres `>= 0`; `priority` integer, default 0; `active_from`, `active_to` nullable (`active_to > active_from`); `status` (`shipping_status`, default `ACTIVE`). Index `status`. Trigger `shipping_rules_no_delete`.
+- `free_shipping` is not stored: free shipping is one store-wide threshold (R37), setting `shipping.free_shipping_threshold` (integer piastres, default 250000 = 2500 EGP).

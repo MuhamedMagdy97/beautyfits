@@ -1348,7 +1348,8 @@ model Governorate {
   createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  areas Area[]
+  areas         Area[]
+  shippingRules ShippingRule[]
 
   @@map("governorates")
 }
@@ -1364,7 +1365,8 @@ model Area {
   updatedAt     DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
 
   governorate Governorate       @relation(fields: [governorateId], references: [id], onDelete: Restrict)
-  addresses   CustomerAddress[]
+  addresses     CustomerAddress[]
+  shippingRules ShippingRule[]
 
   @@unique([governorateId, nameAr])
   @@unique([governorateId, nameEn])
@@ -1578,4 +1580,62 @@ model DiscountUsage {
   @@index([discountId, releasedAt])
   @@index([customerId, discountId])
   @@map("discount_usages")
+}
+
+// ---------------------------------------------------------------------------
+// Shipping rules (TASK-027, Business Spec Q121–Q126, R37, ADR-0033)
+
+enum ShippingStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("shipping_status")
+}
+
+/// A contracted shipping company (Q121). Never deleted: deactivated instead.
+model ShippingCompany {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  /// Stored uppercase; unique.
+  code        String         @unique
+  name        String
+  contactInfo String?        @map("contact_info")
+  status      ShippingStatus @default(ACTIVE)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  rules ShippingRule[]
+
+  @@map("shipping_companies")
+}
+
+/// A shipping fee for a place and order-total band (Q122, R37). The most
+/// specific matching rule wins (area, then governorate, then everywhere);
+/// `priority` breaks ties. Never deleted: deactivated instead.
+model ShippingRule {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  /// The company proposed for orders this rule prices; null: staff choose.
+  shippingCompanyId String?        @map("shipping_company_id") @db.Uuid
+  /// Null: everywhere. Set whenever `areaId` is (the area's governorate).
+  governorateId     String?        @map("governorate_id") @db.Uuid
+  areaId            String?        @map("area_id") @db.Uuid
+  /// Piastres, inclusive; compared with the total after discounts.
+  minOrderTotal     BigInt?        @map("min_order_total")
+  /// Piastres, exclusive.
+  maxOrderTotal     BigInt?        @map("max_order_total")
+  /// Piastres.
+  shippingFee       BigInt         @map("shipping_fee")
+  /// Higher wins among equally specific rules.
+  priority          Int            @default(0)
+  activeFrom        DateTime?      @map("active_from") @db.Timestamptz(3)
+  activeTo          DateTime?      @map("active_to") @db.Timestamptz(3)
+  status            ShippingStatus @default(ACTIVE)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  shippingCompany ShippingCompany? @relation(fields: [shippingCompanyId], references: [id], onDelete: Restrict)
+  governorate     Governorate?     @relation(fields: [governorateId], references: [id], onDelete: Restrict)
+  area            Area?            @relation(fields: [areaId], references: [id], onDelete: Restrict)
+
+  @@index([status])
+  @@map("shipping_rules")
 }

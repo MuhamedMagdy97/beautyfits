@@ -341,6 +341,8 @@ Implement percentage discounts, targeting, minimum order, max discount, overall/
 
 Implement company/area/order-value rules and final-total-based free shipping threshold.
 
+**Status after TASK-027** (`docs/tasks/TASK-027-shipping-rules.md`, ADR-0033): `shipping_companies` and `shipping_rules` on the managed location list, `/admin/shipping/companies|rules` (audited), the pure engine `quoteShipping` and `GET /shipping/options?areaId=` for the current cart, following R37. TASK-029 calls `quoteShippingForArea` in the checkout transaction with the address area; TASK-030 snapshots the rule and proposed company on the order; the shipment tasks add `assign-shipping`; TASK-057 adds editing the threshold setting with approval.
+
 ### TASK-028 — Wallet Ledger & Reservation
 **Depends on:** TASK-007, TASK-026
 

@@ -47,6 +47,7 @@ describe("runBootstrap", () => {
         SETTING_KEYS.catalogMaxImagesPerProduct,
         SETTING_KEYS.pricingMinMarginBasisPoints,
         SETTING_KEYS.cartGuestExpiryDays,
+        SETTING_KEYS.shippingFreeShippingThreshold,
       ].sort(),
     );
     expect(report.rolesCreated).toEqual(DEFAULT_ROLES.map((role) => role.name));
