@@ -348,6 +348,8 @@ Implement company/area/order-value rules and final-total-based free shipping thr
 
 Implement wallet balance, immutable transactions, wallet reservations and Wallet + COD split.
 
+**Status after TASK-028** (`docs/tasks/TASK-028-wallet.md`, ADR-0034): `wallets` with a trigger-applied balance (never below zero), append-only `wallet_transactions` and `wallet_reservations` (one active per order). `reserveWallet`, `releaseWalletReservation` (no ledger entry), `captureWalletReservation` (`ORDER_WALLET_USE` debit) and `creditWallet` in `src/server/modules/wallet/wallet-service.ts` run in the caller's transaction. `/me/wallet`, `/admin/customers/{id}/wallet` and the Owner/Admin `adjust` (idempotent, audited) are live; deactivation is refused while the balance is not zero (R34). TASK-029 reserves at checkout and computes the COD remainder; TASK-030 adds the `wallet_reservations.order_id` foreign key; TASK-031/TASK-033 release; the order outcome captures (open decision in the task file); TASK-040 credits refunds.
+
 ### TASK-029 — Atomic Checkout Engine
 **Depends on:** TASK-020, TASK-025 → TASK-028
 

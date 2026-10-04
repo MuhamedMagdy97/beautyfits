@@ -26,6 +26,7 @@ import { revokeAccountSessions } from "@/server/modules/auth/sessions";
 import { conflict, isUniqueViolation, validationError } from "@/server/modules/catalog/errors";
 import { changeNoticeEmail, type ChangeNotice } from "@/server/modules/customers/notices";
 import type { UpdateProfileInput } from "@/server/modules/customers/schemas";
+import { walletBalance } from "@/server/modules/wallet/wallet-service";
 import {
   getBlockedUntil,
   recordHit,
@@ -82,12 +83,18 @@ async function lockCustomerRow(tx: Db, customerId: string): Promise<void> {
 
 /**
  * R34: deactivation is refused while the customer has an open order, an open
- * return or a non-zero wallet balance. None of these exist yet: TASK-030
- * (orders), TASK-037 (returns) and TASK-028 (wallet) add their check here,
- * throwing `409 CONFLICT` with `details.reason = ACCOUNT_HAS_OPEN_ITEMS`.
+ * return or a non-zero wallet balance (held credit included). TASK-030
+ * (orders) and TASK-037 (returns) add their check here, throwing
+ * `409 CONFLICT` with `details.reason = ACCOUNT_HAS_OPEN_ITEMS`.
  */
-// ponytail: no-op until those tables exist; add (tx, customerId) with the first real check.
-async function assertNothingOpen(): Promise<void> {}
+async function assertNothingOpen(tx: Db, customerId: string): Promise<void> {
+  if ((await walletBalance(tx, customerId)) !== BigInt(0)) {
+    throw conflict("Settle the wallet balance before deactivating the account.", {
+      reason: "ACCOUNT_HAS_OPEN_ITEMS",
+      openItems: ["WALLET_BALANCE"],
+    });
+  }
+}
 
 function ipKey(prefix: string, ip: string | null): string {
   return `${prefix}:ip:${ip ?? "unknown"}`;
@@ -415,7 +422,7 @@ export function createProfileService(deps: {
     await runInTransaction(
       async (tx) => {
         await lockCustomerRow(tx, principal.customerId);
-        await assertNothingOpen();
+        await assertNothingOpen(tx, principal.customerId);
         await revokeAccountSessions(tx, principal.accountId, "DEACTIVATED", now);
         await tx.otpChallenge.deleteMany({ where: { accountId: principal.accountId } });
         await tx.customerAddress.deleteMany({ where: { customerId: principal.customerId } });

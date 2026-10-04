@@ -1565,3 +1565,22 @@ Added by TASK-027 (`docs/tasks/TASK-027-shipping-rules.md`, ADR-0033). Business 
 | `activeTo` not after `activeFrom` | `400 VALIDATION_ERROR`, issue code `before_start` |
 | Code used by another company | `409 CONFLICT`, `details.reason = CODE_TAKEN` |
 | Unknown company or rule | `404 NOT_FOUND` |
+
+## TASK-028 Amendments
+
+Added by TASK-028 (`docs/tasks/TASK-028-wallet.md`, ADR-0034). Business rules: Q26, Q78, Q166–Q170, C4, R34. Completes §18 except `manual-refund` (returns tasks).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /me/wallet` | Customer | — | `200` `wallet` (zeros before the first credit) |
+| `GET /me/wallet/transactions` | Customer | query `page`, `pageSize` | `200` `[transaction]` with pagination, newest first; no `reason` |
+| `GET /admin/customers/{customerId}/wallet` | `VIEW_WALLET_BALANCE` | — | `200` `wallet` |
+| `GET /admin/customers/{customerId}/wallet/transactions` | `VIEW_WALLET_BALANCE` | query `page`, `pageSize` | `200` `[transaction]` with `reason` (added to §18 for reconciliation) |
+| `POST /admin/customers/{customerId}/wallet/adjust` | `ADJUST_WALLET` (Owner/Admin only) + `Idempotency-Key` | `{ direction: "CREDIT" \| "DEBIT", amount, reason }` | `201` `{ transactionId, wallet }`; the same key and body returns the same result |
+
+- `wallet`: `{ customerId, currency: "EGP", balance, reserved, available }` in piastres; `balance` includes credit held for pending orders (`reserved`), `available = balance − reserved`.
+- `transaction`: `{ id, type, direction, amount, signedAmount, referenceType, referenceId, createdAt }` (+ `reason` for staff). `type`: `MANUAL_ADJUSTMENT`, `ORDER_WALLET_USE`, `RETURN_REFUND`.
+- Adjust: `amount` 1…10^12 piastres, `reason` 1–500 characters. A debit beyond `available` is `422 WALLET_INSUFFICIENT_FUNDS` with `details.available`; a deactivated customer is `409 CONFLICT` with `details.reason = CUSTOMER_DEACTIVATED`; the same key with another body is `409 IDEMPOTENCY_CONFLICT`.
+- Audit action added: `WALLET_ADJUSTED` (entity `CUSTOMER`, reason = the adjustment reason).
+- R34: `POST /me/deactivate` is `409 CONFLICT` with `details = { reason: "ACCOUNT_HAS_OPEN_ITEMS", openItems: ["WALLET_BALANCE"] }` while the balance is not zero.
+- Checkout (TASK-029) reserves wallet credit; `WALLET_INSUFFICIENT_FUNDS` and `WALLET_RESERVATION_CONFLICT` come from there.

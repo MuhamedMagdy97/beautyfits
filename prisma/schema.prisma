@@ -175,6 +175,7 @@ model Customer {
   addresses      CustomerAddress[]
   carts          Cart[]
   discountUsages DiscountUsage[]
+  wallet         Wallet?
 
   @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
   @@index([phone])
@@ -1364,7 +1365,7 @@ model Area {
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  governorate Governorate       @relation(fields: [governorateId], references: [id], onDelete: Restrict)
+  governorate   Governorate       @relation(fields: [governorateId], references: [id], onDelete: Restrict)
   addresses     CustomerAddress[]
   shippingRules ShippingRule[]
 
@@ -1638,4 +1639,99 @@ model ShippingRule {
 
   @@index([status])
   @@map("shipping_rules")
+}
+
+// ---------------------------------------------------------------------------
+// Wallet (TASK-028, DB design §13, Business Spec Q26, Q78, Q166–Q170, C4, ADR-0034)
+
+/// Why a wallet balance changed. Later tasks add theirs.
+enum WalletTransactionType {
+  /// Owner/Admin correction, credit or debit, with a reason (Q78).
+  MANUAL_ADJUSTMENT
+  /// Wallet funds spent on an order: its reservation captured.
+  ORDER_WALLET_USE
+  /// A return refunded to the wallet (Q26, Q97, R7; TASK-040).
+  RETURN_REFUND
+
+  @@map("wallet_transaction_type")
+}
+
+enum WalletDirection {
+  CREDIT
+  DEBIT
+
+  @@map("wallet_direction")
+}
+
+enum WalletReservationStatus {
+  /// Held for a pending order; not spendable.
+  ACTIVE
+  /// Spent: an ORDER_WALLET_USE debit was written.
+  CAPTURED
+  /// Given back (order cancelled or expired); no ledger entry.
+  RELEASED
+
+  @@map("wallet_reservation_status")
+}
+
+/// A customer's wallet (Q166–Q170). `balance` is Σ CREDIT − Σ DEBIT of its
+/// transactions, kept by the `wallet_transactions_apply` trigger; nothing
+/// else may change it, and it never goes below zero.
+model Wallet {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  customerId String   @unique @map("customer_id") @db.Uuid
+  currency   String   @default("EGP") @db.Char(3)
+  /// Piastres, reserved funds included.
+  balance    BigInt   @default(0)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  customer     Customer            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  transactions WalletTransaction[]
+  reservations WalletReservation[]
+
+  @@map("wallets")
+}
+
+/// Append-only wallet ledger (Q170): rows are never updated or deleted.
+model WalletTransaction {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  walletId        String                @map("wallet_id") @db.Uuid
+  transactionType WalletTransactionType @map("transaction_type")
+  direction       WalletDirection
+  /// Piastres, > 0.
+  amount          BigInt
+  /// What caused it, e.g. ORDER / order id, RETURN / return id.
+  referenceType   String?               @map("reference_type")
+  referenceId     String?               @map("reference_id") @db.Uuid
+  reason          String?
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+
+  @@index([walletId, createdAt])
+  @@index([referenceType, referenceId])
+  @@map("wallet_transactions")
+}
+
+/// Wallet funds held for a pending order (C4, User Flows §12.2). At most one
+/// ACTIVE reservation per order.
+model WalletReservation {
+  id         String                  @id @default(uuid(7)) @db.Uuid
+  walletId   String                  @map("wallet_id") @db.Uuid
+  /// The order (TASK-030 adds the foreign key when `orders` exists).
+  orderId    String                  @map("order_id") @db.Uuid
+  /// Piastres, > 0.
+  amount     BigInt
+  status     WalletReservationStatus @default(ACTIVE)
+  createdAt  DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  releasedAt DateTime?               @map("released_at") @db.Timestamptz(3)
+  capturedAt DateTime?               @map("captured_at") @db.Timestamptz(3)
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId], map: "wallet_reservations_one_active_key", where: raw("status = 'ACTIVE'"))
+  @@index([walletId, status])
+  @@index([orderId])
+  @@map("wallet_reservations")
 }
