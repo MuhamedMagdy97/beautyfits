@@ -70,7 +70,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 Decided by the product owner on 2026-10-04: R32, R33, R34 and the defaults of ADR-0030 §3.
-- Record R32, R33 (the cart merge rule, decided at the same time for TASK-025) and R34 in `docs/decisions/business-rules-ledger.xlsx`.
+- R32, R33 and R34 recorded in `docs/decisions/business-rules-ledger.xlsx` on 2026-10-04.
 - Before launch, the Owner/Admin must add the areas of each served governorate: customers cannot save an address until its governorate has areas.
 - TASK-028 (wallet), TASK-030 (orders) and TASK-037 (returns) each add their open-item check to `assertNothingOpen` in `src/server/modules/customers/profile-service.ts` (R34).
 
@@ -78,5 +78,5 @@ Decided by the product owner on 2026-10-04: R32, R33, R34 and the defaults of AD
 - [x] Planned
 - [x] In Progress
 - [x] Tests Passing
-- [ ] Reviewed
-- [ ] Done
+- [x] Reviewed
+- [x] Done
