@@ -63,6 +63,8 @@ export interface AccountView {
     fullName: string;
     phone: string;
     preferredLocale: Locale;
+    /** `YYYY-MM-DD` or null (TASK-009). */
+    dateOfBirth: string | null;
   };
 }
 
@@ -113,7 +115,7 @@ export interface AuthServiceDeps {
   email?: EmailSender;
 }
 
-type AccountWithCustomer = Account & { customer: Customer | null };
+export type AccountWithCustomer = Account & { customer: Customer | null };
 
 const RATE_LIMITED_MESSAGE = "Too many attempts. Try again later.";
 
@@ -132,7 +134,7 @@ function accountNotActive(): AppError {
 }
 
 /** Counter keys never contain the raw email. */
-function loginAccountKey(email: string): string {
+export function loginAccountKey(email: string): string {
   return `login:account:${createHash("sha256").update(email).digest("hex")}`;
 }
 
@@ -150,7 +152,7 @@ export function isPendingExpired(
   );
 }
 
-function toView(account: AccountWithCustomer): AccountView {
+export function toView(account: AccountWithCustomer): AccountView {
   const customer = account.customer;
   if (!customer) {
     // Every customer account is created with its profile in one transaction.
@@ -169,6 +171,7 @@ function toView(account: AccountWithCustomer): AccountView {
       fullName: customer.fullName,
       phone: customer.phone,
       preferredLocale: customer.preferredLocale,
+      dateOfBirth: customer.dateOfBirth?.toISOString().slice(0, 10) ?? null,
     },
   };
 }

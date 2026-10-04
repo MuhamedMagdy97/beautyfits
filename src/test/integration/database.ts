@@ -1,7 +1,7 @@
 import { getDb } from "@/server/db/client";
 
-/** Reference data inserted by migrations (the permission catalog, TASK-012). */
-const REFERENCE_TABLES = ["_prisma_migrations", "permissions"];
+/** Reference data inserted by migrations (the permission catalog, TASK-012; governorates, TASK-009). */
+const REFERENCE_TABLES = ["_prisma_migrations", "permissions", "governorates"];
 
 /**
  * Removes all rows from every application table (not the migrations table or

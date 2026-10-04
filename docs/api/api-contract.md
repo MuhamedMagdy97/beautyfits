@@ -309,7 +309,7 @@ Cost fields are returned only to callers with `VIEW_COST_PRICE`.
 
 Cart values are informational. Checkout revalidates all authoritative values.
 
-Guest carts: the first cart write returns a random `guestCartToken`; guests send it back in `X-Guest-Cart-Token`. After login the client calls `POST /cart/merge` with that token. Merge rule for items present in both carts: `[BUSINESS DECISION REQUIRED]` (recommended: add quantities, capped by availability).
+Guest carts: the first cart write returns a random `guestCartToken`; guests send it back in `X-Guest-Cart-Token`. After login the client calls `POST /cart/merge` with that token. Merge rule for items present in both carts: the quantities are added, capped at the quantity available (Business Spec R33).
 
 # 15. Checkout & Orders
 
@@ -1402,3 +1402,47 @@ Added by TASK-024 (`docs/tasks/TASK-024-supplier-returns-ledger.md`, ADR-0029). 
 | Payment order unknown or of another supplier | `400 VALIDATION_ERROR`, issue code `purchase_not_found` |
 | Payment order not yet approved or cancelled | `409 CONFLICT`, `details.reason = PURCHASE_STATUS_INVALID` |
 | Return action not allowed in its status | `409 CONFLICT`, `details.reason = SUPPLIER_RETURN_STATUS_INVALID`, `details.status` |
+
+## TASK-009 Amendments
+
+Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Business rules: Q45, Q46, Q152, Q153, R24, R27, R30, R32. `/me` endpoints need an `ACTIVE` customer session (cookie requests pass the `Origin` check); admin endpoints follow the usual employee session rules. `/me/deactivate` is not available yet (open business decision); `/me/notifications` and `/me/preferences` come with TASK-045.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /me` | Customer | — | `200` `{ account, customer }` |
+| `PATCH /me` | Customer | any of `{ fullName, preferredLocale: "ar" \| "en", dateOfBirth: "YYYY-MM-DD" \| null }` | `200` `{ account, customer }` |
+| `POST /me/change-email` | Customer | `{ currentPassword, newEmail }` | `202` `{ codeSent, cooldownSeconds: 60 }`; the code goes to `newEmail` |
+| `POST /me/change-email/verify` | Customer | `{ code }` | `200` `{ account, customer }`; the previous email gets a notice |
+| `POST /me/change-phone` | Customer | `{ currentPassword, newPhone }` | `202` `{ codeSent, cooldownSeconds: 60 }`; the code goes to the account email (R30) |
+| `POST /me/change-phone/verify` | Customer | `{ code }` | `200` `{ account, customer }`; the account email gets a notice |
+| `GET /me/addresses` | Customer | — | `200` `[address]`, default first, then newest |
+| `POST /me/addresses` | Customer | `{ recipientName, phone, areaId, street, label?, city?, building?, floor?, apartment?, landmark?, notes? }` | `201` `address` |
+| `PATCH /me/addresses/{addressId}` | Customer | any field of create; `null` or blank clears an optional one | `200` `address` |
+| `DELETE /me/addresses/{addressId}` | Customer | — | `204` |
+| `POST /me/addresses/{addressId}/set-default` | Customer | — | `200` `address` |
+| `GET /locations` | Public | — | `200` `[{ id, code, name, areas: [{ id, name }] }]`: active governorates in order, active areas by name, in the `Accept-Language` language |
+| `GET /admin/locations` | `SHIPPING_VIEW` | — | `200` `[{ id, code, nameAr, nameEn, status, areas: [area] }]`, everything |
+| `PATCH /admin/governorates/{id}` | `SHIPPING_MANAGE` | any of `{ nameAr, nameEn, status: "ACTIVE" \| "INACTIVE" }` | `200` governorate with its areas |
+| `POST /admin/governorates/{id}/areas` | `SHIPPING_MANAGE` | `{ nameAr, nameEn }` | `201` `area` |
+| `PATCH /admin/areas/{id}` | `SHIPPING_MANAGE` | any of `{ nameAr, nameEn, status }` | `200` `area` |
+
+- `customer` (here and in the auth responses) gains `dateOfBirth` (`YYYY-MM-DD` or `null`).
+- Email and phone change: the current password is checked first (wrong passwords count toward the R24 lock); codes follow the TASK-008 rules (6 digits, 5 minutes, 5 attempts, 60 s cooldown, 5 per hour per purpose and email, 20 sends per IP per hour). Only the newest code of each kind works. `codeSent: false` means the email could not be sent; request again after the cooldown. Sessions are kept.
+- `address`: `{ id, label, recipientName, phone, governorate: { id, code, name, active }, area: { id, name, active }, city, street, building, floor, apartment, landmark, notes, isDefault, createdAt, updatedAt }`. `phone` is an Egyptian mobile (R27), returned in E.164. Up to 20 addresses; the first becomes the default; deleting the default makes the most recently updated remaining address the default. An address keeps its area if the area is deactivated later (`area.active: false`); a new area must be active.
+- Admin `area`: `{ id, governorateId, nameAr, nameEn, status }`. Area names are unique within their governorate, per language. Governorates are fixed (27, ISO 3166-2:EG codes); nothing is deleted.
+- Audit actions added: `CUSTOMER_EMAIL_CHANGED`, `CUSTOMER_PHONE_CHANGED` (actor `CUSTOMER`, entity `CUSTOMER`), `GOVERNORATE_UPDATED` (entity `GOVERNORATE`), `AREA_CREATED`, `AREA_UPDATED` (entity `AREA`).
+
+### Errors
+| Case | Response |
+|---|---|
+| Wrong current password | `401 AUTH_INVALID_CREDENTIALS` |
+| Account locked (R24) or code limits reached | `429 AUTH_RATE_LIMITED`, `details.retryAfterSeconds` |
+| New email/phone equal to the current one | `400 VALIDATION_ERROR`, issue code `same_as_current` |
+| Email or phone verified by another customer account (at request or verify) | `409 CONFLICT`, `details.field` = `email` / `phone` |
+| Wrong or used code | `401 AUTH_OTP_INVALID`, `details.attemptsRemaining` when known |
+| Expired code | `401 AUTH_OTP_EXPIRED` |
+| Unknown area | `400 VALIDATION_ERROR`, issue code `area_not_found` |
+| Inactive area or governorate | `400 VALIDATION_ERROR`, issue code `area_inactive` |
+| 21st address | `409 CONFLICT`, `details.reason = ADDRESS_LIMIT_REACHED`, `details.limit = 20` |
+| Address of another customer, unknown address/governorate/area | `404 NOT_FOUND` |
+| Area name already used in the governorate | `409 CONFLICT`, `details.reason = NAME_TAKEN` |

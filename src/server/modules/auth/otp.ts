@@ -57,8 +57,9 @@ export const OTP_VERIFY_IP_LIMIT: RateLimitPolicy = {
   blockMs: 15 * MS_PER_MINUTE,
 };
 
-/** Purposes whose codes are sent so far (more follow in TASK-009/010). */
-export type OtpEmailPurpose = "EMAIL_VERIFICATION" | "PASSWORD_RESET" | "EMPLOYEE_LOGIN";
+/** Purposes whose codes are sent so far (the guest order claim follows in TASK-010). */
+export type OtpEmailPurpose =
+  "EMAIL_VERIFICATION" | "PASSWORD_RESET" | "EMPLOYEE_LOGIN" | "EMAIL_CHANGE" | "PHONE_CHANGE";
 
 /**
  * Language of a code email: the customer's preferred language (R14), or both
@@ -105,6 +106,8 @@ export async function issueOtpChallenge(
     destination: string;
     ip: string | null;
     grant?: { tokenHash: string; expiresAt: Date };
+    /** The value the code confirms when it is not the destination (PHONE_CHANGE). */
+    pendingValue?: string;
   },
   now: Date,
 ): Promise<IssuedOtp> {
@@ -133,6 +136,7 @@ export async function issueOtpChallenge(
       lastSentAt: now,
       grantTokenHash: input.grant?.tokenHash ?? null,
       grantExpiresAt: input.grant?.expiresAt ?? null,
+      pendingValue: input.pendingValue ?? null,
       ipAddress: input.ip,
       createdAt: now,
     },
@@ -232,6 +236,38 @@ const TEMPLATES: Record<
         `رمز تسجيل دخول الموظفين الخاص بك في BeautyFits هو ${code}.\n\n` +
         `ينتهي الرمز خلال ${MINUTES} دقائق. لا تشاركه مع أي شخص.\n\n` +
         "إذا لم تحاول تسجيل الدخول الآن، غيّر كلمة المرور وأبلغ صاحب المتجر.\n",
+    }),
+  },
+  EMAIL_CHANGE: {
+    en: (code) => ({
+      subject: "Confirm your new BeautyFits email",
+      text:
+        `Your code to confirm this email address for your BeautyFits account is ${code}.\n\n` +
+        `It expires in ${MINUTES} minutes. Do not share it with anyone.\n\n` +
+        "If you did not ask to change your email, you can ignore this email.\n",
+    }),
+    ar: (code) => ({
+      subject: "تأكيد بريدك الإلكتروني الجديد في BeautyFits",
+      text:
+        `رمز تأكيد هذا البريد الإلكتروني لحسابك في BeautyFits هو ${code}.\n\n` +
+        `ينتهي الرمز خلال ${MINUTES} دقائق. لا تشاركه مع أي شخص.\n\n` +
+        "إذا لم تطلب تغيير بريدك الإلكتروني، يمكنك تجاهل هذه الرسالة.\n",
+    }),
+  },
+  PHONE_CHANGE: {
+    en: (code) => ({
+      subject: "Your BeautyFits phone change code",
+      text:
+        `Your code to change the phone number of your BeautyFits account is ${code}.\n\n` +
+        `It expires in ${MINUTES} minutes. Do not share it with anyone.\n\n` +
+        "If you did not ask to change your phone number, change your password now.\n",
+    }),
+    ar: (code) => ({
+      subject: "رمز تغيير رقم الهاتف في BeautyFits",
+      text:
+        `رمز تغيير رقم الهاتف لحسابك في BeautyFits هو ${code}.\n\n` +
+        `ينتهي الرمز خلال ${MINUTES} دقائق. لا تشاركه مع أي شخص.\n\n` +
+        "إذا لم تطلب تغيير رقم هاتفك، غيّر كلمة المرور الآن.\n",
     }),
   },
 };

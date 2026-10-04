@@ -421,7 +421,7 @@ Fields:
 
 The final free-shipping rule is evaluated against the final order total after applicable product discounts.
 
-Governorate/area representation (free text vs a managed location list shared by addresses and shipping rules): `[BUSINESS DECISION REQUIRED]`.
+Governorate/area representation: a managed location list shared by addresses and shipping rules (Business Spec R32); `governorate`/`area` become `governorate_id`/`area_id` (see "v1.2 TASK-009 Amendments").
 
 ### `shipments`
 
@@ -1802,3 +1802,27 @@ Added by TASK-024 (`docs/tasks/TASK-024-supplier-returns-ledger.md`, ADR-0029). 
 ### Enums
 - `inventory_movement_type` gains `SUPPLIER_RETURN` (Damaged out; reference type `SUPPLIER_RETURN`, with `unit_cost`).
 - `approval_type` gains `SUPPLIER_RETURN` (entity type `SUPPLIER_RETURN`).
+
+## v1.2 TASK-009 Amendments
+
+Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Migrated in `prisma/migrations/*_customer_profile_addresses`.
+
+### `governorates` (new, R32)
+- `id`, `code` (ISO 3166-2:EG without `EG-`, unique), `name_ar`, `name_en`, `status` enum `location_status` (`ACTIVE`, `INACTIVE`), `sort_order`, `created_at`, `updated_at`.
+- The migration inserts the 27 Egyptian governorates (reference data). Trigger `governorates_no_delete`.
+
+### `areas` (new, R32)
+- `id`, `governorate_id` (FK, `RESTRICT`), `name_ar`, `name_en`, `status` (`location_status`), `created_at`, `updated_at`.
+- Unique `(governorate_id, name_ar)` and `(governorate_id, name_en)`. Trigger `areas_no_delete`.
+- TASK-027 points `shipping_rules` at `governorates`/`areas` instead of free text.
+
+### `customer_addresses` (§3.3, migrated)
+- Fields of §3.3, except that `governorate` and `area` are replaced by `area_id` (FK to `areas`, `RESTRICT`); the governorate is the area's. `label`, `city`, `building`, `floor`, `apartment`, `landmark`, `notes` nullable. `phone` is an Egyptian mobile in E.164.
+- `customer_id` FK (`CASCADE`, only pending accounts are ever deleted and they have no addresses). Partial unique index `customer_addresses_one_default_key` on `(customer_id) WHERE is_default`. Indexes `(customer_id, created_at)`, `area_id`.
+- Rows can be deleted: orders keep an address snapshot (Q46) and nothing references an address.
+
+### `customers` (§3.2)
+- Adds `date_of_birth` (date, nullable). `status` is not added (the account status covers it). `anonymized_at` waits for the deactivation decision (Q154).
+
+### `otp_challenges`
+- Adds `pending_value` (nullable): the new phone of a `PHONE_CHANGE` code, which is sent to the account email (R30). `EMAIL_CHANGE` codes use `destination` (the new email).

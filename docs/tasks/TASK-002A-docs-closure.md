@@ -94,7 +94,7 @@ Recorded as `[BUSINESS DECISION REQUIRED]` in the owning documents until answere
 4. Hosting model (long-running server vs serverless) — technical, owner confirms. **Resolved in TASK-007: long-running Node.js server (ADR-0013); provider still open.**
 5. Low-stock threshold per product or per variant.
 6. When stock/wallet reservations are consumed/captured; whether reservations create inventory movements.
-7. Governorate/area as a managed list vs free text.
+7. Governorate/area as a managed list vs free text. **Resolved 2026-10-04: managed list (Business Spec R32).**
 8. Tax rate(s); EGP only.
 9. COD cash collection/reconciliation with carriers: in v1 or not.
 10. Return pickup fee when responsibility changes after inspection.
