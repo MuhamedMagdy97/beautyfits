@@ -1462,7 +1462,7 @@ Added by TASK-025 (`docs/tasks/TASK-025-cart.md`, ADR-0031). Business rules: Q37
 | `POST /cart/items` | Guest/Customer | `{ variantId, quantity }` | `200` `cart`; adds to the line when the variant is already in the cart. The write that creates a guest cart returns `cart.guestCartToken` (only that once) |
 | `PATCH /cart/items/{cartItemId}` | Guest/Customer | any of `{ quantity, variantId }` | `200` `cart`. `variantId` must be another variant of the same product; switching onto a variant already in the cart folds both lines into one |
 | `DELETE /cart/items/{cartItemId}` | Guest/Customer | — | `200` `cart` |
-| `POST /cart/reprice` | Guest/Customer | — | `200` `cart` + `changes: [{ cartItemId, previousUnitPrice, unitPrice }]`; accepts the current prices (Q37). Discounts join with TASK-026 |
+| `POST /cart/reprice` | Guest/Customer | — | `200` `cart` + `changes: [{ cartItemId, previousUnitPrice, unitPrice }]`; accepts the current prices (Q37); discounts: see "TASK-026 Amendments" |
 | `POST /cart/merge` | Customer | header `X-Guest-Cart-Token` | `200` `cart` (the customer's, after the merge) |
 
 - `cart`: `{ id, items: [item], itemCount, subtotal, currency: "EGP", requiresReview, guestCartToken? }`. `subtotal` sums the lines that are not `UNAVAILABLE`, at current prices. `requiresReview` is true when a price changed or a line is not `AVAILABLE` (Q37).
@@ -1481,3 +1481,47 @@ Added by TASK-025 (`docs/tasks/TASK-025-cart.md`, ADR-0031). Business rules: Q37
 | 51st different item | `409 CONFLICT`, `details.reason = CART_LINE_LIMIT_REACHED`, `details.limit = 50` |
 | Cart item of another cart, or no cart | `404 NOT_FOUND` |
 | Too many new guest carts from one IP | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
+
+## TASK-026 Amendments
+
+Added by TASK-026 (`docs/tasks/TASK-026-discounts.md`, ADR-0032). Business rules: Q38, Q125, Q131–Q138, R9, R36.
+
+### Admin (§23)
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /admin/discounts` | `DISCOUNT_VIEW` | query `page`, `pageSize`, `status`, `search` (code or name) | `200` `[discount]` with pagination, newest first |
+| `POST /admin/discounts` | `DISCOUNT_MANAGE` | `{ nameAr, nameEn, value, scope, startsAt, code?, productIds?, categoryIds?, brandIds?, maxDiscountAmount?, minimumOrderTotal?, endsAt?, usageLimitTotal?, usageLimitPerCustomer? }` | `201` `discount` (`status: "INACTIVE"`) |
+| `PATCH /admin/discounts/{id}` | `DISCOUNT_MANAGE` | any field of create; a target list replaces the current one; `null` clears an optional field | `200` `discount` |
+| `POST /admin/discounts/{id}/activate` | `DISCOUNT_MANAGE` | — | `200` `discount`; again: no change |
+| `POST /admin/discounts/{id}/deactivate` | `DISCOUNT_MANAGE` | — | `200` `discount`; again: no change |
+
+- `discount`: `{ id, code, nameAr, nameEn, type: "PERCENTAGE", value, scope, productIds, categoryIds, brandIds, maxDiscountAmount, minimumOrderTotal, startsAt, endsAt, usageLimitTotal, usageLimitPerCustomer, status, usedCount, createdAt, updatedAt }`. Money in piastres; timestamps ISO-8601 with an offset.
+- `value`: whole percent 1–100. `scope`: `STORE_WIDE` (no targets) or `TARGETED` (at least one product, category or brand; a category covers its subcategories). `code`: 3–32 of `A–Z 0–9 - _`, case-insensitive, unique; `null` makes the discount an offer listed in the cart. `endsAt` after `startsAt` or `null`. `usedCount`: uses not given back.
+- Audit actions added: `DISCOUNT_CREATED`, `DISCOUNT_UPDATED`, `DISCOUNT_ACTIVATED`, `DISCOUNT_DEACTIVATED` (entity `DISCOUNT`).
+
+### Cart (§14)
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `PUT /cart/discount` | Guest/Customer | `{ code }` or `{ discountId }` (a listed offer) | `200` `cart` with the discount applied |
+| `DELETE /cart/discount` | Guest/Customer | — | `200` `cart` |
+
+- `cart` gains `discount` (`{ id, code, name, percentage, amount }` or `null`), `discountProblem` (`{ discountId, code, reason }` or `null`: the chosen discount no longer applies and is not counted), `discountTotal`, `total` (`subtotal - discountTotal`, before shipping) and `availableDiscounts` (`[{ id, name, percentage, amount, maxDiscountAmount, minimumOrderTotal, endsAt }]`: codeless offers that apply now). `requiresReview` is also true while `discountProblem` is set.
+- Nothing is applied automatically (Q138). The percentage applies to the targeted purchasable items; the minimum is checked against the whole subtotal; the cap limits the order's discount (R36). Rounded HALF-UP (R9).
+- `POST /cart/reprice` also returns `discountRemoved` (`{ discountId, code, reason }` or `null`): a chosen discount that no longer applies is removed (Q38).
+- Merge: the customer's chosen discount wins, otherwise the guest's carries over.
+- `reason` values: `NOT_FOUND`, `INACTIVE`, `NOT_STARTED`, `ENDED`, `USAGE_LIMIT_REACHED`, `SIGN_IN_REQUIRED` (per-customer limit, guest), `CUSTOMER_LIMIT_REACHED`, `NO_ELIGIBLE_ITEMS`, `MINIMUM_NOT_MET`.
+- Uses count from order creation and are given back when the order is cancelled or expires before shipping (R36; recorded by TASK-029, released by TASK-031/033).
+
+### Errors
+| Case | Response |
+|---|---|
+| Discount does not apply / unknown code / coded discount chosen by id | `422 DISCOUNT_INVALID`, `details.reason` |
+| Discount has ended | `422 DISCOUNT_EXPIRED`, `details.reason = ENDED` |
+| Too many unknown codes from one IP (20 per 15 minutes) | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
+| Store-wide with targets / targeted without | `400 VALIDATION_ERROR`, issue code `targets_not_allowed` / `targets_required` (path `scope`) |
+| Unknown product, category or brand id | `400 VALIDATION_ERROR`, issue code `not_found` |
+| End not after start | `400 VALIDATION_ERROR`, issue code `before_start` |
+| Code used by another discount | `409 CONFLICT`, `details.reason = CODE_TAKEN` |
+| Unknown discount | `404 NOT_FOUND` |

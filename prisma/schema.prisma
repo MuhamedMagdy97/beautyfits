@@ -171,9 +171,10 @@ model Customer {
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  account   Account?          @relation(fields: [accountId], references: [id])
-  addresses CustomerAddress[]
-  carts     Cart[]
+  account        Account?          @relation(fields: [accountId], references: [id])
+  addresses      CustomerAddress[]
+  carts          Cart[]
+  discountUsages DiscountUsage[]
 
   @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
   @@index([phone])
@@ -354,6 +355,7 @@ model Employee {
   returnsSettled     SupplierReturn[]      @relation("SupplierReturnSettledBy")
   paymentsRecorded   SupplierPayment[]     @relation("SupplierPaymentRecordedBy")
   ledgerEntries      SupplierLedgerEntry[] @relation("SupplierLedgerEntryCreatedBy")
+  discountsCreated   Discount[]            @relation("DiscountCreatedBy")
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -642,6 +644,7 @@ model Product {
   variants   ProductVariant[]
   categories ProductCategory[]
   media      ProductMedia[]
+  discounts  DiscountProduct[]
 
   @@index([status, createdAt(sort: Desc)])
   @@index([brandId])
@@ -718,7 +721,8 @@ model Brand {
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  products Product[]
+  products  Product[]
+  discounts DiscountBrand[]
 
   @@index([status, nameEn])
   @@map("brands")
@@ -736,9 +740,10 @@ model Category {
   createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  parent   Category?         @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children Category[]        @relation("CategoryTree")
-  products ProductCategory[]
+  parent    Category?          @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Category[]         @relation("CategoryTree")
+  products  ProductCategory[]
+  discounts DiscountCategory[]
 
   @@unique([slug], map: "categories_top_level_slug_key", where: raw("parent_id IS NULL"))
   @@unique([parentId, slug], map: "categories_parent_slug_key", where: raw("parent_id IS NOT NULL"))
@@ -1423,10 +1428,13 @@ model Cart {
   guestTokenHash String?    @unique @map("guest_token_hash")
   status         CartStatus @default(ACTIVE)
   currency       String     @default("EGP") @db.Char(3)
+  /// The discount the shopper chose (Q138); rechecked on every read (TASK-026).
+  discountId     String?    @map("discount_id") @db.Uuid
   createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
 
   customer Customer?  @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  discount Discount?  @relation(fields: [discountId], references: [id], onDelete: Restrict)
   items    CartItem[]
 
   @@unique([customerId], map: "carts_one_active_per_customer_key", where: raw("status = 'ACTIVE'"))
@@ -1451,4 +1459,123 @@ model CartItem {
   @@unique([cartId, productVariantId])
   @@index([productVariantId])
   @@map("cart_items")
+}
+
+// ---------------------------------------------------------------------------
+// Discounts (TASK-026, DB design §14, Business Spec Q125, Q131–Q138, R36,
+// ADR-0032). Never deleted: deactivated instead.
+// ---------------------------------------------------------------------------
+
+enum DiscountStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("discount_status")
+}
+
+enum DiscountType {
+  PERCENTAGE
+
+  @@map("discount_type")
+}
+
+enum DiscountScope {
+  /// Every purchasable item.
+  STORE_WIDE
+  /// Items whose product, category (or a subcategory of it) or brand is linked.
+  TARGETED
+
+  @@map("discount_scope")
+}
+
+model Discount {
+  id                    String         @id @default(uuid(7)) @db.Uuid
+  /// Stored uppercase; unique. Null: an offer shown in the cart without a code.
+  code                  String?        @unique
+  nameAr                String         @map("name_ar")
+  nameEn                String         @map("name_en")
+  discountType          DiscountType   @default(PERCENTAGE) @map("discount_type")
+  /// Whole percent, 1–100 (not money).
+  value                 Int
+  scope                 DiscountScope
+  /// Piastres; caps the discount of one order.
+  maxDiscountAmount     BigInt?        @map("max_discount_amount")
+  /// Piastres; compared with the whole cart subtotal.
+  minimumOrderTotal     BigInt?        @map("minimum_order_total")
+  startsAt              DateTime       @map("starts_at") @db.Timestamptz(3)
+  /// Null: no end.
+  endsAt                DateTime?      @map("ends_at") @db.Timestamptz(3)
+  usageLimitTotal       Int?           @map("usage_limit_total")
+  usageLimitPerCustomer Int?           @map("usage_limit_per_customer")
+  status                DiscountStatus @default(INACTIVE)
+  createdByEmployeeId   String         @map("created_by_employee_id") @db.Uuid
+  createdAt             DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  createdBy  Employee           @relation("DiscountCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
+  products   DiscountProduct[]
+  categories DiscountCategory[]
+  brands     DiscountBrand[]
+  usages     DiscountUsage[]
+  carts      Cart[]
+
+  @@index([status, startsAt])
+  @@map("discounts")
+}
+
+model DiscountProduct {
+  discountId String @map("discount_id") @db.Uuid
+  productId  String @map("product_id") @db.Uuid
+
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@id([discountId, productId])
+  @@index([productId])
+  @@map("discount_products")
+}
+
+model DiscountCategory {
+  discountId String @map("discount_id") @db.Uuid
+  categoryId String @map("category_id") @db.Uuid
+
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([discountId, categoryId])
+  @@index([categoryId])
+  @@map("discount_categories")
+}
+
+model DiscountBrand {
+  discountId String @map("discount_id") @db.Uuid
+  brandId    String @map("brand_id") @db.Uuid
+
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  brand    Brand    @relation(fields: [brandId], references: [id], onDelete: Restrict)
+
+  @@id([discountId, brandId])
+  @@index([brandId])
+  @@map("discount_brands")
+}
+
+/// One use of a discount by an order (R36): counted from order creation,
+/// given back (`released_at`) when the order is cancelled or expires before
+/// shipping. TASK-030 adds the foreign key to `orders`.
+model DiscountUsage {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  discountId     String    @map("discount_id") @db.Uuid
+  customerId     String?   @map("customer_id") @db.Uuid
+  orderId        String    @unique @map("order_id") @db.Uuid
+  /// Piastres.
+  discountAmount BigInt    @map("discount_amount")
+  usedAt         DateTime  @map("used_at") @db.Timestamptz(3)
+  releasedAt     DateTime? @map("released_at") @db.Timestamptz(3)
+
+  discount Discount  @relation(fields: [discountId], references: [id], onDelete: Restrict)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([discountId, releasedAt])
+  @@index([customerId, discountId])
+  @@map("discount_usages")
 }

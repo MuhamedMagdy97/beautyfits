@@ -1029,6 +1029,15 @@ Product-owner decisions made on 2026-10-04 (TASK-009). They answer TASK-002A ope
 - A **customer cart** never expires; it is kept until checkout.
 - `ABANDONED` is not used for expiry: it is left to analytics (TASK-050, checkout abandonment).
 - When a customer deactivates the account (R34), the active cart is removed.
+### R36 — Discount application rules (TASK-026; complete Q125, Q131–Q138)
+Product-owner decisions made on 2026-10-04.
+1. **Finding a discount:** a discount without a code is shown in the cart as an offer the customer can choose when it applies; a discount with a code applies only after the customer enters the code.
+2. **No automatic choice:** the customer always chooses, even when only one discount applies (Q138).
+3. **What the percentage applies to:** the targeted items only (all items for a store-wide discount), at current prices. The minimum order total is checked against the whole cart subtotal. The maximum discount amount caps the discount of the whole order.
+4. **Categories:** a category discount also covers the products of its subcategories.
+5. **Guests:** guests can use discounts without a per-customer limit; a discount with a per-customer limit needs a signed-in customer.
+6. **Counting a use:** a use counts when the order is created; it is given back if the order is cancelled or expires before shipping.
+7. **Percentage and editing:** whole percentages from 1% to 100%. A discount can be edited at any time (orders keep a snapshot of the discount they used); creating, editing, activating and deactivating are audited.
 
 ## Key non-negotiables
 - Backend is authoritative for price, stock, discount, shipping, permissions and order state.
@@ -1054,3 +1063,4 @@ Product-owner decisions made on 2026-10-04 (TASK-009). They answer TASK-002A ope
 - TASK-007 closure decisions (R23–R27): sessions after password reset/change and absolute 30-day sessions, login throttling, WhatsApp phone verification and activation with non-reserving pending registrations, no login with an unverified email, Egyptian mobile numbers only.
 - v1.4 locations, cart and account decisions (R32–R34): governorates and areas as a managed list shared by addresses and shipping rules; guest cart merge adds quantities capped at availability; customer deactivation anonymizes at once, is refused while orders, returns or a wallet balance are open, and frees the email and phone.
 - v1.5 cart retention (R35, 2026-10-04): guest carts expire after 30 configurable days without changes; customer carts never expire; deactivation removes the active cart. R33 clarified: the merge cap never lowers the customer's own quantity.
+- v1.6 discount application rules (R36, 2026-10-04): codeless offers listed in the cart, codes entered; the customer always chooses; percentage on targeted items, minimum on the whole subtotal, cap per order; categories include subcategories; per-customer limits need sign-in; uses count from order creation and are given back on cancellation/expiry before shipping; 1–100%, editable any time.
