@@ -11,8 +11,26 @@ import { mediaContentUrl } from "@/server/modules/media/uploads-service";
 import { add, multiply, toJsonNumber } from "@/server/money/money";
 import { getBlockedUntil, recordHit, type RateLimitPolicy } from "@/server/rate-limit/rate-limit";
 import type { AddCartItemInput, UpdateCartItemInput } from "@/server/modules/cart/schemas";
+import {
+  discountRefused,
+  discountUsageCounts,
+  loadDiscounts,
+  type LoadedDiscount,
+} from "@/server/modules/discounts/discounts-service";
+import {
+  evaluateDiscount,
+  type DiscountLine,
+  type DiscountProblem,
+} from "@/server/modules/discounts/engine";
+import type { ChooseCartDiscountInput } from "@/server/modules/discounts/schemas";
 import { readGuestCartExpiryDays } from "@/server/modules/settings/settings";
-import { MS_PER_DAY, MS_PER_HOUR, systemClock, type Clock } from "@/server/time/time";
+import {
+  MS_PER_DAY,
+  MS_PER_HOUR,
+  MS_PER_MINUTE,
+  systemClock,
+  type Clock,
+} from "@/server/time/time";
 
 /**
  * Guest and customer carts (TASK-025, API §14, DB design §7, Q37, R33,
@@ -27,12 +45,22 @@ import { MS_PER_DAY, MS_PER_HOUR, systemClock, type Clock } from "@/server/time/
  *   being purchasable stay in the cart, marked `UNAVAILABLE`.
  * - Guest carts expire after the configured days without changes (R35,
  *   default 30); customer carts never expire.
+ * - Discounts (TASK-026, Q125, Q138, R36): the shopper chooses one; codeless
+ *   offers that apply are listed in `availableDiscounts`, coded ones need the
+ *   code. The choice is rechecked on every read and never picked silently.
  * - Writes lock the cart row (customer carts: the customer row first, so the
  *   single active cart is created once).
  */
 
 /** Technical limit on distinct lines (ADR-0031 §3). */
 export const MAX_CART_LINES = 50;
+
+/** Unknown discount codes per IP (ADR-0032): 20 per 15 minutes. */
+export const DISCOUNT_CODE_IP_LIMIT: RateLimitPolicy = {
+  limit: 20,
+  windowMs: 15 * MS_PER_MINUTE,
+  blockMs: 15 * MS_PER_MINUTE,
+};
 
 /** New guest carts per IP (ADR-0031 §3): 30 per hour. */
 export const GUEST_CART_CREATE_IP_LIMIT: RateLimitPolicy = {
@@ -76,10 +104,33 @@ export interface CartView {
   /** Sum of the lines that are not unavailable, at current prices. */
   subtotal: number;
   currency: string;
-  /** A price changed or a line cannot be bought as is (Q37). */
+  /** The chosen discount, when it applies (Q138). */
+  discount: AppliedDiscountView | null;
+  /** The chosen discount no longer applies; it is not counted. */
+  discountProblem: { discountId: string; code: string | null; reason: DiscountProblem } | null;
+  discountTotal: number;
+  /** `subtotal - discountTotal`, before shipping. */
+  total: number;
+  /** Codeless offers that apply to this cart now; the shopper may choose one. */
+  availableDiscounts: AvailableDiscountView[];
+  /** A price changed, a line cannot be bought as is (Q37) or the discount was dropped. */
   requiresReview: boolean;
   /** Returned once, by the write that created a guest cart. */
   guestCartToken?: string;
+}
+
+export interface AppliedDiscountView {
+  id: string;
+  code: string | null;
+  name: string;
+  percentage: number;
+  amount: number;
+}
+
+export interface AvailableDiscountView extends Omit<AppliedDiscountView, "code"> {
+  maxDiscountAmount: number | null;
+  minimumOrderTotal: number | null;
+  endsAt: string | null;
 }
 
 export interface PriceChange {
@@ -92,7 +143,12 @@ const ITEM_INCLUDE = {
   variant: {
     include: {
       inventoryBalance: true,
-      product: { include: { media: { where: { isMain: true, removedAt: null } } } },
+      product: {
+        include: {
+          media: { where: { isMain: true, removedAt: null } },
+          categories: { select: { categoryId: true } },
+        },
+      },
     },
   },
 } as const;
@@ -106,6 +162,11 @@ const EMPTY_CART: Omit<CartView, "guestCartToken"> = {
   itemCount: 0,
   subtotal: 0,
   currency: "EGP",
+  discount: null,
+  discountProblem: null,
+  discountTotal: 0,
+  total: 0,
+  availableDiscounts: [],
   requiresReview: false,
 };
 
@@ -163,20 +224,127 @@ function toItemView(row: ItemRow, locale: SupportedLocale): CartItemView {
   return view;
 }
 
-async function loadView(db: Db, cartId: string, locale: SupportedLocale): Promise<CartView> {
-  const rows = await db.cartItem.findMany({
-    where: { cartId },
-    include: ITEM_INCLUDE,
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+function discountLines(rows: ItemRow[]): DiscountLine[] {
+  return rows.map((row) => {
+    const price = currentPrice(row.variant);
+    const { product } = row.variant;
+    return {
+      productId: product.id,
+      brandId: product.brandId,
+      categoryIds: product.categories.map((c) => c.categoryId),
+      lineTotal: price === null ? null : multiply(price, row.quantity),
+    };
   });
+}
+
+/** Codeless discounts running now: the offers a cart may list (R36). */
+function runningOffers(now: Date) {
+  return {
+    status: "ACTIVE" as const,
+    code: null,
+    startsAt: { lte: now },
+    OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+  };
+}
+
+function discountName(discount: LoadedDiscount, locale: SupportedLocale): string {
+  return locale === "ar" ? discount.nameAr : discount.nameEn;
+}
+
+/** Evaluates discounts against a cart's lines for its owner (null: guest). */
+async function evaluateFor(
+  db: Db,
+  discounts: LoadedDiscount[],
+  rows: ItemRow[],
+  customerId: string | null,
+  now: Date,
+) {
+  const lines = discountLines(rows);
+  const usage = await discountUsageCounts(
+    db,
+    discounts.map((d) => d.id),
+    customerId,
+  );
+  return discounts.map((discount) => ({
+    discount,
+    result: evaluateDiscount(discount.rule, lines, usage.get(discount.id)!, now),
+  }));
+}
+
+async function loadView(
+  db: Db,
+  cartId: string,
+  locale: SupportedLocale,
+  now: Date,
+): Promise<CartView> {
+  const [cart, rows] = await Promise.all([
+    db.cart.findUniqueOrThrow({
+      where: { id: cartId },
+      select: { customerId: true, discountId: true },
+    }),
+    db.cartItem.findMany({
+      where: { cartId },
+      include: ITEM_INCLUDE,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    }),
+  ]);
   const items = rows.map((row) => toItemView(row, locale));
+  const subtotal = add(BigInt(0), ...items.map((item) => BigInt(item.lineTotal ?? 0)));
+
+  const discounts = await loadDiscounts(db, {
+    OR: [runningOffers(now), ...(cart.discountId ? [{ id: cart.discountId }] : [])],
+  });
+  const evaluated = await evaluateFor(db, discounts, rows, cart.customerId, now);
+  const chosen = evaluated.find((e) => e.discount.id === cart.discountId);
+
+  let discount: AppliedDiscountView | null = null;
+  let discountProblem: CartView["discountProblem"] = null;
+  if (chosen?.result.ok) {
+    discount = {
+      id: chosen.discount.id,
+      code: chosen.discount.code,
+      name: discountName(chosen.discount, locale),
+      percentage: chosen.discount.value,
+      amount: toJsonNumber(chosen.result.amount),
+    };
+  } else if (chosen) {
+    discountProblem = {
+      discountId: chosen.discount.id,
+      code: chosen.discount.code,
+      reason: chosen.result.ok ? "INACTIVE" : chosen.result.problem,
+    };
+  }
+  const discountTotal = discount?.amount ?? 0;
   return {
     id: cartId,
     items,
     itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
-    subtotal: toJsonNumber(add(BigInt(0), ...items.map((item) => BigInt(item.lineTotal ?? 0)))),
+    subtotal: toJsonNumber(subtotal),
     currency: "EGP",
-    requiresReview: items.some((item) => item.priceChanged || item.status !== "AVAILABLE"),
+    discount,
+    discountProblem,
+    discountTotal,
+    total: toJsonNumber(subtotal) - discountTotal,
+    availableDiscounts: evaluated.flatMap(({ discount: d, result }) =>
+      result.ok && d.code === null
+        ? [
+            {
+              id: d.id,
+              name: discountName(d, locale),
+              percentage: d.value,
+              amount: toJsonNumber(result.amount),
+              maxDiscountAmount:
+                d.maxDiscountAmount === null ? null : toJsonNumber(d.maxDiscountAmount),
+              minimumOrderTotal:
+                d.minimumOrderTotal === null ? null : toJsonNumber(d.minimumOrderTotal),
+              endsAt: d.endsAt?.toISOString() ?? null,
+            },
+          ]
+        : [],
+    ),
+    requiresReview:
+      discountProblem !== null ||
+      items.some((item) => item.priceChanged || item.status !== "AVAILABLE"),
   };
 }
 
@@ -252,7 +420,7 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
         : owner.token
           ? await db.cart.findFirst({ where: await liveGuestCart(db, owner.token, clock.now()) })
           : null;
-    return cart ? loadView(db, cart.id, locale) : { ...EMPTY_CART };
+    return cart ? loadView(db, cart.id, locale, clock.now()) : { ...EMPTY_CART };
   }
 
   /** Guards guest cart creation per IP, then counts it. */
@@ -341,7 +509,7 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
           });
         }
         await tx.cart.update({ where: { id: cartId }, data: { updatedAt: now } });
-        return loadView(tx, cartId, locale);
+        return loadView(tx, cartId, locale, now);
       },
       {},
       db,
@@ -415,7 +583,7 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
           }
         }
         await tx.cart.update({ where: { id: cartId! }, data: { updatedAt: now } });
-        return loadView(tx, cartId!, locale);
+        return loadView(tx, cartId!, locale, now);
       },
       {},
       db,
@@ -434,7 +602,7 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
         const line = await findOwnItem(tx, cartId, itemId);
         await tx.cartItem.delete({ where: { id: line.id } });
         await tx.cart.update({ where: { id: cartId! }, data: { updatedAt: now } });
-        return loadView(tx, cartId!, locale);
+        return loadView(tx, cartId!, locale, now);
       },
       {},
       db,
@@ -444,18 +612,19 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
   /**
    * Accepts the current prices (Q37): every purchasable line's
    * `lastSeenUnitPrice` becomes its current price. Returns the lines whose
-   * price changed. Discounts join with TASK-026.
+   * price changed. A chosen discount that no longer applies is removed and
+   * reported in `discountRemoved` (Q38).
    */
   async function reprice(
     owner: CartOwner,
     locale: SupportedLocale,
-  ): Promise<CartView & { changes: PriceChange[] }> {
+  ): Promise<CartView & { changes: PriceChange[]; discountRemoved: CartView["discountProblem"] }> {
     const now = clock.now();
     return runInTransaction(
       async (tx) => {
         const cartId = await findActiveCart(tx, owner, now);
         if (!cartId) {
-          return { ...EMPTY_CART, changes: [] };
+          return { ...EMPTY_CART, changes: [], discountRemoved: null };
         }
         const rows = await tx.cartItem.findMany({ where: { cartId }, include: ITEM_INCLUDE });
         const changes: PriceChange[] = [];
@@ -473,7 +642,16 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
             });
           }
         }
-        return { ...(await loadView(tx, cartId, locale)), changes };
+        const view = await loadView(tx, cartId, locale, now);
+        if (!view.discountProblem) {
+          return { ...view, changes, discountRemoved: null };
+        }
+        await tx.cart.update({ where: { id: cartId }, data: { discountId: null, updatedAt: now } });
+        return {
+          ...(await loadView(tx, cartId, locale, now)),
+          changes,
+          discountRemoved: view.discountProblem,
+        };
       },
       {},
       db,
@@ -503,14 +681,14 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
           : null;
 
         if (!guestCartId) {
-          return customerCartId ? loadView(tx, customerCartId, locale) : { ...EMPTY_CART };
+          return customerCartId ? loadView(tx, customerCartId, locale, now) : { ...EMPTY_CART };
         }
         if (!customerCartId) {
           await tx.cart.update({
             where: { id: guestCartId },
             data: { customerId, guestTokenHash: null, updatedAt: now },
           });
-          return loadView(tx, guestCartId, locale);
+          return loadView(tx, guestCartId, locale, now);
         }
 
         const guestItems = await tx.cartItem.findMany({
@@ -548,12 +726,90 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
             });
           }
         }
-        await tx.cart.update({
+        const guestCart = await tx.cart.update({
           where: { id: guestCartId },
           data: { status: "MERGED", updatedAt: now },
         });
-        await tx.cart.update({ where: { id: customerCartId }, data: { updatedAt: now } });
-        return loadView(tx, customerCartId, locale);
+        const customerCart = await tx.cart.findUniqueOrThrow({ where: { id: customerCartId } });
+        await tx.cart.update({
+          where: { id: customerCartId },
+          // The customer's own discount choice wins; otherwise the guest's carries over.
+          data: { discountId: customerCart.discountId ?? guestCart.discountId, updatedAt: now },
+        });
+        return loadView(tx, customerCartId, locale, now);
+      },
+      {},
+      db,
+    );
+  }
+
+  /**
+   * Chooses the cart's one discount (Q125, Q138): a code, or the id of a
+   * codeless offer. It must apply now, otherwise `DISCOUNT_INVALID` /
+   * `DISCOUNT_EXPIRED` with the reason. A coded discount is never chosen by
+   * id, and unknown codes are throttled per IP.
+   */
+  async function chooseDiscount(
+    owner: CartOwner,
+    input: ChooseCartDiscountInput,
+    locale: SupportedLocale,
+    ip: string | null,
+  ): Promise<CartView> {
+    const now = clock.now();
+    const codeKey = `discount:code:ip:${ip ?? "unknown"}`;
+    if ("code" in input) {
+      const until = await getBlockedUntil(db, codeKey, now);
+      if (until) {
+        throw new AppError("RATE_LIMITED", "Too many wrong codes. Try again later.", {
+          details: { retryAfterSeconds: Math.ceil((until.getTime() - now.getTime()) / 1000) },
+        });
+      }
+    }
+    const [discount] = await loadDiscounts(
+      db,
+      "code" in input ? { code: input.code } : { id: input.discountId, code: null },
+    );
+    if (!discount) {
+      if ("code" in input) {
+        await recordHit(db, codeKey, DISCOUNT_CODE_IP_LIMIT, now);
+      }
+      throw discountRefused("NOT_FOUND");
+    }
+    return runInTransaction(
+      async (tx) => {
+        const cartId = await findActiveCart(tx, owner, now);
+        if (!cartId) {
+          throw discountRefused("NO_ELIGIBLE_ITEMS");
+        }
+        const [cart, rows] = await Promise.all([
+          tx.cart.findUniqueOrThrow({ where: { id: cartId }, select: { customerId: true } }),
+          tx.cartItem.findMany({ where: { cartId }, include: ITEM_INCLUDE }),
+        ]);
+        const [{ result }] = await evaluateFor(tx, [discount], rows, cart.customerId, now);
+        if (!result.ok) {
+          throw discountRefused(result.problem);
+        }
+        await tx.cart.update({
+          where: { id: cartId },
+          data: { discountId: discount.id, updatedAt: now },
+        });
+        return loadView(tx, cartId, locale, now);
+      },
+      {},
+      db,
+    );
+  }
+
+  async function removeDiscount(owner: CartOwner, locale: SupportedLocale): Promise<CartView> {
+    const now = clock.now();
+    return runInTransaction(
+      async (tx) => {
+        const cartId = await findActiveCart(tx, owner, now);
+        if (!cartId) {
+          return { ...EMPTY_CART };
+        }
+        await tx.cart.update({ where: { id: cartId }, data: { discountId: null, updatedAt: now } });
+        return loadView(tx, cartId, locale, now);
       },
       {},
       db,
@@ -578,7 +834,17 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
     return count;
   }
 
-  return { getCart, addItem, updateItem, removeItem, reprice, merge, expireGuestCarts };
+  return {
+    getCart,
+    addItem,
+    updateItem,
+    removeItem,
+    reprice,
+    merge,
+    chooseDiscount,
+    removeDiscount,
+    expireGuestCarts,
+  };
 }
 
 export type CartService = ReturnType<typeof createCartService>;

@@ -334,6 +334,8 @@ Implement cart lifecycle for Guest and authenticated Customer.
 
 Implement percentage discounts, targeting, minimum order, max discount, overall/per-customer usage, single-discount-per-order selection and checkout revalidation.
 
+**Status after TASK-026** (`docs/tasks/TASK-026-discounts.md`, ADR-0032): `discounts` with product/category/brand targets, `/admin/discounts` (audited), the pure engine `evaluateDiscount` and the cart choice (`PUT|DELETE /cart/discount`, offers listed, rechecked on every read, dropped by `reprice`), following R36. TASK-029 calls `recordDiscountUsage` in the checkout transaction (it locks the discount and re-checks limits) and snapshots the discount; TASK-031/TASK-033 call `releaseDiscountUsage`; TASK-030 adds the `discount_usages.order_id` foreign key and allocates the amount to order items.
+
 ### TASK-027 — Shipping Rules & Free Shipping Engine
 **Depends on:** TASK-014, TASK-025
 

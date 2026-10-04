@@ -1845,3 +1845,21 @@ Added by TASK-025 (`docs/tasks/TASK-025-cart.md`, ADR-0031). Migrated in `prisma
 ### `cart_items` (§7, migrated)
 - `last_seen_unit_price` `BIGINT` piastres, `> 0`; `quantity > 0`. Unique `(cart_id, product_variant_id)`; index `product_variant_id`.
 - `cart_id` FK `CASCADE`, `product_variant_id` FK `RESTRICT`.
+
+## v1.2 TASK-026 Amendments
+
+Added by TASK-026 (`docs/tasks/TASK-026-discounts.md`, ADR-0032). Migrated in `prisma/migrations/*_discounts`.
+
+### `discounts` (§14, migrated)
+- `name` is stored as `name_ar` / `name_en`. `discount_type` enum (`PERCENTAGE`); `value` integer 1–100 (whole percent, not money); `scope` enum `discount_scope` (`STORE_WIDE`, `TARGETED`).
+- `code` nullable, uppercase (check), unique. `max_discount_amount`, `minimum_order_total` piastres `> 0` or null; `usage_limit_total`, `usage_limit_per_customer` `> 0` or null; `ends_at` nullable, after `starts_at`.
+- `status` enum `discount_status` (`ACTIVE`, `INACTIVE`), default `INACTIVE`. `created_by_employee_id` FK. Trigger `discounts_no_delete`. Index `(status, starts_at)`.
+
+### Targeting (migrated)
+- `discount_products (discount_id, product_id)`, `discount_categories (discount_id, category_id)`, `discount_brands (discount_id, brand_id)`: composite primary keys, `CASCADE` from the discount, `RESTRICT` to the target. A category target covers its subcategories (R36).
+
+### `discount_usages` (§14, migrated)
+- Adds `released_at` nullable (the use was given back, R36). `order_id` unique (one use per order); its FK to `orders` is added by TASK-030. `customer_id` nullable FK (guests). `discount_amount` piastres `>= 0`. Indexes `(discount_id, released_at)`, `(customer_id, discount_id)`. Limits are enforced under a lock on the discount row.
+
+### `carts`
+- Adds `discount_id` nullable FK (`RESTRICT`): the shopper's chosen discount, rechecked on every read.
