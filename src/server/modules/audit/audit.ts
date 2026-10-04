@@ -100,6 +100,8 @@ export const AUDIT_ACTIONS = [
   "SHIPPING_COMPANY_UPDATED",
   "SHIPPING_RULE_CREATED",
   "SHIPPING_RULE_UPDATED",
+  // Wallet (TASK-028)
+  "WALLET_ADJUSTED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

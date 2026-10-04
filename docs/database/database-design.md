@@ -1876,3 +1876,20 @@ Added by TASK-027 (`docs/tasks/TASK-027-shipping-rules.md`, ADR-0033). Migrated 
 - `shipping_company_id` nullable FK (`RESTRICT`): the company proposed for the orders the rule prices; null leaves the choice to staff.
 - `min_order_total` (inclusive) and `max_order_total` (exclusive) piastres, nullable, compared with the total after discounts; `shipping_fee` piastres `>= 0`; `priority` integer, default 0; `active_from`, `active_to` nullable (`active_to > active_from`); `status` (`shipping_status`, default `ACTIVE`). Index `status`. Trigger `shipping_rules_no_delete`.
 - `free_shipping` is not stored: free shipping is one store-wide threshold (R37), setting `shipping.free_shipping_threshold` (integer piastres, default 250000 = 2500 EGP).
+
+## v1.2 TASK-028 Amendments
+
+Added by TASK-028 (`docs/tasks/TASK-028-wallet.md`, ADR-0034). Migrated in `prisma/migrations/*_wallet`.
+
+### `wallets` (§13, migrated)
+- Fields of §13; `customer_id` unique FK (`RESTRICT`); `currency` `CHAR(3)` default `EGP`; `balance` piastres, check `>= 0`, held credit included. Created empty on the first credit.
+- `balance` is written only by the `wallet_transactions_apply` trigger; trigger `wallets_guard` rejects a non-zero insert, any other update and any delete.
+
+### `wallet_transactions` (§13, migrated)
+- Fields of §13. `transaction_type` enum `wallet_transaction_type` (`MANUAL_ADJUSTMENT`, `ORDER_WALLET_USE`, `RETURN_REFUND`; later tasks add theirs, e.g. a refund reversal); `direction` enum `wallet_direction` (`CREDIT`, `DEBIT`); `amount` piastres `> 0`; `reference_type`/`reference_id` (uuid) both set or both null; `reason` nullable.
+- Append-only: trigger `wallet_transactions_append_only` rejects update and delete. Indexes `(wallet_id, created_at)`, `(reference_type, reference_id)`.
+
+### `wallet_reservations` (§13, migrated)
+- Fields of §13 plus `captured_at`. `status` enum `wallet_reservation_status` (`ACTIVE`, `CAPTURED`, `RELEASED`); check keeps `released_at`/`captured_at` consistent with the status. `amount` piastres `> 0`.
+- At most one `ACTIVE` reservation per order (partial unique index `wallet_reservations_one_active_key`). `order_id` has no foreign key yet: TASK-030 adds it when `orders` exists.
+- Available credit = `balance` − Σ `ACTIVE` reservations. Releasing writes no ledger entry; capturing writes the `ORDER_WALLET_USE` debit.
