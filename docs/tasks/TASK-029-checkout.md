@@ -66,9 +66,7 @@ Guests use their cart token; customers their session (a bad token is 401). Only 
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-- Owner to confirm the defaults chosen here (ADR-0035 §4): order number format `BF-100001`; discount split over targeted lines in proportion; guest email optional; 20 checkouts per IP per hour; checkout refused (not silently re-priced) when anything changed.
-- [BUSINESS DECISION REQUIRED] Tax rate value (C1) — still open; `tax_amount`/`tax_rate` stay null.
-- [BUSINESS DECISION REQUIRED] Guest marketing consent at checkout (DB Design "v1.2 TASK-002A Amendments") — not collected.
+- None. Owner decisions of 2026-10-05 are recorded as Business Spec R38 (order number, refuse on change, guest email optional, no guest marketing opt-in, no tax rate yet, proportional discount split, 20 checkouts per IP per hour).
 
 ## Status
 - [x] Planned

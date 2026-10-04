@@ -65,7 +65,7 @@ Customers see only their own wallet. Admin views need `VIEW_WALLET_BALANCE`; adj
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] When the order captures held credit: at `SHIPPED` (as stock, ADR-0025), at `DELIVERED`, or otherwise (C4 says "finalized according to the order outcome"). Needed by TASK-030 → TASK-034, not by this task.
+- Decided 2026-10-05 (Business Spec R38.7): held credit is captured when the order is `SHIPPED`.
 - Owner to confirm the defaults chosen here (ADR-0034 §3): manual debits are allowed up to available credit; customers do not see staff adjustment reasons.
 
 ## Status

@@ -18,7 +18,7 @@ The client sends no price, only `expectedTotal`, the total the customer confirme
 
 Inside one transaction (default isolation): lock the shopper (customer row, or the guest cart row by token hash); replay a known key; lock the cart; recompute; take an order number; create the order with items and first status; `reserveForOrder` (locks balances in variant order, `STOCK_CHANGED` when short); `recordDiscountUsage` (locks the discount, rechecks limits); `reserveWallet` (locks the wallet); mark the cart `CONVERTED`; record the checkout attempt; write the `ORDER_CREATED` outbox event. Lock order is always shopper → cart → balances → discount → wallet, so checkouts do not deadlock each other. Notifications and COD confirmation messages leave from the outbox after commit (Q40).
 
-## 4. Choices made here (owner may revise)
+## 4. Choices made here (confirmed by the owner on 2026-10-05, Business Spec R38)
 
 - **Order number:** `BF-` + a PostgreSQL sequence starting at 100001 (e.g. `BF-100001`). It never authorizes access.
 - **Discount per line:** the order discount is split over the lines it targets in proportion to their line totals, rounded down, with leftover piastres to the largest remainders (`allocate` in `src/server/money/money.ts`); the shares always add up to the order discount. Returns (TASK-040) refund from these shares.

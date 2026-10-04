@@ -1385,7 +1385,7 @@ The link only confirms; it never exposes order tracking or cancellation (R16).
 `orders` additionally stores:
 - `cod_amount` (0 when the wallet covers the whole total, C4)
 - `wallet_amount_captured` (0 until captured)
-- `tax_included`, `tax_amount`, `tax_rate` nullable (C1; rate value: `[BUSINESS DECISION REQUIRED]`)
+- `tax_included`, `tax_amount`, `tax_rate` nullable (C1; no rate or amount until tax invoicing starts, Business Spec R38.5)
 - `applied_discount_id` nullable + `discount_snapshot_json` (code, percentage, cap at order time)
 - `shipping_company_id` nullable + `shipping_rule_snapshot_json`
 - `locale` (`ar` | `en`) used for customer messages
@@ -1410,7 +1410,7 @@ The failure threshold that creates a task is a setting.
 - `notification_deliveries.notification_id` becomes nullable and gains `order_id` nullable, `template_key`, `locale`, so transactional WhatsApp/email messages to **guests** (order received, COD confirmation request) are logged without an in-app notification.
 
 ### Marketing consent
-`marketing_consents` (v1.1 amendment) is the only consent store; `customer_marketing_preferences` is removed (§3.4). Consent captured from guests at checkout (Q155, User Flows §16.2): `[BUSINESS DECISION REQUIRED]` — if allowed, rows reference `guest_phone`/`guest_email` instead of `customer_id`.
+`marketing_consents` (v1.1 amendment) is the only consent store; `customer_marketing_preferences` is removed (§3.4). Consent captured from guests at checkout (Q155, User Flows §16.2): not collected: guests are not offered marketing opt-in (Business Spec R38.4).
 
 ### Bilingual content (Business Spec R14)
 Customer-facing text is stored as `_ar` / `_en` column pairs (two fixed languages; no translation tables in v1): products, product variants, brands, categories, product media alt text. Order snapshots store the names in both languages. `customers.preferred_locale` and `orders.locale` choose the language of messages.
