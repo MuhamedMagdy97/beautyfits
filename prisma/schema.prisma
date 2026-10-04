@@ -173,6 +173,7 @@ model Customer {
 
   account   Account?          @relation(fields: [accountId], references: [id])
   addresses CustomerAddress[]
+  carts     Cart[]
 
   @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
   @@index([phone])
@@ -687,6 +688,7 @@ model ProductVariant {
   inventoryReservations InventoryReservation[]
   purchaseItems         PurchaseItem[]
   supplierReturnItems   SupplierReturnItem[]
+  cartItems             CartItem[]
 
   @@unique([productId], map: "product_variants_one_default_key", where: raw("is_default"))
   @@index([productId, createdAt])
@@ -1393,4 +1395,60 @@ model CustomerAddress {
   @@index([customerId, createdAt])
   @@index([areaId])
   @@map("customer_addresses")
+}
+
+// ---------------------------------------------------------------------------
+// Cart (TASK-025, DB design §7, ADR-0031). Informational only: checkout
+// revalidates every price, stock level and discount.
+// ---------------------------------------------------------------------------
+
+enum CartStatus {
+  ACTIVE
+  /// Turned into an order (TASK-029).
+  CONVERTED
+  ABANDONED
+  EXPIRED
+  /// A guest cart merged into a customer cart after login (R33).
+  MERGED
+
+  @@map("cart_status")
+}
+
+/// A guest cart (identified by the SHA-256 of its token) or a customer cart.
+/// A customer has at most one ACTIVE cart.
+model Cart {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  customerId     String?    @map("customer_id") @db.Uuid
+  /// SHA-256 (hex) of the guest cart token; null for a customer cart.
+  guestTokenHash String?    @unique @map("guest_token_hash")
+  status         CartStatus @default(ACTIVE)
+  currency       String     @default("EGP") @db.Char(3)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  customer Customer?  @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  items    CartItem[]
+
+  @@unique([customerId], map: "carts_one_active_per_customer_key", where: raw("status = 'ACTIVE'"))
+  @@map("carts")
+}
+
+/// One variant in a cart. `lastSeenUnitPrice` is the price the shopper last
+/// saw (Q37): a different current price asks for review.
+model CartItem {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  cartId            String   @map("cart_id") @db.Uuid
+  productVariantId  String   @map("product_variant_id") @db.Uuid
+  quantity          Int
+  /// Piastres.
+  lastSeenUnitPrice BigInt   @map("last_seen_unit_price")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  cart    Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@unique([cartId, productVariantId])
+  @@index([productVariantId])
+  @@map("cart_items")
 }

@@ -296,7 +296,7 @@ Fields:
 - `currency`
 - `created_at`, `updated_at`
 
-Exactly one of `customer_id` or `guest_token` identifies the cart owner.
+Exactly one of `customer_id` or `guest_token` identifies the cart owner. Migrated by TASK-025 (see "v1.2 TASK-025 Amendments": the token is stored hashed, status `MERGED` added).
 
 ### `cart_items`
 
@@ -1827,3 +1827,17 @@ Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Migrat
 
 ### `otp_challenges`
 - Adds `pending_value` (nullable): the new phone of a `PHONE_CHANGE` code, which is sent to the account email (R30). `EMAIL_CHANGE` codes use `destination` (the new email).
+
+## v1.2 TASK-025 Amendments
+
+Added by TASK-025 (`docs/tasks/TASK-025-cart.md`, ADR-0031). Migrated in `prisma/migrations/*_cart`.
+
+### `carts` (§7, migrated)
+- `guest_token` is stored as `guest_token_hash` (SHA-256 of the token, unique): the token itself is never stored.
+- `status` enum `cart_status` gains `MERGED` (a guest cart merged into a customer cart, R33). `currency` `CHAR(3)` default `EGP`.
+- `customer_id` FK (`RESTRICT`). Check `carts_one_owner_check`: exactly one of `customer_id` / `guest_token_hash`. Partial unique index `carts_one_active_per_customer_key` on `(customer_id) WHERE status = 'ACTIVE'`.
+- A guest cart adopted at merge keeps its id and gets `customer_id` (its token hash is cleared).
+
+### `cart_items` (§7, migrated)
+- `last_seen_unit_price` `BIGINT` piastres, `> 0`; `quantity > 0`. Unique `(cart_id, product_variant_id)`; index `product_variant_id`.
+- `cart_id` FK `CASCADE`, `product_variant_id` FK `RESTRICT`.

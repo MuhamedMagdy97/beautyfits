@@ -309,7 +309,7 @@ Cost fields are returned only to callers with `VIEW_COST_PRICE`.
 
 Cart values are informational. Checkout revalidates all authoritative values.
 
-Guest carts: the first cart write returns a random `guestCartToken`; guests send it back in `X-Guest-Cart-Token`. After login the client calls `POST /cart/merge` with that token. Merge rule for items present in both carts: the quantities are added, capped at the quantity available (Business Spec R33).
+Guest carts: the first cart write returns a random `guestCartToken`; guests send it back in `X-Guest-Cart-Token`. After login the client calls `POST /cart/merge` with that token. Merge rule for items present in both carts: the quantities are added, capped at the quantity available (Business Spec R33). Details: "TASK-025 Amendments".
 
 # 15. Checkout & Orders
 
@@ -1449,3 +1449,34 @@ Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Busine
 | Address of another customer, unknown address/governorate/area | `404 NOT_FOUND` |
 | Area name already used in the governorate | `409 CONFLICT`, `details.reason = NAME_TAKEN` |
 | Deactivation while an order, return or wallet balance is open | `409 CONFLICT`, `details.reason = ACCOUNT_HAS_OPEN_ITEMS` |
+
+## TASK-025 Amendments
+
+Added by TASK-025 (`docs/tasks/TASK-025-cart.md`, ADR-0031). Business rules: Q37, R33; User Flows §6.1. Cart values are informational; checkout (TASK-029) revalidates everything.
+
+**Whose cart:** a request with a customer credential (Bearer or cookie) uses the customer's cart; the credential must be valid (`401`/`403` otherwise, never a fall back to the guest cart) and cookie writes pass the `Origin` check. Without a credential, `X-Guest-Cart-Token` names the guest cart; an absent, malformed or unknown token means "no cart yet".
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /cart` | Guest/Customer | — | `200` `cart` (empty cart with `id: null` when there is none) |
+| `POST /cart/items` | Guest/Customer | `{ variantId, quantity }` | `200` `cart`; adds to the line when the variant is already in the cart. The write that creates a guest cart returns `cart.guestCartToken` (only that once) |
+| `PATCH /cart/items/{cartItemId}` | Guest/Customer | any of `{ quantity, variantId }` | `200` `cart`. `variantId` must be another variant of the same product; switching onto a variant already in the cart folds both lines into one |
+| `DELETE /cart/items/{cartItemId}` | Guest/Customer | — | `200` `cart` |
+| `POST /cart/reprice` | Guest/Customer | — | `200` `cart` + `changes: [{ cartItemId, previousUnitPrice, unitPrice }]`; accepts the current prices (Q37). Discounts join with TASK-026 |
+| `POST /cart/merge` | Customer | header `X-Guest-Cart-Token` | `200` `cart` (the customer's, after the merge) |
+
+- `cart`: `{ id, items: [item], itemCount, subtotal, currency: "EGP", requiresReview, guestCartToken? }`. `subtotal` sums the lines that are not `UNAVAILABLE`, at current prices. `requiresReview` is true when a price changed or a line is not `AVAILABLE` (Q37).
+- `item`: `{ id, productId, variantId, slug, sku, name, variantName, imageUrl, quantity, unitPrice, lastSeenUnitPrice, priceChanged, lineTotal, status, availableQuantity? }`. Money in piastres. `status`: `AVAILABLE`, `INSUFFICIENT_STOCK` (with `availableQuantity`), `UNAVAILABLE` (product no longer published, variant archived or no price: `unitPrice` and `lineTotal` are `null`). `lastSeenUnitPrice` is the price when the item was added or last repriced; `priceChanged` compares it with `unitPrice`.
+- Only active variants of `PUBLISHED` products with a selling price can be added or switched to. Adding or raising a quantity above the available stock is refused; lowering a quantity always works. Lines that stop being purchasable stay in the cart.
+- Merge (R33): an item in both carts gets the sum of the quantities capped at the available stock, but never less than the customer's own quantity; items in one cart only are kept as they are. When the customer has no cart, the guest cart becomes theirs. An unknown or already merged token changes nothing (safe to retry).
+- Limits (ADR-0031): quantity 1–999 per request, 50 different items per cart (a merge may go beyond), 30 new guest carts per IP per hour.
+
+### Errors
+| Case | Response |
+|---|---|
+| Unknown variant, or not purchasable (draft/disabled/archived product, archived variant, no price) | `404 NOT_FOUND` |
+| Quantity above the available stock | `422 OUT_OF_STOCK`, `details.variantId`, `details.availableQuantity` |
+| `variantId` of another product | `400 VALIDATION_ERROR`, issue code `other_product` |
+| 51st different item | `409 CONFLICT`, `details.reason = CART_LINE_LIMIT_REACHED`, `details.limit = 50` |
+| Cart item of another cart, or no cart | `404 NOT_FOUND` |
+| Too many new guest carts from one IP | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
