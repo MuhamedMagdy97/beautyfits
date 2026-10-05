@@ -40,5 +40,6 @@
 | [ADR-0033](ADR-0033-shipping-rules.md) | Shipping rules and free shipping | TASK-027 |
 | [ADR-0034](ADR-0034-wallet.md) | Wallet ledger and reservations | TASK-028 |
 | [ADR-0035](ADR-0035-checkout.md) | Atomic checkout and order creation | TASK-029 |
+| [ADR-0036](ADR-0036-order-core.md) | Order core: reads, state machine and immutable snapshots | TASK-030 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

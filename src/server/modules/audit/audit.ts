@@ -102,6 +102,10 @@ export const AUDIT_ACTIONS = [
   "SHIPPING_RULE_UPDATED",
   // Wallet (TASK-028)
   "WALLET_ADJUSTED",
+  // Orders (TASK-030)
+  "ORDER_CONFIRMED",
+  "ORDER_PREPARING_STARTED",
+  "ORDER_READY_FOR_SHIPMENT",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -127,6 +131,7 @@ export const AUDIT_ENTITY_TYPES = {
   discount: "DISCOUNT",
   shippingCompany: "SHIPPING_COMPANY",
   shippingRule: "SHIPPING_RULE",
+  order: "ORDER",
 } as const;
 
 export interface AuditActor {

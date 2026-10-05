@@ -21,6 +21,7 @@ import {
 } from "@/server/modules/wallet/wallet-service";
 import { MS_PER_DAY, MS_PER_HOUR } from "@/server/time/time";
 import { resetDatabase } from "@/test/integration/database";
+import { bareOrder, bareOrders } from "@/test/integration/orders";
 
 /** Wallet ledger, reservations, adjustments and the R34 check (TASK-028, Q78, Q166–Q170, C4). */
 
@@ -283,10 +284,11 @@ describe("manual adjustment (Q78)", () => {
   it("debits only available credit, never held credit", async () => {
     const { id } = await customer();
     await credit(id, 50_000);
+    const orderId = await bareOrder();
     await tx((t) =>
       reserveWallet(t, {
         customerId: id,
-        orderId: randomUUID(),
+        orderId,
         amount: BigInt(30_000),
         now: new Date(),
       }),
@@ -344,8 +346,7 @@ describe("reservations (C4, User Flows §12.2, Audit Correction 5)", () => {
     const { id } = await customer();
     await credit(id, 50_000);
     const now = new Date();
-    const orderA = randomUUID();
-    const orderB = randomUUID();
+    const [orderA, orderB] = await bareOrders(2);
 
     await tx((t) =>
       reserveWallet(t, { customerId: id, orderId: orderA, amount: BigInt(50_000), now }),
@@ -399,11 +400,12 @@ describe("reservations (C4, User Flows §12.2, Audit Correction 5)", () => {
 
   it("refuses a customer without a wallet", async () => {
     const { id } = await customer();
+    const orderId = await bareOrder();
     const error = await refusal(
       tx((t) =>
         reserveWallet(t, {
           customerId: id,
-          orderId: randomUUID(),
+          orderId,
           amount: BigInt(1),
           now: new Date(),
         }),
@@ -415,12 +417,13 @@ describe("reservations (C4, User Flows §12.2, Audit Correction 5)", () => {
   it("never lets two orders spend the same credit", async () => {
     const { id } = await customer();
     await credit(id, 50_000);
+    const orders = await bareOrders(5);
     const results = await Promise.allSettled(
-      Array.from({ length: 5 }, () =>
+      Array.from({ length: 5 }, (_, i) =>
         tx((t) =>
           reserveWallet(t, {
             customerId: id,
-            orderId: randomUUID(),
+            orderId: orders[i],
             amount: BigInt(30_000),
             now: new Date(),
           }),

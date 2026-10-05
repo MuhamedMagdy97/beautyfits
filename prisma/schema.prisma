@@ -946,7 +946,6 @@ enum InventoryReservationStatus {
 /// change writes its inventory movement in the same transaction.
 model InventoryReservation {
   id               String                     @id @default(uuid(7)) @db.Uuid
-  /// The order (TASK-030 adds the foreign key when `orders` exists).
   orderId          String                     @map("order_id") @db.Uuid
   productVariantId String                     @map("product_variant_id") @db.Uuid
   quantity         Int
@@ -956,6 +955,7 @@ model InventoryReservation {
   convertedAt      DateTime?                  @map("converted_at") @db.Timestamptz(3)
 
   variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   @@unique([orderId, productVariantId], map: "inventory_reservations_one_active_key", where: raw("status = 'ACTIVE'"))
   @@index([productVariantId, status])
@@ -1582,6 +1582,7 @@ model DiscountUsage {
 
   discount Discount  @relation(fields: [discountId], references: [id], onDelete: Restrict)
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   @@index([discountId, releasedAt])
   @@index([customerId, discountId])
@@ -1725,7 +1726,6 @@ model WalletTransaction {
 model WalletReservation {
   id         String                  @id @default(uuid(7)) @db.Uuid
   walletId   String                  @map("wallet_id") @db.Uuid
-  /// The order (TASK-030 adds the foreign key when `orders` exists).
   orderId    String                  @map("order_id") @db.Uuid
   /// Piastres, > 0.
   amount     BigInt
@@ -1735,6 +1735,7 @@ model WalletReservation {
   capturedAt DateTime?               @map("captured_at") @db.Timestamptz(3)
 
   wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   @@unique([orderId], map: "wallet_reservations_one_active_key", where: raw("status = 'ACTIVE'"))
   @@index([walletId, status])
@@ -1745,7 +1746,8 @@ model WalletReservation {
 // ---------------------------------------------------------------------------
 // Orders & checkout (TASK-029, DB design §7–§8 and "Order financial fields",
 // Business Spec Q28, Q37–Q40, Q46, C1, C4, R36, R37; ADR-0035). TASK-030
-// adds the order APIs, status transitions and the remaining foreign keys.
+// adds the order APIs, status transitions and the remaining foreign keys
+// (ADR-0036); commercial snapshots are immutable (trigger `orders_immutable`).
 // ---------------------------------------------------------------------------
 
 enum OrderStatus {
@@ -1801,15 +1803,20 @@ model Order {
   shippingRuleSnapshot    Json          @map("shipping_rule_snapshot_json")
   shippingAddressSnapshot Json          @map("shipping_address_snapshot_json")
   customerSnapshot        Json          @map("customer_snapshot_json")
+  /// Set by `New → Confirmed` (CONFIRM_ORDER, TASK-030).
+  confirmedAt             DateTime?     @map("confirmed_at") @db.Timestamptz(3)
   createdAt               DateTime      @map("created_at") @db.Timestamptz(3)
   updatedAt               DateTime      @map("updated_at") @db.Timestamptz(3)
 
-  customer        Customer?            @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  appliedDiscount Discount?            @relation(fields: [appliedDiscountId], references: [id], onDelete: Restrict)
-  shippingCompany ShippingCompany?     @relation(fields: [shippingCompanyId], references: [id], onDelete: Restrict)
+  customer        Customer?              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  appliedDiscount Discount?              @relation(fields: [appliedDiscountId], references: [id], onDelete: Restrict)
+  shippingCompany ShippingCompany?       @relation(fields: [shippingCompanyId], references: [id], onDelete: Restrict)
   items           OrderItem[]
   statusHistory   OrderStatusHistory[]
   checkoutAttempt CheckoutAttempt?
+  reservations    InventoryReservation[]
+  discountUsage   DiscountUsage?
+  walletHolds     WalletReservation[]
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
