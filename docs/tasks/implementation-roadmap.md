@@ -366,6 +366,8 @@ Implement the critical checkout transaction: revalidate cart, prices, discount, 
 
 Implement order creation, order items, product/address/price/tax snapshots, status history and immutable historical facts.
 
+**Status after TASK-030** (`docs/tasks/TASK-030-order-core.md`, ADR-0036): the order state machine (`ORDER_TRANSITIONS`) and `changeOrderStatus` in `src/server/modules/orders/orders.ts` (lock, check, update, history); every later transition uses it. Customer reads (`/me/orders`, `/orders/{id}`), admin reads with contact/cost masking, and `confirm` / `start-preparing` / `mark-ready-for-shipment` (audited; confirm writes `ORDER_CONFIRMED`). Triggers make order snapshots and items immutable; reservations, discount uses and wallet holds reference `orders`. `/me/deactivate` refuses open orders (R34). TASK-031 moves `PENDING_CONFIRMATION → NEW` with `changeOrderStatus` and the System actor; TASK-034 adds `mark-shipped` (commit stock, capture wallet) and delivery.
+
 ### TASK-031 — COD Confirmation
 **Depends on:** TASK-030, TASK-045 later for provider abstraction
 

@@ -1915,3 +1915,11 @@ Added by TASK-029 (`docs/tasks/TASK-029-checkout.md`, ADR-0035). Migrated in `pr
 
 ### `checkout_attempts` (§7, migrated)
 - Fields of §7 plus `scope` (`CUSTOMER:<id>` or `GUEST_CART:<token hash>`); unique `(scope, idempotency_key)`; `result_order_id` unique; check: `SUCCEEDED` exactly when `result_order_id` is set. Only successful checkouts are stored (a failure rolls back).
+
+## v1.2 TASK-030 Amendments
+
+Added by TASK-030 (`docs/tasks/TASK-030-order-core.md`, ADR-0036). Migrated in `prisma/migrations/*_order_core`.
+
+- `orders.confirmed_at` (§8), set by `New → Confirmed`. `delivered_at`, `cancelled_at`, `expired_at` and the COD confirmation fields are still added by their tasks (TASK-031, TASK-033, TASK-034).
+- Foreign keys to `orders(id)` (`RESTRICT`): `inventory_reservations.order_id`, `discount_usages.order_id`, `wallet_reservations.order_id`.
+- §24 enforced: trigger `orders_immutable` rejects `DELETE` and any change of `order_number`, `guest_email`, `guest_phone`, `payment_method`, `currency`, `locale`, the money columns except `wallet_amount_captured`, the tax columns, `applied_discount_id`, the four snapshot JSON columns and `created_at`; `customer_id` may only change from null (guest order claim). Trigger `order_items_immutable` rejects every `UPDATE` and `DELETE` of `order_items`. Lifecycle columns (`status`, timestamps, `wallet_amount_captured`, `shipping_company_id`) stay writable.

@@ -28,6 +28,7 @@ import { MAX_ADDRESSES } from "@/server/modules/customers/addresses-service";
 import type { PermissionCode } from "@/server/modules/rbac/catalog";
 import { MS_PER_DAY, MS_PER_HOUR } from "@/server/time/time";
 import { resetDatabase } from "@/test/integration/database";
+import { bareOrder } from "@/test/integration/orders";
 
 /** HTTP-level tests of /me, /locations and the admin location endpoints (TASK-009, API §11). */
 
@@ -698,6 +699,33 @@ describe("addresses (Q45, R32)", () => {
 });
 
 describe("deactivation (Q154, R34)", () => {
+  it("is refused while an order is open", async () => {
+    const { customer: profile, token } = await customer("busy@example.com", "+201013131313");
+    const orderId = await bareOrder(profile.id);
+    const refused = await errorOf(
+      await call(deactivate, "/me/deactivate", {
+        method: "POST",
+        token,
+        body: { currentPassword: PASSWORD },
+      }),
+      409,
+    );
+    expect(refused.details).toEqual({
+      reason: "ACCOUNT_HAS_OPEN_ITEMS",
+      openItems: ["OPEN_ORDER"],
+    });
+
+    await db.order.update({ where: { id: orderId }, data: { status: "DELIVERED" } });
+    await data(
+      await call(deactivate, "/me/deactivate", {
+        method: "POST",
+        token,
+        body: { currentPassword: PASSWORD },
+      }),
+      204,
+    );
+  });
+
   it("needs the password, then signs out, wipes the profile and frees the email and phone", async () => {
     const {
       account,

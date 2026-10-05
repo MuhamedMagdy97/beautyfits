@@ -1613,3 +1613,30 @@ Added by TASK-029 (`docs/tasks/TASK-029-checkout.md`, ADR-0035). Business rules:
 | More than 20 checkout requests per IP per hour | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
 
 - Event `ORDER_CREATED` (§31) is written to the outbox in the checkout transaction: `{ orderId, orderNumber, status, codAmount }`.
+
+## TASK-030 Amendments
+
+Added by TASK-030 (`docs/tasks/TASK-030-order-core.md`, ADR-0036). Business rules: Q46, Q80–Q84, Q184, Q185, R1–R4, R16, R19, R34. Implements from §15 the customer order reads, the admin order reads and `confirm`, `start-preparing`, `mark-ready-for-shipment`. Still to come: `mark-shipped` (TASK-034), `record-phone-confirmation` / `confirm-cod` (TASK-031), `modify` and revisions (TASK-032), `cancel` and `request-shipping-cancellation` (TASK-033, TASK-036).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /me/orders` | Customer | query `page`, `pageSize` | `200` `[orderListItem]` with pagination, newest first |
+| `GET /orders/{orderId}` | Customer (own order) | — | `200` `customerOrder` |
+| `GET /admin/orders` | `ORDERS_VIEW` | query `page`, `pageSize`, `status`, `customerId`, `search` (order number), `phone` (needs `VIEW_CUSTOMER_CONTACT`) | `200` `[orderListItem + customer]` with pagination, newest first |
+| `GET /admin/orders/{orderId}` | `ORDERS_VIEW` | — | `200` `adminOrder` |
+| `POST /admin/orders/{orderId}/confirm` | `CONFIRM_ORDER` | — | `200` `adminOrder`; `NEW → CONFIRMED`, sets `confirmedAt`, event `ORDER_CONFIRMED` |
+| `POST /admin/orders/{orderId}/start-preparing` | `START_PREPARING` | — | `200` `adminOrder`; `CONFIRMED → PREPARING` |
+| `POST /admin/orders/{orderId}/mark-ready-for-shipment` | `MARK_READY_FOR_SHIPMENT` | — | `200` `adminOrder`; `PREPARING → READY_FOR_SHIPMENT` |
+
+- `orderListItem`: `{ id, orderNumber, status, currency, total, codAmount, itemCount, createdAt }`; the admin list adds `customer: { customerId, fullName, phone? }` (`phone` with `VIEW_CUSTOMER_CONTACT`; `customerId` null for guests).
+- `customerOrder`: the checkout `order` ("TASK-029 Amendments") plus `discount: { code, name } | null`, `shippingAddress` (the address snapshot) and `statusHistory: [{ status, at }]`. Names in the request locale.
+- `adminOrder`: `{ id, orderNumber, status, paymentMethod, currency, locale, subtotal, discountTotal, shippingFee, total, walletAmountReserved, walletAmountCaptured, codAmount, codConfirmationRequired, taxIncluded, taxAmount, taxRate, customer: { customerId, fullName, phone?, email? }, shippingAddress, discount, shipping: { company, rule }, items: [{ id, productId, variantId, sku, name: { ar, en }, variantName, image: { mediaAssetId, url } | null, quantity, unitPrice, discountAmount, lineTotal, unitCostAtSale? }], statusHistory: [{ fromStatus, toStatus, changedByType, changedById, reason, createdAt }], confirmedAt, createdAt, updatedAt }`. Without `VIEW_CUSTOMER_CONTACT`: no `phone`/`email`, and `shippingAddress` holds only `governorate` and `area`. `unitCostAtSale` only with `VIEW_COST_PRICE`.
+- Every response is built from the order's snapshots; later catalog or profile changes never show (Q46, Q184).
+- Audit actions added: `ORDER_CONFIRMED`, `ORDER_PREPARING_STARTED`, `ORDER_READY_FOR_SHIPMENT` (entity `ORDER`).
+- R34: `POST /me/deactivate` `details.openItems` may now also hold `OPEN_ORDER` (an order not `DELIVERED`, `CANCELLED` or `EXPIRED`).
+
+| Situation | Response |
+|---|---|
+| Unknown order, or another customer's | `404 NOT_FOUND` |
+| Transition not allowed from the current status (for example `confirm` on `PENDING_CONFIRMATION`, or confirming twice) | `409 ORDER_STATE_INVALID`, `details = { status, to }` |
+| Missing permission, or the `phone` filter without `VIEW_CUSTOMER_CONTACT` | `403 PERMISSION_DENIED` |

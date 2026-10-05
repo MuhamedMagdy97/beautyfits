@@ -11,6 +11,7 @@ import {
   type ReservationLine,
 } from "@/server/modules/inventory/reservations";
 import { resetDatabase } from "@/test/integration/database";
+import { bareOrder, bareOrders } from "@/test/integration/orders";
 
 /** The reservation engine against PostgreSQL (TASK-020, Q9, Q28, ADR-0025). */
 
@@ -92,7 +93,7 @@ describe("reserve", () => {
   it("moves Available to Reserved with one movement per variant", async () => {
     const lipstick = await variantWith(5);
     const mascara = await variantWith(2);
-    const orderId = randomUUID();
+    const orderId = await bareOrder();
     const held = await reserve(orderId, [
       { variantId: lipstick, quantity: 1 },
       { variantId: mascara, quantity: 2 },
@@ -116,7 +117,7 @@ describe("reserve", () => {
   it("is all or nothing: one short line refuses the whole order", async () => {
     const plenty = await variantWith(10);
     const scarce = await variantWith(1);
-    const error = await reserve(randomUUID(), [
+    const error = await reserve(await bareOrder(), [
       { variantId: plenty, quantity: 1 },
       { variantId: scarce, quantity: 2 },
     ]).catch((e: unknown) => e);
@@ -133,9 +134,9 @@ describe("reserve", () => {
   it("refuses unknown variants and a second reservation of the same order", async () => {
     const variant = await variantWith(5);
     await expect(
-      reserve(randomUUID(), [{ variantId: randomUUID(), quantity: 1 }]),
+      reserve(await bareOrder(), [{ variantId: randomUUID(), quantity: 1 }]),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
-    const orderId = randomUUID();
+    const orderId = await bareOrder();
     await reserve(orderId, [{ variantId: variant, quantity: 1 }]);
     await expect(reserve(orderId, [{ variantId: variant, quantity: 1 }])).rejects.toMatchObject({
       code: "CONFLICT",
@@ -148,7 +149,7 @@ describe("reserve", () => {
 describe("release and commit", () => {
   it("releases back to Available once; retries do nothing", async () => {
     const variant = await variantWith(3);
-    const orderId = randomUUID();
+    const orderId = await bareOrder();
     await reserve(orderId, [{ variantId: variant, quantity: 2 }]);
     expect((await release(orderId)).map((r) => r.status)).toEqual(["RELEASED"]);
     expect(await release(orderId)).toEqual([]);
@@ -164,7 +165,7 @@ describe("release and commit", () => {
 
   it("consumes Reserved at shipping; a later release does nothing", async () => {
     const variant = await variantWith(3);
-    const orderId = randomUUID();
+    const orderId = await bareOrder();
     await reserve(orderId, [{ variantId: variant, quantity: 2 }]);
     expect((await commit(orderId)).map((r) => r.status)).toEqual(["CONVERTED"]);
     expect(await commit(orderId)).toEqual([]);
@@ -180,7 +181,7 @@ describe("release and commit", () => {
 
   it("lets an order reserve again after its hold was released (order edits)", async () => {
     const variant = await variantWith(3);
-    const orderId = randomUUID();
+    const orderId = await bareOrder();
     await reserve(orderId, [{ variantId: variant, quantity: 1 }]);
     await release(orderId);
     await reserve(orderId, [{ variantId: variant, quantity: 3 }]);
@@ -189,7 +190,7 @@ describe("release and commit", () => {
 
   it("keeps reservation history: final reservations never change, none is deleted", async () => {
     const variant = await variantWith(2);
-    const orderId = randomUUID();
+    const orderId = await bareOrder();
     const [held] = await reserve(orderId, [{ variantId: variant, quantity: 1 }]);
     await expect(
       db.inventoryReservation.update({ where: { id: held.id }, data: { quantity: 2 } }),
@@ -208,9 +209,10 @@ describe("release and commit", () => {
 describe("concurrency", () => {
   it("never oversells the last units", async () => {
     const variant = await variantWith(3);
+    const orders = await bareOrders(10);
     const results = await Promise.allSettled(
-      Array.from({ length: 10 }, () =>
-        reserve(randomUUID(), [{ variantId: variant, quantity: 1 }]),
+      Array.from({ length: 10 }, (_, i) =>
+        reserve(orders[i], [{ variantId: variant, quantity: 1 }]),
       ),
     );
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(3);
@@ -224,10 +226,11 @@ describe("concurrency", () => {
   it("does not deadlock when orders list the same variants in opposite order", async () => {
     const a = await variantWith(50);
     const b = await variantWith(50);
+    const orders = await bareOrders(20);
     const results = await Promise.allSettled(
       Array.from({ length: 20 }, (_, i) =>
         reserve(
-          randomUUID(),
+          orders[i],
           i % 2 === 0
             ? [
                 { variantId: a, quantity: 1 },
@@ -247,7 +250,7 @@ describe("concurrency", () => {
 
   it("releases an order only once under concurrent retries", async () => {
     const variant = await variantWith(4);
-    const orderId = randomUUID();
+    const orderId = await bareOrder();
     await reserve(orderId, [{ variantId: variant, quantity: 4 }]);
     const results = await Promise.all(Array.from({ length: 5 }, () => release(orderId)));
     expect(results.filter((released) => released.length > 0)).toHaveLength(1);

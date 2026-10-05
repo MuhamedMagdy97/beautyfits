@@ -26,6 +26,7 @@ import { revokeAccountSessions } from "@/server/modules/auth/sessions";
 import { conflict, isUniqueViolation, validationError } from "@/server/modules/catalog/errors";
 import { changeNoticeEmail, type ChangeNotice } from "@/server/modules/customers/notices";
 import type { UpdateProfileInput } from "@/server/modules/customers/schemas";
+import { OPEN_ORDER_STATUSES } from "@/server/modules/orders/orders";
 import { walletBalance } from "@/server/modules/wallet/wallet-service";
 import {
   getBlockedUntil,
@@ -83,15 +84,26 @@ async function lockCustomerRow(tx: Db, customerId: string): Promise<void> {
 
 /**
  * R34: deactivation is refused while the customer has an open order, an open
- * return or a non-zero wallet balance (held credit included). TASK-030
- * (orders) and TASK-037 (returns) add their check here, throwing
- * `409 CONFLICT` with `details.reason = ACCOUNT_HAS_OPEN_ITEMS`.
+ * return or a non-zero wallet balance (held credit included), with
+ * `409 CONFLICT`, `details.reason = ACCOUNT_HAS_OPEN_ITEMS` and the open
+ * items. TASK-037 (returns) adds its check here.
  */
 async function assertNothingOpen(tx: Db, customerId: string): Promise<void> {
+  const openItems: string[] = [];
+  const openOrder = await tx.order.findFirst({
+    where: { customerId, status: { in: [...OPEN_ORDER_STATUSES] } },
+    select: { id: true },
+  });
+  if (openOrder) {
+    openItems.push("OPEN_ORDER");
+  }
   if ((await walletBalance(tx, customerId)) !== BigInt(0)) {
-    throw conflict("Settle the wallet balance before deactivating the account.", {
+    openItems.push("WALLET_BALANCE");
+  }
+  if (openItems.length > 0) {
+    throw conflict("Finish open orders and settle the wallet before deactivating the account.", {
       reason: "ACCOUNT_HAS_OPEN_ITEMS",
-      openItems: ["WALLET_BALANCE"],
+      openItems,
     });
   }
 }

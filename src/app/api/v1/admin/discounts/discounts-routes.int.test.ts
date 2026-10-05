@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { POST as activate } from "@/app/api/v1/admin/discounts/[id]/activate/route";
 import { POST as deactivate } from "@/app/api/v1/admin/discounts/[id]/deactivate/route";
@@ -21,6 +20,7 @@ import {
 import type { PermissionCode } from "@/server/modules/rbac/catalog";
 import { MS_PER_DAY, MS_PER_HOUR } from "@/server/time/time";
 import { resetDatabase } from "@/test/integration/database";
+import { bareOrder, bareOrders } from "@/test/integration/orders";
 
 /** Admin discounts (API §23) and discounts in the cart (TASK-026, Q125, Q131–Q138, R36). */
 
@@ -326,11 +326,12 @@ describe("admin discounts", () => {
   it("lists with status and search filters and usage counts", async () => {
     const used = await discount({ code: "WELCOME" });
     await discount({ nameEn: "Hidden offer" }, false);
+    const orderId = await bareOrder();
     await runInTransaction(
       (tx) =>
         recordDiscountUsage(tx, {
           discountId: used.id,
-          orderId: randomUUID(),
+          orderId,
           customerId: null,
           discountAmount: BigInt(100),
           now: new Date(),
@@ -527,7 +528,7 @@ describe("discounts in the cart", () => {
     await call(addItem, "/cart/items", { method: "POST", token, body: { variantId, quantity: 1 } });
     await data(await choose({ token }, { code: "ONCE" }));
 
-    const orderId = randomUUID();
+    const orderId = await bareOrder();
     const use = (id: string, who: string | null) =>
       runInTransaction(
         (tx) =>
@@ -545,7 +546,9 @@ describe("discounts in the cart", () => {
     expect((await data(await call(getCart, "/cart", { token }))).discountProblem.reason).toBe(
       "CUSTOMER_LIMIT_REACHED",
     );
-    await expect(use(randomUUID(), customerId)).rejects.toMatchObject({ code: "DISCOUNT_INVALID" });
+    await expect(use(await bareOrder(), customerId)).rejects.toMatchObject({
+      code: "DISCOUNT_INVALID",
+    });
 
     await runInTransaction((tx) => releaseDiscountUsage(tx, orderId, new Date()), {}, db);
     await runInTransaction((tx) => releaseDiscountUsage(tx, orderId, new Date()), {}, db);
@@ -554,13 +557,14 @@ describe("discounts in the cart", () => {
 
   it("never lets concurrent orders pass the overall limit", async () => {
     const limited = await discount({ usageLimitTotal: 1 });
+    const orders = await bareOrders(3);
     const results = await Promise.allSettled(
-      [1, 2, 3].map(() =>
+      orders.map((orderId) =>
         runInTransaction(
           (tx) =>
             recordDiscountUsage(tx, {
               discountId: limited.id,
-              orderId: randomUUID(),
+              orderId,
               customerId: null,
               discountAmount: BigInt(100),
               now: new Date(),

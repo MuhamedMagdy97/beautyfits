@@ -24,6 +24,7 @@ import {
 import { isTargeted } from "@/server/modules/discounts/engine";
 import { reserveForOrder } from "@/server/modules/inventory/reservations";
 import { findUsableArea } from "@/server/modules/locations/locations-service";
+import { loadOrderSummary, type OrderSummaryView } from "@/server/modules/orders/orders-service";
 import { quoteShippingForArea } from "@/server/modules/shipping/shipping-service";
 import { availableWalletCredit, reserveWallet } from "@/server/modules/wallet/wallet-service";
 import { allocate, multiply, toJsonNumber } from "@/server/money/money";
@@ -113,31 +114,6 @@ export interface CheckoutQuoteView {
   codAmount: number;
   codConfirmationRequired: boolean;
   currency: "EGP";
-}
-
-export interface OrderSummaryView {
-  id: string;
-  orderNumber: string;
-  status: OrderStatus;
-  currency: string;
-  subtotal: number;
-  discountTotal: number;
-  shippingFee: number;
-  total: number;
-  walletAmount: number;
-  codAmount: number;
-  codConfirmationRequired: boolean;
-  items: {
-    variantId: string;
-    sku: string;
-    name: string;
-    variantName: string | null;
-    quantity: number;
-    unitPrice: number;
-    discountAmount: number;
-    lineTotal: number;
-  }[];
-  createdAt: string;
 }
 
 interface Ctx {
@@ -421,39 +397,6 @@ export function createCheckoutService(deps: { db: PrismaClient; clock: Clock }) 
     };
   }
 
-  async function orderSummary(orderId: string, locale: SupportedLocale): Promise<OrderSummaryView> {
-    const order = await db.order.findUniqueOrThrow({
-      where: { id: orderId },
-      include: { items: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
-    });
-    const localized = (value: Prisma.JsonValue | null): string | null =>
-      value === null ? null : ((value as Record<string, string>)[locale] ?? null);
-    return {
-      id: order.id,
-      orderNumber: order.orderNumber,
-      status: order.status,
-      currency: order.currency,
-      subtotal: toJsonNumber(order.subtotal),
-      discountTotal: toJsonNumber(order.discountTotal),
-      shippingFee: toJsonNumber(order.shippingFee),
-      total: toJsonNumber(order.total),
-      walletAmount: toJsonNumber(order.walletAmountReserved),
-      codAmount: toJsonNumber(order.codAmount),
-      codConfirmationRequired: order.codAmount > BigInt(0),
-      items: order.items.map((item) => ({
-        variantId: item.productVariantId,
-        sku: item.skuSnapshot,
-        name: localized(item.productNameSnapshot) ?? "",
-        variantName: localized(item.variantNameSnapshot),
-        quantity: item.quantity,
-        unitPrice: toJsonNumber(item.unitPrice),
-        discountAmount: toJsonNumber(item.discountAmount),
-        lineTotal: toJsonNumber(item.lineTotal),
-      })),
-      createdAt: order.createdAt.toISOString(),
-    };
-  }
-
   /** `POST /checkout`: places the COD order (Q39, Q40). */
   async function placeOrder(
     owner: CartOwner,
@@ -657,7 +600,7 @@ export function createCheckoutService(deps: { db: PrismaClient; clock: Clock }) 
     if (!result.replayed) {
       ctx.logger.info("order placed", { orderId: result.orderId, customerId });
     }
-    return orderSummary(result.orderId, locale);
+    return loadOrderSummary(db, result.orderId, locale);
   }
 
   return { quote, placeOrder };
