@@ -40,6 +40,10 @@ export const SETTING_KEYS = {
   pricingMinMarginBasisPoints: "pricing.min_margin_basis_points",
   cartGuestExpiryDays: "cart.guest_expiry_days",
   shippingFreeShippingThreshold: "shipping.free_shipping_threshold",
+  codConfirmationTimeoutHours: "cod.confirmation_timeout_hours",
+  codReminderIntervalHours: "cod.reminder_interval_hours",
+  codReminderMaxCount: "cod.reminder_max_count",
+  codConfirmationChannel: "cod.confirmation_channel",
 } as const;
 
 /** Default image limit per product (Q177 "configurable"; ADR-0021). */
@@ -53,6 +57,15 @@ export const DEFAULT_GUEST_CART_EXPIRY_DAYS = 30;
 
 /** Orders of at least 2500 EGP after discounts ship free (Q123, R37); piastres. */
 export const DEFAULT_FREE_SHIPPING_THRESHOLD = 250_000;
+
+/** COD confirmation (Q25, Q54, R21, R39): 72 hours at most, reminders every 24 hours, at most 2. */
+export const MAX_COD_CONFIRMATION_TIMEOUT_HOURS = 72;
+export const DEFAULT_COD_REMINDER_INTERVAL_HOURS = 24;
+export const DEFAULT_COD_REMINDER_MAX_COUNT = 2;
+
+/** WHATSAPP: the System sends the secure link and reminders; PHONE: staff call (R39). */
+export const COD_CONFIRMATION_CHANNELS = ["WHATSAPP", "PHONE"] as const;
+export type CodConfirmationChannel = (typeof COD_CONFIRMATION_CHANNELS)[number];
 
 /** A margin in basis points from 0% up to, not including, 100%. */
 function isMarginBasisPoints(value: unknown): value is number {
@@ -102,6 +115,34 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     isValid: isPositiveInteger,
     source: "Business Spec Q123, R37 (2500 EGP, decided by the product owner)",
   },
+  {
+    key: SETTING_KEYS.codConfirmationTimeoutHours,
+    dataType: "INTEGER",
+    defaultValue: MAX_COD_CONFIRMATION_TIMEOUT_HOURS,
+    isValid: (value) => isPositiveInteger(value) && value <= MAX_COD_CONFIRMATION_TIMEOUT_HOURS,
+    source: "Business Spec Q25, R21 (at most 72 hours), R39 (default 72)",
+  },
+  {
+    key: SETTING_KEYS.codReminderIntervalHours,
+    dataType: "INTEGER",
+    defaultValue: DEFAULT_COD_REMINDER_INTERVAL_HOURS,
+    isValid: isPositiveInteger,
+    source: "Business Spec Q54, R39 (every 24 hours)",
+  },
+  {
+    key: SETTING_KEYS.codReminderMaxCount,
+    dataType: "INTEGER",
+    defaultValue: DEFAULT_COD_REMINDER_MAX_COUNT,
+    isValid: (value) => value === 0 || isPositiveInteger(value),
+    source: "Business Spec Q54, R39 (at most 2 reminders; 0 sends none)",
+  },
+  {
+    key: SETTING_KEYS.codConfirmationChannel,
+    dataType: "STRING",
+    defaultValue: "WHATSAPP",
+    isValid: (value) => COD_CONFIRMATION_CHANNELS.includes(value as CodConfirmationChannel),
+    source: "Business Spec Q18, Q24, R10, R39 (WhatsApp or phone)",
+  },
 ];
 
 const DEFINITIONS_BY_KEY = new Map(SETTING_DEFINITIONS.map((d) => [d.key, d]));
@@ -110,17 +151,42 @@ const DEFINITIONS_BY_KEY = new Map(SETTING_DEFINITIONS.map((d) => [d.key, d]));
  * The stored value of an integer setting, or its default when the row is
  * missing or invalid (an invalid row is logged).
  */
-async function readIntegerSetting(db: Db, key: string, log: Logger): Promise<number> {
+async function readSetting<T>(db: Db, key: string, log: Logger): Promise<T> {
   const definition = DEFINITIONS_BY_KEY.get(key)!;
   const row = await db.setting.findUnique({ where: { key }, select: { valueJson: true } });
   if (!row) {
-    return definition.defaultValue as number;
+    return definition.defaultValue as T;
   }
   if (!definition.isValid(row.valueJson)) {
     log.warn("settings.invalid_value", { key });
-    return definition.defaultValue as number;
+    return definition.defaultValue as T;
   }
-  return row.valueJson as number;
+  return row.valueJson as T;
+}
+
+function readIntegerSetting(db: Db, key: string, log: Logger): Promise<number> {
+  return readSetting<number>(db, key, log);
+}
+
+export interface CodSettings {
+  timeoutHours: number;
+  reminderIntervalHours: number;
+  reminderMaxCount: number;
+  channel: CodConfirmationChannel;
+}
+
+/** COD confirmation timeout, reminder schedule and channel (Q25, Q54, R39). */
+export async function readCodSettings(db: Db, log: Logger = defaultLogger): Promise<CodSettings> {
+  return {
+    timeoutHours: await readIntegerSetting(db, SETTING_KEYS.codConfirmationTimeoutHours, log),
+    reminderIntervalHours: await readIntegerSetting(db, SETTING_KEYS.codReminderIntervalHours, log),
+    reminderMaxCount: await readIntegerSetting(db, SETTING_KEYS.codReminderMaxCount, log),
+    channel: await readSetting<CodConfirmationChannel>(
+      db,
+      SETTING_KEYS.codConfirmationChannel,
+      log,
+    ),
+  };
 }
 
 /** How many images a product may have, its variants' images included (Q177). */

@@ -26,6 +26,7 @@ export async function bareOrder(customerId: string | null = null): Promise<strin
       shippingRuleSnapshot: {},
       shippingAddressSnapshot: {},
       customerSnapshot: { customerId, fullName: "Test", phone: "+201000000000" },
+      codConfirmationDeadlineAt: new Date(now.getTime() + 72 * 60 * 60 * 1000),
       createdAt: now,
       updatedAt: now,
     },

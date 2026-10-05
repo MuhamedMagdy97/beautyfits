@@ -82,6 +82,13 @@ describe("default settings", () => {
     expect(byKey.get(SETTING_KEYS.pricingMinMarginBasisPoints)?.defaultValue).toBe(1000);
     expect(byKey.get(SETTING_KEYS.cartGuestExpiryDays)?.defaultValue).toBe(30);
     expect(byKey.get(SETTING_KEYS.shippingFreeShippingThreshold)?.defaultValue).toBe(250_000);
+    expect(byKey.get(SETTING_KEYS.codConfirmationTimeoutHours)?.defaultValue).toBe(72);
+    expect(byKey.get(SETTING_KEYS.codConfirmationTimeoutHours)?.isValid(73)).toBe(false);
+    expect(byKey.get(SETTING_KEYS.codReminderIntervalHours)?.defaultValue).toBe(24);
+    expect(byKey.get(SETTING_KEYS.codReminderMaxCount)?.defaultValue).toBe(2);
+    expect(byKey.get(SETTING_KEYS.codReminderMaxCount)?.isValid(0)).toBe(true);
+    expect(byKey.get(SETTING_KEYS.codConfirmationChannel)?.defaultValue).toBe("WHATSAPP");
+    expect(byKey.get(SETTING_KEYS.codConfirmationChannel)?.isValid("SMS")).toBe(false);
     for (const definition of SETTING_DEFINITIONS) {
       expect(definition.isValid(definition.defaultValue)).toBe(true);
       for (const bad of [-5, 1.5, "60", null]) {
@@ -97,7 +104,9 @@ describe("default settings", () => {
     expect(margin.isValid(0)).toBe(true);
     expect(margin.isValid(9999)).toBe(true);
     expect(margin.isValid(10_000)).toBe(false);
-    for (const definition of SETTING_DEFINITIONS.filter((d) => d !== margin)) {
+    // 0 COD reminders is allowed: none are sent (R39).
+    const zeroAllowed = [margin.key, SETTING_KEYS.codReminderMaxCount] as string[];
+    for (const definition of SETTING_DEFINITIONS.filter((d) => !zeroAllowed.includes(d.key))) {
       expect(definition.isValid(0)).toBe(false);
     }
   });
