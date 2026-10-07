@@ -114,6 +114,12 @@ export const AUDIT_ACTIONS = [
   "ORDER_REVISED",
   // Cancellation (TASK-033)
   "ORDER_CANCELLED",
+  // Shipments (TASK-034)
+  "ORDER_SHIPPING_ASSIGNED",
+  "ORDER_SHIPPED",
+  "ORDER_DELIVERED",
+  "SHIPMENT_TRACKING_UPDATED",
+  "SHIPMENT_STATUS_CHANGED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -140,6 +146,7 @@ export const AUDIT_ENTITY_TYPES = {
   shippingCompany: "SHIPPING_COMPANY",
   shippingRule: "SHIPPING_RULE",
   order: "ORDER",
+  shipment: "SHIPMENT",
 } as const;
 
 export interface AuditActor {
