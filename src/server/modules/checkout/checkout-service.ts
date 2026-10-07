@@ -157,7 +157,18 @@ async function resolveDelivery(
     }
     contact = { ...input.contact, email: input.contact.email ?? null };
   }
+  return { contact, ...(await resolveAddress(db, customerId, input)) };
+}
 
+/**
+ * A saved address of the customer or an inline one, checked, as its order
+ * snapshot (also used by order revisions, TASK-032).
+ */
+export async function resolveAddress(
+  db: Db,
+  customerId: string | null,
+  input: Pick<CheckoutQuoteInput, "addressId" | "address">,
+): Promise<{ areaId: string; address: Prisma.InputJsonObject }> {
   let fields: NonNullable<CheckoutQuoteInput["address"]>;
   let sourceAddressId: string | null = null;
   if (input.addressId) {
@@ -174,7 +185,6 @@ async function resolveDelivery(
   }
   const area = await findUsableArea(db, fields.areaId);
   return {
-    contact,
     areaId: area.id,
     address: {
       sourceAddressId,

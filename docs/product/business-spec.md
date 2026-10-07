@@ -1065,6 +1065,16 @@ Product-owner decisions made on 2026-10-05.
 4. **Channel:** a setting `cod.confirmation_channel` = `WHATSAPP` (default: the System sends the secure link and the reminders) or `PHONE` (no messages; staff call the customer). Staff with `RECORD_COD_CONFIRMATION` can record a phone confirmation on either channel (R10).
 5. **At the deadline** the order becomes `Expired`; its stock, discount use and wallet credit are given back and the order is kept (Q25, Q31, R36).
 
+### R40 — Order modification (TASK-032; complete C5, Q32)
+Product-owner decisions made on 2026-10-07.
+1. **Who:** only the signed-in customer, on an own order, while it is `Pending Confirmation`, `New` or `Confirmed`. Guests have no online order access (R16); phone requests are handled by cancelling and ordering again.
+2. **What:** the items and quantities, the delivery address and the wallet credit used.
+3. **Prices:** quantity already in the order keeps its order price; extra quantity and new items take today's price.
+4. **Discount:** the order's discount stays, re-applied to the new items with the terms it had at ordering (percentage, cap, minimum); it is dropped (and its use given back) when no longer met. No adding or switching discounts while editing.
+5. **Shipping:** always quoted again with today's rules for the (new) address and the new total, including the free-shipping threshold.
+6. **Re-confirmation:** the customer's confirmation in the app is the re-confirmation. The order changes only then; an unconfirmed change lapses after **24 hours**, and a newer change replaces an open one. An order still `Pending Confirmation` keeps its COD confirmation and original deadline (R39); if the wallet now covers everything it moves to `New` (C4).
+7. **Staff review:** a change confirmed on a `Confirmed` order sends it back to `New` for another staff review.
+
 ## Key non-negotiables
 - Backend is authoritative for price, stock, discount, shipping, permissions and order state.
 - Checkout core DB changes are atomic; external notifications happen after commit.
@@ -1092,4 +1102,5 @@ Product-owner decisions made on 2026-10-05.
 - v1.6 discount application rules (R36, 2026-10-04): codeless offers listed in the cart, codes entered; the customer always chooses; percentage on targeted items, minimum on the whole subtotal, cap per order; categories include subcategories; per-customer limits need sign-in; uses count from order creation and are given back on cancellation/expiry before shipping; 1–100%, editable any time.
 - v1.8 checkout and order decisions (R38, 2026-10-05): `BF-` order numbers; changes before ordering refuse the order for review; guest email optional; no guest marketing opt-in; tax-inclusive with no rate until tax invoicing; proportional discount split per item; wallet captured at Shipped; 20 checkouts per IP per hour.
 - v1.9 COD confirmation (R39, 2026-10-05): 72-hour default timeout fixed per order at placement; reminders every 24 hours, at most 2; channel setting WhatsApp (default) or phone, phone recording always allowed; expiry gives back stock, discount use and wallet credit.
+- v1.10 order modification (R40, 2026-10-07): signed-in customers only, before Preparing; items, address and wallet; ordered quantity keeps its price, extra at today's price; order-time discount terms kept or dropped; shipping re-quoted; in-app confirmation within 24 hours; a revised Confirmed order goes back to New.
 - v1.7 shipping rules (R37, 2026-10-04): one fee per delivery area from the most specific rule (area, governorate, everywhere; priority breaks ties), the proposed company can be changed by staff without changing the fee; one store-wide free-shipping threshold (2500 EGP) on the total after discounts; no rule means no shipping.
