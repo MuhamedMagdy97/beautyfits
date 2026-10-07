@@ -177,6 +177,7 @@ model Customer {
   discountUsages DiscountUsage[]
   wallet         Wallet?
   orders         Order[]
+  notifications  Notification[]
 
   @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
   @@index([phone])
@@ -359,6 +360,7 @@ model Employee {
   ledgerEntries         SupplierLedgerEntry[] @relation("SupplierLedgerEntryCreatedBy")
   discountsCreated      Discount[]            @relation("DiscountCreatedBy")
   codPhoneConfirmations Order[]               @relation("OrderCodConfirmationRecordedBy")
+  notifications         Notification[]
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -1838,6 +1840,7 @@ model Order {
   reservations              InventoryReservation[]
   discountUsage             DiscountUsage?
   walletHolds               WalletReservation[]
+  notificationDeliveries    NotificationDelivery[]
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
@@ -1938,4 +1941,97 @@ model CheckoutAttempt {
 
   @@unique([scope, idempotencyKey])
   @@map("checkout_attempts")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications (DB design §17 + "v1.2 TASK-045 Amendments"; TASK-045,
+// ADR-0043)
+// ---------------------------------------------------------------------------
+
+enum NotificationRecipientType {
+  CUSTOMER
+  EMPLOYEE
+
+  @@map("notification_recipient_type")
+}
+
+enum NotificationType {
+  TRANSACTIONAL
+  MARKETING
+  RESTOCK
+
+  @@map("notification_type")
+}
+
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+
+  @@map("notification_channel")
+}
+
+enum NotificationDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  FALLBACK_SENT
+
+  @@map("notification_delivery_status")
+}
+
+/// In-app notification centre (Q57, Q58). Guests have none; their messages
+/// exist only as deliveries. History is kept: rows are never deleted.
+model Notification {
+  id            String                    @id @default(uuid(7)) @db.Uuid
+  recipientType NotificationRecipientType @map("recipient_type")
+  customerId    String?                   @map("customer_id") @db.Uuid
+  employeeId    String?                   @map("employee_id") @db.Uuid
+  type          NotificationType
+  title         String
+  body          String
+  /// e.g. ORDER + the order id (Q57).
+  deepLinkType  String?                   @map("deep_link_type")
+  deepLinkId    String?                   @map("deep_link_id") @db.Uuid
+  /// The outbox event that produced it: one notification per event.
+  sourceEventId String?                   @unique @map("source_event_id") @db.Uuid
+  readAt        DateTime?                 @map("read_at") @db.Timestamptz(3)
+  createdAt     DateTime                  @map("created_at") @db.Timestamptz(3)
+
+  customer   Customer?              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  employee   Employee?              @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  deliveries NotificationDelivery[]
+
+  @@index([customerId, readAt, createdAt(sort: Desc)])
+  @@index([employeeId, readAt, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+/// One attempt to send one message on one channel (Q55, Q56): every attempt
+/// and its result is logged. The message text is not stored (it may hold a
+/// secure link).
+model NotificationDelivery {
+  id                String                     @id @default(uuid(7)) @db.Uuid
+  notificationId    String?                    @map("notification_id") @db.Uuid
+  /// The outbox event being delivered; attempts are numbered per event.
+  sourceEventId     String?                    @map("source_event_id") @db.Uuid
+  orderId           String?                    @map("order_id") @db.Uuid
+  templateKey       String                     @map("template_key")
+  locale            Locale
+  channel           NotificationChannel
+  recipient         String
+  attemptNumber     Int                        @map("attempt_number")
+  status            NotificationDeliveryStatus
+  providerReference String?                    @map("provider_reference")
+  failureReason     String?                    @map("failure_reason")
+  createdAt         DateTime                   @map("created_at") @db.Timestamptz(3)
+  sentAt            DateTime?                  @map("sent_at") @db.Timestamptz(3)
+
+  notification Notification? @relation(fields: [notificationId], references: [id], onDelete: Restrict)
+  order        Order?        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceEventId, attemptNumber])
+  @@index([status, createdAt])
+  @@index([orderId])
+  @@index([notificationId])
+  @@map("notification_deliveries")
 }

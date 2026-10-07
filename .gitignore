@@ -33,6 +33,9 @@ yarn-error.log*
 # local mailbox (MAIL_DIR, ADR-0014)
 /.mail/
 
+# local WhatsApp outbox (WHATSAPP_DIR, ADR-0043)
+/.whatsapp/
+
 # local file storage (MEDIA_DIR, ADR-0021)
 /.media/
 
