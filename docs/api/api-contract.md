@@ -450,7 +450,7 @@ Wallet uses an append-only ledger plus reservations. Wallet credit used in a pen
 | POST | `/variants/{variantId}/restock-subscription` | Subscribe to restock | Customer |
 | DELETE | `/variants/{variantId}/restock-subscription` | Cancel subscription | Customer |
 
-Wishlist is account-only. Out-of-stock items may remain visible. `Notify Me` is a separate explicit subscription.
+Wishlist is account-only. Out-of-stock items may remain visible. `Notify Me` is a separate explicit subscription. Wishlist details: "TASK-042 Amendments".
 
 # 20. Reviews
 
@@ -1748,3 +1748,26 @@ Added by TASK-034 (`docs/tasks/TASK-034-shipment-core.md`, ADR-0040). Business r
 | Tracking number used by another shipment of the company | `409 CONFLICT`, `details.reason = TRACKING_NUMBER_TAKEN` |
 | Shipment step not allowed (e.g. `SHIPPED → DELIVERED`) | `409 CONFLICT`, `details = { reason: "SHIPMENT_STATE_INVALID", status, to }` |
 | `DELIVERED` without `MARK_AS_DELIVERED` | `403 PERMISSION_DENIED` |
+
+## TASK-042 Amendments
+
+Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules: Q4, Q47, Q48, Q51. Implements the wishlist endpoints of §19; the restock subscription endpoints come with TASK-043.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /me/wishlist` | Customer | — | `200` `wishlist` |
+| `POST /me/wishlist/items` | Customer | `{ variantId }` | `200` `wishlist` (a variant already there: unchanged) |
+| `DELETE /me/wishlist/items/{itemId}` | Customer | — | `200` `wishlist` |
+| `POST /me/wishlist/items/{itemId}/move-to-cart` | Customer | — | `200` `{ cart, wishlist }`: one unit added to the customer cart (§14 rules; summed into an existing line) and the item removed, atomically |
+
+- `wishlist = { id (null before the first add), items[], itemCount }`, newest first. Item: `{ id, productId, variantId, slug, sku, name, variantName, imageUrl, unitPrice, status, addedAt }`.
+- `status`: `AVAILABLE`; `OUT_OF_STOCK` (no available stock; the UI offers Coming Soon / Notify Me, Q47); `UNAVAILABLE` (product not published, variant archived or no price; kept visible, Q48). `unitPrice` (piastres) is null when `UNAVAILABLE`.
+- Being on the wishlist never subscribes the customer to restock notifications (Q47, Q51).
+
+| Situation | Response |
+|---|---|
+| No customer session (guests) | `401 UNAUTHENTICATED` |
+| Unknown variant, or one not addable (product not published, variant archived) | `404 NOT_FOUND` |
+| Unknown item, or another customer's | `404 NOT_FOUND` |
+| 100 items already | `409 CONFLICT`, `details = { reason: "WISHLIST_LIMIT_REACHED", limit: 100 }` |
+| Move-to-cart refused by the cart (no stock / unavailable / 50-line limit) | `422 OUT_OF_STOCK` / `404 NOT_FOUND` / `409 CONFLICT`, as `POST /cart/items`; nothing changes |
