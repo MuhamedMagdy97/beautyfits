@@ -387,6 +387,8 @@ Allow edits before Preparing. Material changes recalculate everything and requir
 
 Implement cancellation rules before carrier pickup, shipping-cancellation request after pickup, and Expired behavior.
 
+**Status after TASK-033** (`docs/tasks/TASK-033-cancellation-expiration.md`, ADR-0039, Business Spec R11): `POST /orders/{orderId}/cancel` (own order, optional reason) and `POST /admin/orders/{orderId}/cancel` (`CANCEL_ORDER`, reason required) cancel from Pending Confirmation through Ready for Shipment in one transaction: `CANCELLED` + `cancelled_at`, history, `releaseOrderHolds` (stock, discount use, wallet hold — shared with the TASK-031 expiry job), audit `ORDER_CANCELLED` and the `ORDER_CANCELLED` event. `SHIPPED`, `DELIVERED`, `CANCELLED` and `EXPIRED` are refused with `ORDER_CANCELLATION_NOT_ALLOWED` (`SHIPPED`: `reason = AFTER_CARRIER_PICKUP`). Expired behavior stays as built in TASK-031. TASK-036 adds the shipping cancellation request on the Shipment (customer `cancel` of a `SHIPPED` order and `request-shipping-cancellation`, `REQUEST_SHIPPING_CANCELLATION`) and `SHIPPED → CANCELLED` after the return is inspected; TASK-034's `mark-shipped` commits stock and captures the wallet, after which cancellation no longer releases anything.
+
 ---
 
 # Phase 6 — Shipping
