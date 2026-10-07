@@ -1665,3 +1665,24 @@ Added by TASK-031 (`docs/tasks/TASK-031-cod-confirmation.md`, ADR-0037). Busines
 | The order's deadline has passed (before the expiry job ran) | `409 ORDER_STATE_INVALID`, `details = { status, to: "NEW", reason: "CONFIRMATION_DEADLINE_PASSED" }` |
 | Too many link attempts | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
 | Missing `RECORD_COD_CONFIRMATION` | `403 PERMISSION_DENIED` |
+
+## TASK-050 Amendments
+
+Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Business rules: Q145–Q148, R35. Implements `POST /analytics/events` from §27.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /analytics/events` | Guest (`X-Anonymous-Id`) or Customer | `{ eventType: "PRODUCT_VIEW", productId }` or `{ eventType: "CHECKOUT_STARTED" }` | `202` `{ recorded }` |
+
+- `X-Anonymous-Id`: a random UUID the website/app generates once per device and keeps (Q146). Required for guests on this endpoint; optional on `POST /cart/items` and `POST /checkout`, where it links the server-recorded events to the visitor. A malformed value is ignored there.
+- A customer credential, when sent, must be valid (`401`), as on the cart. `CHECKOUT_STARTED` uses the shopper's cart (guest cart token or customer cart).
+- `recorded = false` (still `202`): an obvious bot (crawler-like or missing `User-Agent`, Q145), the same visitor viewing the same product within 30 minutes (refresh noise), an unknown or unpublished product, no non-empty cart, or a checkout start already open for that cart.
+- The server records `ADD_TO_CART` after a successful `POST /cart/items` and `ORDER_CREATED` after a successful `POST /checkout` (once per order; replays record nothing). Analytics failures never change those responses.
+- Job `npm run jobs:record-checkout-abandonments` (hourly, scheduled by TASK-066) records `CHECKOUT_ABANDONED` for checkout starts whose cart did not become an order within the abandonment time.
+- Rate limited to 1000 events per IP per hour.
+
+| Situation | Response |
+|---|---|
+| Unknown `eventType`, bad `productId`, or a guest without a valid `X-Anonymous-Id` | `400 VALIDATION_ERROR` |
+| Invalid customer credential | `401 UNAUTHENTICATED` |
+| Too many events | `429 RATE_LIMITED`, `details.retryAfterSeconds` |

@@ -25,7 +25,8 @@
     "db:seed:dev": "tsx prisma/seed-dev.ts",
     "jobs:expire-guest-carts": "tsx scripts/expire-guest-carts.ts",
     "jobs:expire-cod-orders": "tsx scripts/expire-cod-orders.ts",
-    "jobs:send-cod-reminders": "tsx scripts/send-cod-reminders.ts"
+    "jobs:send-cod-reminders": "tsx scripts/send-cod-reminders.ts",
+    "jobs:record-checkout-abandonments": "tsx scripts/record-checkout-abandonments.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

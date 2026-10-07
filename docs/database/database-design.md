@@ -1931,3 +1931,13 @@ Added by TASK-031 (`docs/tasks/TASK-031-cod-confirmation.md`, ADR-0037). Migrate
 - `orders` (§8, R10, R39): `cod_confirmation_deadline_at` (set at checkout for `PENDING_CONFIRMATION` orders: creation + the timeout setting, at most 72 hours; never recomputed), `cod_confirmation_source` (enum `cod_confirmation_source` = `WHATSAPP` | `PHONE`), `cod_confirmed_at`, `cod_confirmation_recorded_by_employee_id` (FK `employees`, `RESTRICT`; check: required when the source is `PHONE`), `cod_reminder_count` (default 0, never negative), `cod_last_reminder_at`, `expired_at`. Index `(status, cod_confirmation_deadline_at)` for the reminder and expiry jobs. All are lifecycle columns, writable under `orders_immutable`. Orders already pending at migration time got the 72-hour deadline.
 - `cod_confirmation_tokens` as in "Orders & COD", without `order_revision_id` (added with revisions, TASK-032). `channel` uses the same enum (default `WHATSAPP`). Index on `order_id`.
 - Settings (§20): `cod.confirmation_timeout_hours` (1–72, default 72), `cod.reminder_interval_hours` (default 24), `cod.reminder_max_count` (default 2, 0 allowed), `cod.confirmation_channel` (`WHATSAPP` | `PHONE`, default `WHATSAPP`).
+
+## v1.2 TASK-050 Amendments
+
+Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Migrated in `prisma/migrations/*_analytics_events`.
+
+- `analytics_events` (§19): `event_type` is enum `analytics_event_type` = `PRODUCT_VIEW` | `ADD_TO_CART` | `CHECKOUT_STARTED` | `CHECKOUT_ABANDONED` | `ORDER_CREATED` (the other §19 types are added by the tasks that record them). `entity_type` = `PRODUCT` | `CART` | `ORDER`; `entity_id` is a UUID. `metadata_json` defaults to `{}` (`ADD_TO_CART`: `variantId`, `quantity`; `CHECKOUT_ABANDONED`: `checkoutStartedEventId`).
+- New `dedupe_key` (unique, nullable) keeps server-recorded events single: `ORDER_CREATED:<orderId>`, `CHECKOUT_ABANDONED:<startEventId>`.
+- `session_id` is not created: there is no browsing-session concept yet (added when a task needs it).
+- No foreign keys: carts are deleted on deactivation (R34) and analytics must never block or be blocked by domain rows. No IP address, user agent or contact data is stored.
+- Indexes: `(event_type, occurred_at)` (§22) and `(entity_id, event_type, occurred_at)` for the refresh, open-start and abandonment checks.

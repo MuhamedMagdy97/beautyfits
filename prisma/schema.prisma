@@ -1939,3 +1939,40 @@ model CheckoutAttempt {
   @@unique([scope, idempotencyKey])
   @@map("checkout_attempts")
 }
+
+// ---------------------------------------------------------------------------
+// Analytics (DB design §19, "v1.2 TASK-050 Amendments"; TASK-050, ADR-0044)
+// ---------------------------------------------------------------------------
+
+enum AnalyticsEventType {
+  PRODUCT_VIEW
+  ADD_TO_CART
+  CHECKOUT_STARTED
+  CHECKOUT_ABANDONED
+  ORDER_CREATED
+
+  @@map("analytics_event_type")
+}
+
+/// First-party funnel event (Q145–Q148). Never authoritative for orders,
+/// inventory or wallet. No foreign keys: domain rows (carts, products) may be
+/// removed or anonymized without touching analytics, and analytics never
+/// blocks them. Holds no IP address, user agent or contact data.
+model AnalyticsEvent {
+  id          String             @id @default(uuid(7)) @db.Uuid
+  /// Random id the client generated for an anonymous visitor (Q146).
+  anonymousId String?            @map("anonymous_id") @db.Uuid
+  customerId  String?            @map("customer_id") @db.Uuid
+  eventType   AnalyticsEventType @map("event_type")
+  /// PRODUCT, CART or ORDER.
+  entityType  String?            @map("entity_type")
+  entityId    String?            @map("entity_id") @db.Uuid
+  metadata    Json               @default("{}") @map("metadata_json")
+  /// Keeps a server-recorded event single (e.g. "ORDER_CREATED:<orderId>").
+  dedupeKey   String?            @unique @map("dedupe_key")
+  occurredAt  DateTime           @map("occurred_at") @db.Timestamptz(3)
+
+  @@index([eventType, occurredAt])
+  @@index([entityId, eventType, occurredAt])
+  @@map("analytics_events")
+}

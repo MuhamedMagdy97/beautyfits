@@ -3,6 +3,8 @@ import { localeFromAcceptLanguage } from "@/server/http/locale";
 import { ok } from "@/server/http/response";
 import { withApi } from "@/server/http/route-handler";
 import { parseJsonBody, requireIdempotencyKey } from "@/server/http/validation";
+import { getAnalyticsService, trackSafely } from "@/server/modules/analytics/analytics-service";
+import { analyticsVisitor } from "@/server/modules/analytics/http";
 import { cartOwner } from "@/server/modules/cart/http";
 import { getCheckoutService } from "@/server/modules/checkout/checkout-service";
 import { checkoutSchema } from "@/server/modules/checkout/schemas";
@@ -23,6 +25,9 @@ export const POST = withApi(async (request, api) => {
     locale,
     getClientIp(request),
     { logger: api.logger, correlationId: api.requestId },
+  );
+  await trackSafely(api.logger, () =>
+    getAnalyticsService().recordOrderCreated(analyticsVisitor(request, owner), order.id),
   );
   return ok(api.requestId, order, { status: 201 });
 });
