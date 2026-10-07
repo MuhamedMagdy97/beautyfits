@@ -2,6 +2,9 @@ import type { OrderStatus, Prisma } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/transaction";
 import { AppError } from "@/server/errors/app-error";
 import type { AuditActor } from "@/server/modules/audit/audit";
+import { releaseDiscountUsage } from "@/server/modules/discounts/discounts-service";
+import { releaseForOrder } from "@/server/modules/inventory/reservations";
+import { releaseWalletReservation } from "@/server/modules/wallet/wallet-service";
 
 /**
  * The order state machine (Business Spec R1–R4, R11; User Flows §8; API §15
@@ -11,13 +14,15 @@ import type { AuditActor } from "@/server/modules/audit/audit";
  *
  * - `PENDING_CONFIRMATION → NEW` only by the System after COD confirmation (R1, R10).
  * - `EXPIRED` only from `PENDING_CONFIRMATION` (COD timeout, Q25).
+ * - `CONFIRMED → NEW` only when the customer confirms a revision, so staff
+ *   review the changed order again (C5, R40).
  * - Direct cancellation before carrier pickup (R11); `SHIPPED → CANCELLED`
  *   only after the shipment came back (R3, TASK-036).
  */
 export const ORDER_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
   PENDING_CONFIRMATION: ["NEW", "CANCELLED", "EXPIRED"],
   NEW: ["CONFIRMED", "CANCELLED"],
-  CONFIRMED: ["PREPARING", "CANCELLED"],
+  CONFIRMED: ["PREPARING", "CANCELLED", "NEW"],
   PREPARING: ["READY_FOR_SHIPMENT", "CANCELLED"],
   READY_FOR_SHIPMENT: ["SHIPPED", "CANCELLED"],
   SHIPPED: ["DELIVERED", "CANCELLED"],
@@ -34,6 +39,15 @@ export const OPEN_ORDER_STATUSES: readonly OrderStatus[] = [
   "PREPARING",
   "READY_FOR_SHIPMENT",
   "SHIPPED",
+];
+
+/** Direct cancellation: before the carrier physically has the shipment (R11). */
+export const CANCELLABLE_ORDER_STATUSES: readonly OrderStatus[] = [
+  "PENDING_CONFIRMATION",
+  "NEW",
+  "CONFIRMED",
+  "PREPARING",
+  "READY_FOR_SHIPMENT",
 ];
 
 export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
@@ -92,4 +106,18 @@ export async function changeOrderStatus(
     },
   });
   return from;
+}
+
+/**
+ * Gives back what a cancelled or expired order still holds: its reserved
+ * stock, its discount use and its wallet hold (Q28, R11, R36, Audit
+ * Correction 5). Each step is idempotent. Runs in the caller's transaction.
+ */
+export async function releaseOrderHolds(
+  tx: Db,
+  input: { orderId: string; actor: AuditActor; now: Date; reason: string },
+): Promise<void> {
+  await releaseForOrder(tx, input);
+  await releaseDiscountUsage(tx, input.orderId, input.now);
+  await releaseWalletReservation(tx, { orderId: input.orderId, now: input.now });
 }

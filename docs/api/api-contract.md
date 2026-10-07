@@ -1666,6 +1666,58 @@ Added by TASK-031 (`docs/tasks/TASK-031-cod-confirmation.md`, ADR-0037). Busines
 | Too many link attempts | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
 | Missing `RECORD_COD_CONFIRMATION` | `403 PERMISSION_DENIED` |
 
+## TASK-032 Amendments
+
+Added by TASK-032 (`docs/tasks/TASK-032-order-modification.md`, ADR-0038). Business rules: C4, C5, Q32, R16, R36, R37, R39, R40. Implements `modify` and revision `confirm` from §15.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /orders/{orderId}/modify` | Customer (own order) | `{ items: [{ variantId, quantity }], addressId? \| address?, walletAmount? }` | `201` `revision` (`PENDING_CONFIRMATION`); the order is unchanged |
+| `POST /orders/{orderId}/revisions/{revisionId}/confirm` | Customer (own order) | — | `200` `customerOrder` with the new lines and amounts |
+
+- `items` is the whole new list (each variant once, quantity 1–999); a variant left out is removed. Without `addressId`/`address` the address stays. `walletAmount` defaults to what the order holds, at most the new total.
+- Pricing (R40): quantity already ordered keeps its order price; extra quantity and new items take today's price, so one variant may appear twice (order price and today's price). The order's discount is re-applied with its order-time terms or dropped (`discountDropped`); shipping is quoted again.
+- `revision`: `{ id, revisionNumber, status, oldTotal, newTotal, expiresAt, createdAt, confirmedAt, proposed: { items: [{ variantId, sku, name, variantName, quantity, unitPrice, discountAmount, lineTotal }], subtotal, discountTotal, discountDropped, shippingFee, freeShipping, total, walletAmount, codAmount, shippingAddress } }`. `status` = `PENDING_CONFIRMATION` | `CONFIRMED` | `SUPERSEDED` | `EXPIRED`; an open revision shows `EXPIRED` once 24 hours have passed or the order reached Preparing.
+- `customerOrder` gains `pendingRevision` (`revision` or null). `adminOrder` gains `revisions: [{ id, revisionNumber, status, oldTotal, newTotal, createdAt, confirmedAt }]`.
+- Confirming re-prices the revision; any difference (price, stock, shipping, wallet) is `409 RECONFIRMATION_REQUIRED` and the order stays unchanged. On success the stock and wallet holds move to the new amounts, a dropped discount's use is given back, a `CONFIRMED` order goes back to `NEW` (history actor the customer, `reason = ORDER_REVISED`), and a `PENDING_CONFIRMATION` order whose wallet now covers the total moves to `NEW` (`WALLET_COVERS_TOTAL`).
+- Revisions are confirmed by the signed-in customer only (R40); the secure-token path listed in §15 is not used.
+- Audit actions added (entity `ORDER`, actor the customer): `ORDER_REVISION_REQUESTED`, `ORDER_REVISED`. Outbox event `ORDER_REVISED` (`{ orderId, revisionId, revisionNumber }`).
+
+| Situation | Response |
+|---|---|
+| Unknown order, another customer's, or unknown revision | `404 NOT_FOUND` |
+| Order is `PREPARING` or later, cancelled or expired | `409 ORDER_STATE_INVALID`, `details = { status, reason: "NOT_EDITABLE" }` |
+| The request changes nothing | `409 CONFLICT`, `details.reason = NO_CHANGE` |
+| Revision replaced, already confirmed or lapsed | `409 CONFLICT`, `details.reason` = `REVISION_SUPERSEDED` \| `REVISION_CONFIRMED` \| `REVISION_EXPIRED` |
+| Re-pricing at confirmation differs | `409 RECONFIRMATION_REQUIRED`, `details.reason = REVISION_CHANGED` |
+| Extra quantity not available or not purchasable | `409 STOCK_CHANGED`, `details.items` |
+| Wallet amount above the total / not enough credit | `400 VALIDATION_ERROR` / `422 WALLET_INSUFFICIENT_FUNDS` |
+| No delivery rule for the new address | `422 SHIPPING_UNAVAILABLE` |
+
+## TASK-033 Amendments
+
+Added by TASK-033 (`docs/tasks/TASK-033-cancellation-expiration.md`, ADR-0039). Business rules: Q10, Q28, Q33, Q86, Q87, R3, R11, R16, R36, Audit Correction 5. Implements both `cancel` endpoints from §15. `request-shipping-cancellation` and the customer `cancel` of a `SHIPPED` order (recorded on the Shipment) come with TASK-036, once shipments exist (TASK-034).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /orders/{orderId}/cancel` | Customer (own order) | `{ reason? }` (1–500 characters; the body may be empty) | `200` `customerOrder` (`CANCELLED`) |
+| `POST /admin/orders/{orderId}/cancel` | `CANCEL_ORDER` | `{ reason }` (required, 1–500 characters, Q86) | `200` `adminOrder` (`CANCELLED`) |
+
+- Accepted while the order is `PENDING_CONFIRMATION`, `NEW`, `CONFIRMED`, `PREPARING` or `READY_FOR_SHIPMENT` (R11). One transaction moves it to `CANCELLED` (`cancelled_at`; history actor the customer or employee with the reason), gives back its reserved stock (`RELEASE_RESERVATION` movements), its discount use (R36) and its wallet hold (no ledger entry), writes the audit entry and the outbox event.
+- An open revision (TASK-032) then shows as `EXPIRED`; a COD link of the order no longer confirms (`ORDER_STATE_INVALID`); the expiry job skips the order.
+- `adminOrder` gains `cancelledAt`. The customer sees the cancellation in `statusHistory`.
+- Audit action added (entity `ORDER`): `ORDER_CANCELLED` (actor the customer or the employee, `reason`). Outbox event `ORDER_CANCELLED` (`{ orderId, cancelledBy: "CUSTOMER" | "EMPLOYEE", correlationId }`).
+- A repeated cancel is refused (`ORDER_CANCELLATION_NOT_ALLOWED`, `details.status = CANCELLED`); nothing is released twice.
+
+| Situation | Response |
+|---|---|
+| No customer session (guests cannot cancel online, R16) | `401 UNAUTHENTICATED` |
+| Unknown order or another customer's | `404 NOT_FOUND` |
+| Staff without `CANCEL_ORDER` | `403 PERMISSION_DENIED` |
+| Missing/blank staff reason, reason over 500 characters | `400 VALIDATION_ERROR` |
+| Order `SHIPPED` (after carrier pickup) | `422 ORDER_CANCELLATION_NOT_ALLOWED`, `details = { status: "SHIPPED", reason: "AFTER_CARRIER_PICKUP" }`. Interim for the customer endpoint until TASK-036 records the shipping cancellation request instead (§15). |
+| Order `DELIVERED`, `CANCELLED` or `EXPIRED` | `422 ORDER_CANCELLATION_NOT_ALLOWED`, `details.status` |
+
 ## TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules: Q4, Q47, Q48, Q51. Implements the wishlist endpoints of §19; the restock subscription endpoints come with TASK-043.
