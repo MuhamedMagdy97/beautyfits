@@ -442,6 +442,8 @@ Post-inspection wallet refunds, partial refunds, wallet transactions and reserva
 
 Account-only wishlist, unavailable/Coming Soon behavior and move-to-cart support.
 
+**Status after TASK-042** (`docs/tasks/TASK-042-wishlist.md`, ADR-0041): `wishlists`/`wishlist_items` and `/me/wishlist` (list, add, remove, move-to-cart) for signed-in customers. Items show `AVAILABLE`, `OUT_OF_STOCK` (Coming Soon / Notify Me, Q47) or `UNAVAILABLE` (Q48) and are never removed automatically. Move-to-cart adds one unit through `addToCustomerCart` in `src/server/modules/cart/cart-service.ts` and removes the item in the same transaction. TASK-043 adds the R6 reminder columns on `wishlist_items` and the restock subscriptions.
+
 ### TASK-043 — Restock / Notify Me & Wishlist Reminders
 **Depends on:** TASK-042, TASK-045
 

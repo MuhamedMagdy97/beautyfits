@@ -1931,3 +1931,10 @@ Added by TASK-031 (`docs/tasks/TASK-031-cod-confirmation.md`, ADR-0037). Migrate
 - `orders` (§8, R10, R39): `cod_confirmation_deadline_at` (set at checkout for `PENDING_CONFIRMATION` orders: creation + the timeout setting, at most 72 hours; never recomputed), `cod_confirmation_source` (enum `cod_confirmation_source` = `WHATSAPP` | `PHONE`), `cod_confirmed_at`, `cod_confirmation_recorded_by_employee_id` (FK `employees`, `RESTRICT`; check: required when the source is `PHONE`), `cod_reminder_count` (default 0, never negative), `cod_last_reminder_at`, `expired_at`. Index `(status, cod_confirmation_deadline_at)` for the reminder and expiry jobs. All are lifecycle columns, writable under `orders_immutable`. Orders already pending at migration time got the 72-hour deadline.
 - `cod_confirmation_tokens` as in "Orders & COD", without `order_revision_id` (added with revisions, TASK-032). `channel` uses the same enum (default `WHATSAPP`). Index on `order_id`.
 - Settings (§20): `cod.confirmation_timeout_hours` (1–72, default 72), `cod.reminder_interval_hours` (default 24), `cod.reminder_max_count` (default 2, 0 allowed), `cod.confirmation_channel` (`WHATSAPP` | `PHONE`, default `WHATSAPP`).
+
+## v1.2 TASK-042 Amendments
+
+Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Migrated in `prisma/migrations/20261008042000_wishlist`.
+
+- `wishlists` and `wishlist_items` as in §15. `wishlists.customer_id` unique, FK `customers` (`RESTRICT`); the wishlist is created on the first add. `wishlist_items.wishlist_id` FK (`CASCADE`), `product_variant_id` FK `product_variants` (`RESTRICT`), index on `product_variant_id`, unique `(wishlist_id, product_variant_id)`.
+- Items are deleted when the customer removes them or moves them to the cart; nothing else references them. The R6 reminder state columns ("Wishlist reminder state") are added by TASK-043.
