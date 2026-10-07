@@ -175,6 +175,7 @@ model Customer {
   addresses      CustomerAddress[]
   carts          Cart[]
   discountUsages DiscountUsage[]
+  orderRevisions OrderRevision[]
   wallet         Wallet?
   orders         Order[]
 
@@ -1838,12 +1839,51 @@ model Order {
   reservations              InventoryReservation[]
   discountUsage             DiscountUsage?
   walletHolds               WalletReservation[]
+  revisions                 OrderRevision[]
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
   @@index([guestPhone])
   @@index([status, codConfirmationDeadlineAt])
   @@map("orders")
+}
+
+enum OrderRevisionStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  /// A newer revision of the same order replaced it.
+  SUPERSEDED
+  EXPIRED
+
+  @@map("order_revision_status")
+}
+
+/// A customer's change of an order before Preparing (C5, Q32, R40; TASK-032).
+/// The order changes only when the customer confirms; the state before the
+/// change is kept here.
+model OrderRevision {
+  id                    String              @id @default(uuid(7)) @db.Uuid
+  orderId               String              @map("order_id") @db.Uuid
+  revisionNumber        Int                 @map("revision_number")
+  requestedByCustomerId String              @map("requested_by_customer_id") @db.Uuid
+  status                OrderRevisionStatus @default(PENDING_CONFIRMATION)
+  oldTotal              BigInt              @map("old_total")
+  newTotal              BigInt              @map("new_total")
+  /// The resolved request (items, address snapshot, wallet amount), re-priced at confirmation.
+  request               Json                @map("request_json")
+  /// The order's commercial state when the revision was made.
+  previousSnapshot      Json                @map("previous_snapshot_json")
+  /// The priced new state shown to the customer.
+  proposedSnapshot      Json                @map("proposed_snapshot_json")
+  expiresAt             DateTime            @map("expires_at") @db.Timestamptz(3)
+  createdAt             DateTime            @map("created_at") @db.Timestamptz(3)
+  confirmedAt           DateTime?           @map("confirmed_at") @db.Timestamptz(3)
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  requestedBy Customer @relation(fields: [requestedByCustomerId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, revisionNumber])
+  @@map("order_revisions")
 }
 
 /// WhatsApp secure-link tokens (R10, R16; TASK-031). Only the hash is
@@ -1889,7 +1929,9 @@ model OrderItem {
   product Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
   variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
 
-  @@unique([orderId, productVariantId])
+  /// One variant may have two lines after a revision: the order price and
+  /// today's price for the extra quantity (R40).
+  @@unique([orderId, productVariantId, unitPrice])
   @@index([productVariantId])
   @@map("order_items")
 }
