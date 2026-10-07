@@ -373,6 +373,8 @@ Implement order creation, order items, product/address/price/tax snapshots, stat
 
 Implement configurable confirmation channel, reminder schedule, 3-day hard maximum, Expired transition and reservation release.
 
+**Status after TASK-031** (`docs/tasks/TASK-031-cod-confirmation.md`, ADR-0037, Business Spec R39): checkout fixes each order's deadline (default 72 h, at most 72 h); `confirm-cod` (WhatsApp secure link) and `record-phone-confirmation` (`RECORD_COD_CONFIRMATION`) let the System move it to `NEW`; `jobs:send-cod-reminders` (every 24 h, at most 2, WhatsApp channel) and `jobs:expire-cod-orders` (`EXPIRED`, releases stock, discount use and wallet hold). TASK-045 sends the WhatsApp messages using `issueConfirmationToken`; TASK-066 schedules the jobs; TASK-033 keeps cancellation only.
+
 ### TASK-032 — Order Modification & Re-confirmation
 **Depends on:** TASK-030, TASK-031
 

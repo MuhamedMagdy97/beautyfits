@@ -336,28 +336,29 @@ model Employee {
   createdBy Employee?  @relation("EmployeeCreatedBy", fields: [createdByEmployeeId], references: [id])
   created   Employee[] @relation("EmployeeCreatedBy")
 
-  roles              EmployeeRole[]        @relation("EmployeeRoleHolder")
-  rolesAssigned      EmployeeRole[]        @relation("EmployeeRoleAssigner")
-  rolesCreated       Role[]                @relation("RoleCreatedBy")
-  invitationsSent    EmployeeInvitation[]  @relation("InvitationInvitedBy")
-  invitationsRevoked EmployeeInvitation[]  @relation("InvitationRevokedBy")
-  invitation         EmployeeInvitation?   @relation("InvitationAcceptedAs")
-  settingsUpdated    Setting[]             @relation("SettingUpdatedBy")
-  approvalsRequested ApprovalRequest[]     @relation("ApprovalRequestedBy")
-  approvalsResolved  ApprovalRequest[]     @relation("ApprovalResolvedBy")
-  mediaUploaded      MediaAsset[]          @relation("MediaAssetCreatedBy")
-  purchasesCreated   PurchaseOrder[]       @relation("PurchaseOrderCreatedBy")
-  purchasesApproved  PurchaseOrder[]       @relation("PurchaseOrderApprovedBy")
-  purchasesCancelled PurchaseOrder[]       @relation("PurchaseOrderCancelledBy")
-  purchasesClosed    PurchaseOrder[]       @relation("PurchaseOrderClosedBy")
-  goodsReceipts      GoodsReceipt[]        @relation("GoodsReceiptReceivedBy")
-  invoicesRecorded   PurchaseInvoice[]     @relation("PurchaseInvoiceRecordedBy")
-  returnsCreated     SupplierReturn[]      @relation("SupplierReturnCreatedBy")
-  returnsApproved    SupplierReturn[]      @relation("SupplierReturnApprovedBy")
-  returnsSettled     SupplierReturn[]      @relation("SupplierReturnSettledBy")
-  paymentsRecorded   SupplierPayment[]     @relation("SupplierPaymentRecordedBy")
-  ledgerEntries      SupplierLedgerEntry[] @relation("SupplierLedgerEntryCreatedBy")
-  discountsCreated   Discount[]            @relation("DiscountCreatedBy")
+  roles                 EmployeeRole[]        @relation("EmployeeRoleHolder")
+  rolesAssigned         EmployeeRole[]        @relation("EmployeeRoleAssigner")
+  rolesCreated          Role[]                @relation("RoleCreatedBy")
+  invitationsSent       EmployeeInvitation[]  @relation("InvitationInvitedBy")
+  invitationsRevoked    EmployeeInvitation[]  @relation("InvitationRevokedBy")
+  invitation            EmployeeInvitation?   @relation("InvitationAcceptedAs")
+  settingsUpdated       Setting[]             @relation("SettingUpdatedBy")
+  approvalsRequested    ApprovalRequest[]     @relation("ApprovalRequestedBy")
+  approvalsResolved     ApprovalRequest[]     @relation("ApprovalResolvedBy")
+  mediaUploaded         MediaAsset[]          @relation("MediaAssetCreatedBy")
+  purchasesCreated      PurchaseOrder[]       @relation("PurchaseOrderCreatedBy")
+  purchasesApproved     PurchaseOrder[]       @relation("PurchaseOrderApprovedBy")
+  purchasesCancelled    PurchaseOrder[]       @relation("PurchaseOrderCancelledBy")
+  purchasesClosed       PurchaseOrder[]       @relation("PurchaseOrderClosedBy")
+  goodsReceipts         GoodsReceipt[]        @relation("GoodsReceiptReceivedBy")
+  invoicesRecorded      PurchaseInvoice[]     @relation("PurchaseInvoiceRecordedBy")
+  returnsCreated        SupplierReturn[]      @relation("SupplierReturnCreatedBy")
+  returnsApproved       SupplierReturn[]      @relation("SupplierReturnApprovedBy")
+  returnsSettled        SupplierReturn[]      @relation("SupplierReturnSettledBy")
+  paymentsRecorded      SupplierPayment[]     @relation("SupplierPaymentRecordedBy")
+  ledgerEntries         SupplierLedgerEntry[] @relation("SupplierLedgerEntryCreatedBy")
+  discountsCreated      Discount[]            @relation("DiscountCreatedBy")
+  codPhoneConfirmations Order[]               @relation("OrderCodConfirmationRecordedBy")
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -1764,6 +1765,14 @@ enum OrderStatus {
   @@map("order_status")
 }
 
+/// How the customer confirmed a COD order (R10). SMS is a future value.
+enum CodConfirmationSource {
+  WHATSAPP
+  PHONE
+
+  @@map("cod_confirmation_source")
+}
+
 enum PaymentMethod {
   COD
 
@@ -1773,55 +1782,86 @@ enum PaymentMethod {
 /// One customer or guest order. Amounts are piastres; snapshots are the
 /// historical facts of the order (Q46) and never follow later changes.
 model Order {
-  id                      String        @id @default(uuid(7)) @db.Uuid
+  id                                  String                 @id @default(uuid(7)) @db.Uuid
   /// Readable, from the `order_number_seq` sequence; never authorizes access.
-  orderNumber             String        @unique @map("order_number")
-  customerId              String?       @map("customer_id") @db.Uuid
-  guestEmail              String?       @map("guest_email")
-  guestPhone              String?       @map("guest_phone")
-  status                  OrderStatus
-  paymentMethod           PaymentMethod @default(COD) @map("payment_method")
-  currency                String        @default("EGP") @db.Char(3)
-  locale                  Locale
-  subtotal                BigInt
-  discountTotal           BigInt        @map("discount_total")
-  shippingFee             BigInt        @map("shipping_fee")
+  orderNumber                         String                 @unique @map("order_number")
+  customerId                          String?                @map("customer_id") @db.Uuid
+  guestEmail                          String?                @map("guest_email")
+  guestPhone                          String?                @map("guest_phone")
+  status                              OrderStatus
+  paymentMethod                       PaymentMethod          @default(COD) @map("payment_method")
+  currency                            String                 @default("EGP") @db.Char(3)
+  locale                              Locale
+  subtotal                            BigInt
+  discountTotal                       BigInt                 @map("discount_total")
+  shippingFee                         BigInt                 @map("shipping_fee")
   /// `subtotal - discountTotal + shippingFee`.
-  total                   BigInt
-  walletAmountReserved    BigInt        @map("wallet_amount_reserved")
-  walletAmountCaptured    BigInt        @default(0) @map("wallet_amount_captured")
+  total                               BigInt
+  walletAmountReserved                BigInt                 @map("wallet_amount_reserved")
+  walletAmountCaptured                BigInt                 @default(0) @map("wallet_amount_captured")
   /// `total - walletAmountReserved`; 0 needs no COD confirmation (C4).
-  codAmount               BigInt        @map("cod_amount")
+  codAmount                           BigInt                 @map("cod_amount")
   /// Prices are tax-inclusive (C1); amount and rate wait for the tax decision.
-  taxIncluded             Boolean       @default(true) @map("tax_included")
-  taxAmount               BigInt?       @map("tax_amount")
-  taxRate                 Decimal?      @map("tax_rate") @db.Decimal(5, 2)
-  appliedDiscountId       String?       @map("applied_discount_id") @db.Uuid
-  discountSnapshot        Json?         @map("discount_snapshot_json")
+  taxIncluded                         Boolean                @default(true) @map("tax_included")
+  taxAmount                           BigInt?                @map("tax_amount")
+  taxRate                             Decimal?               @map("tax_rate") @db.Decimal(5, 2)
+  appliedDiscountId                   String?                @map("applied_discount_id") @db.Uuid
+  discountSnapshot                    Json?                  @map("discount_snapshot_json")
   /// The proposed company (R37); staff may change it later.
-  shippingCompanyId       String?       @map("shipping_company_id") @db.Uuid
-  shippingRuleSnapshot    Json          @map("shipping_rule_snapshot_json")
-  shippingAddressSnapshot Json          @map("shipping_address_snapshot_json")
-  customerSnapshot        Json          @map("customer_snapshot_json")
+  shippingCompanyId                   String?                @map("shipping_company_id") @db.Uuid
+  shippingRuleSnapshot                Json                   @map("shipping_rule_snapshot_json")
+  shippingAddressSnapshot             Json                   @map("shipping_address_snapshot_json")
+  customerSnapshot                    Json                   @map("customer_snapshot_json")
   /// Set by `New → Confirmed` (CONFIRM_ORDER, TASK-030).
-  confirmedAt             DateTime?     @map("confirmed_at") @db.Timestamptz(3)
-  createdAt               DateTime      @map("created_at") @db.Timestamptz(3)
-  updatedAt               DateTime      @map("updated_at") @db.Timestamptz(3)
+  confirmedAt                         DateTime?              @map("confirmed_at") @db.Timestamptz(3)
+  /// COD confirmation (TASK-031, R1, R10, R39). The deadline is fixed at
+  /// creation for PENDING_CONFIRMATION orders; null when no COD is due.
+  codConfirmationDeadlineAt           DateTime?              @map("cod_confirmation_deadline_at") @db.Timestamptz(3)
+  codConfirmationSource               CodConfirmationSource? @map("cod_confirmation_source")
+  codConfirmedAt                      DateTime?              @map("cod_confirmed_at") @db.Timestamptz(3)
+  /// Required when the source is PHONE.
+  codConfirmationRecordedByEmployeeId String?                @map("cod_confirmation_recorded_by_employee_id") @db.Uuid
+  codReminderCount                    Int                    @default(0) @map("cod_reminder_count")
+  codLastReminderAt                   DateTime?              @map("cod_last_reminder_at") @db.Timestamptz(3)
+  expiredAt                           DateTime?              @map("expired_at") @db.Timestamptz(3)
+  createdAt                           DateTime               @map("created_at") @db.Timestamptz(3)
+  updatedAt                           DateTime               @map("updated_at") @db.Timestamptz(3)
 
-  customer        Customer?              @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  appliedDiscount Discount?              @relation(fields: [appliedDiscountId], references: [id], onDelete: Restrict)
-  shippingCompany ShippingCompany?       @relation(fields: [shippingCompanyId], references: [id], onDelete: Restrict)
-  items           OrderItem[]
-  statusHistory   OrderStatusHistory[]
-  checkoutAttempt CheckoutAttempt?
-  reservations    InventoryReservation[]
-  discountUsage   DiscountUsage?
-  walletHolds     WalletReservation[]
+  customer                  Customer?              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  appliedDiscount           Discount?              @relation(fields: [appliedDiscountId], references: [id], onDelete: Restrict)
+  shippingCompany           ShippingCompany?       @relation(fields: [shippingCompanyId], references: [id], onDelete: Restrict)
+  codConfirmationRecordedBy Employee?              @relation("OrderCodConfirmationRecordedBy", fields: [codConfirmationRecordedByEmployeeId], references: [id], onDelete: Restrict)
+  codConfirmationTokens     CodConfirmationToken[]
+  items                     OrderItem[]
+  statusHistory             OrderStatusHistory[]
+  checkoutAttempt           CheckoutAttempt?
+  reservations              InventoryReservation[]
+  discountUsage             DiscountUsage?
+  walletHolds               WalletReservation[]
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
   @@index([guestPhone])
+  @@index([status, codConfirmationDeadlineAt])
   @@map("orders")
+}
+
+/// WhatsApp secure-link tokens (R10, R16; TASK-031). Only the hash is
+/// stored; a link only confirms the order.
+model CodConfirmationToken {
+  id        String                @id @default(uuid(7)) @db.Uuid
+  orderId   String                @map("order_id") @db.Uuid
+  tokenHash String                @unique @map("token_hash")
+  channel   CodConfirmationSource @default(WHATSAPP)
+  /// Never later than the order's confirmation deadline.
+  expiresAt DateTime              @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime?             @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime              @map("created_at") @db.Timestamptz(3)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@map("cod_confirmation_tokens")
 }
 
 model OrderItem {

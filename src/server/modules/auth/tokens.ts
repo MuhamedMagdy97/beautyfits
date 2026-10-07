@@ -6,7 +6,7 @@ import { createHash, randomBytes } from "node:crypto";
  * database leak does not yield usable tokens.
  */
 export type TokenKind =
-  "access" | "refresh" | "reset" | "login" | "device" | "invite" | "upload" | "cart";
+  "access" | "refresh" | "reset" | "login" | "device" | "invite" | "upload" | "cart" | "cod";
 
 /**
  * `reset`: the single-use password-reset grant (TASK-008, ADR-0014).
@@ -15,6 +15,7 @@ export type TokenKind =
  * `invite`: an employee invitation (TASK-012, ADR-0016).
  * `upload`: a single file upload authorization (TASK-016, ADR-0021).
  * `cart`: a guest cart (TASK-025, ADR-0031).
+ * `cod`: a WhatsApp COD confirmation link (TASK-031, ADR-0037).
  */
 const PREFIX: Record<TokenKind, string> = {
   access: "bfa_",
@@ -25,6 +26,7 @@ const PREFIX: Record<TokenKind, string> = {
   invite: "bfi_",
   upload: "bfu_",
   cart: "bfc_",
+  cod: "bfo_",
 };
 const TOKEN_FORMAT: Record<TokenKind, RegExp> = {
   access: /^bfa_[A-Za-z0-9_-]{43}$/,
@@ -35,6 +37,7 @@ const TOKEN_FORMAT: Record<TokenKind, RegExp> = {
   invite: /^bfi_[A-Za-z0-9_-]{43}$/,
   upload: /^bfu_[A-Za-z0-9_-]{43}$/,
   cart: /^bfc_[A-Za-z0-9_-]{43}$/,
+  cod: /^bfo_[A-Za-z0-9_-]{43}$/,
 };
 
 export function generateToken(kind: TokenKind): string {

@@ -48,6 +48,10 @@ describe("runBootstrap", () => {
         SETTING_KEYS.pricingMinMarginBasisPoints,
         SETTING_KEYS.cartGuestExpiryDays,
         SETTING_KEYS.shippingFreeShippingThreshold,
+        SETTING_KEYS.codConfirmationTimeoutHours,
+        SETTING_KEYS.codReminderIntervalHours,
+        SETTING_KEYS.codReminderMaxCount,
+        SETTING_KEYS.codConfirmationChannel,
       ].sort(),
     );
     expect(report.rolesCreated).toEqual(DEFAULT_ROLES.map((role) => role.name));

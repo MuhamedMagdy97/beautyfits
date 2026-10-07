@@ -25,6 +25,7 @@ import { isTargeted } from "@/server/modules/discounts/engine";
 import { reserveForOrder } from "@/server/modules/inventory/reservations";
 import { findUsableArea } from "@/server/modules/locations/locations-service";
 import { loadOrderSummary, type OrderSummaryView } from "@/server/modules/orders/orders-service";
+import { readCodSettings } from "@/server/modules/settings/settings";
 import { quoteShippingForArea } from "@/server/modules/shipping/shipping-service";
 import { availableWalletCredit, reserveWallet } from "@/server/modules/wallet/wallet-service";
 import { allocate, multiply, toJsonNumber } from "@/server/money/money";
@@ -50,7 +51,9 @@ import { MS_PER_HOUR, systemClock, type Clock } from "@/server/time/time";
  *   shopper's row (customer, or guest cart) is locked first, so concurrent
  *   retries wait and then replay.
  * - Wallet credit covering the whole total needs no COD confirmation: the
- *   order starts `NEW` (C4); otherwise `PENDING_CONFIRMATION`.
+ *   order starts `NEW` (C4); otherwise `PENDING_CONFIRMATION`, with its
+ *   confirmation deadline fixed from the timeout setting (R39) and, on the
+ *   WhatsApp channel, a `COD_CONFIRMATION_REQUESTED` outbox event (TASK-031).
  */
 
 /** Checkout requests per IP (ADR-0035): 20 per hour. */
@@ -469,9 +472,13 @@ export function createCheckoutService(deps: { db: PrismaClient; clock: Clock }) 
         const [{ seq }] = await tx.$queryRaw<{ seq: bigint }[]>`
           SELECT nextval('order_number_seq') AS seq`;
         const status: OrderStatus = priced.codAmount === BigInt(0) ? "NEW" : "PENDING_CONFIRMATION";
+        const cod = status === "PENDING_CONFIRMATION" ? await readCodSettings(tx) : null;
         const order = await tx.order.create({
           data: {
             orderNumber: `BF-${seq}`,
+            codConfirmationDeadlineAt: cod
+              ? new Date(now.getTime() + cod.timeoutHours * MS_PER_HOUR)
+              : null,
             customerId,
             guestEmail: customerId ? null : priced.contact.email,
             guestPhone: customerId ? null : priced.contact.phone,
@@ -591,6 +598,18 @@ export function createCheckoutService(deps: { db: PrismaClient; clock: Clock }) 
             createdAt: now,
           },
         });
+        if (cod?.channel === "WHATSAPP") {
+          await tx.outboxEvent.create({
+            data: {
+              eventType: "COD_CONFIRMATION_REQUESTED",
+              aggregateType: "ORDER",
+              aggregateId: order.id,
+              payload: { orderId: order.id, correlationId: ctx.correlationId },
+              availableAt: now,
+              createdAt: now,
+            },
+          });
+        }
         return { orderId: order.id, replayed: false };
       },
       {},

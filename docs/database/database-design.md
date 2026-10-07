@@ -1923,3 +1923,11 @@ Added by TASK-030 (`docs/tasks/TASK-030-order-core.md`, ADR-0036). Migrated in `
 - `orders.confirmed_at` (§8), set by `New → Confirmed`. `delivered_at`, `cancelled_at`, `expired_at` and the COD confirmation fields are still added by their tasks (TASK-031, TASK-033, TASK-034).
 - Foreign keys to `orders(id)` (`RESTRICT`): `inventory_reservations.order_id`, `discount_usages.order_id`, `wallet_reservations.order_id`.
 - §24 enforced: trigger `orders_immutable` rejects `DELETE` and any change of `order_number`, `guest_email`, `guest_phone`, `payment_method`, `currency`, `locale`, the money columns except `wallet_amount_captured`, the tax columns, `applied_discount_id`, the four snapshot JSON columns and `created_at`; `customer_id` may only change from null (guest order claim). Trigger `order_items_immutable` rejects every `UPDATE` and `DELETE` of `order_items`. Lifecycle columns (`status`, timestamps, `wallet_amount_captured`, `shipping_company_id`) stay writable.
+
+## v1.2 TASK-031 Amendments
+
+Added by TASK-031 (`docs/tasks/TASK-031-cod-confirmation.md`, ADR-0037). Migrated in `prisma/migrations/*_cod_confirmation`.
+
+- `orders` (§8, R10, R39): `cod_confirmation_deadline_at` (set at checkout for `PENDING_CONFIRMATION` orders: creation + the timeout setting, at most 72 hours; never recomputed), `cod_confirmation_source` (enum `cod_confirmation_source` = `WHATSAPP` | `PHONE`), `cod_confirmed_at`, `cod_confirmation_recorded_by_employee_id` (FK `employees`, `RESTRICT`; check: required when the source is `PHONE`), `cod_reminder_count` (default 0, never negative), `cod_last_reminder_at`, `expired_at`. Index `(status, cod_confirmation_deadline_at)` for the reminder and expiry jobs. All are lifecycle columns, writable under `orders_immutable`. Orders already pending at migration time got the 72-hour deadline.
+- `cod_confirmation_tokens` as in "Orders & COD", without `order_revision_id` (added with revisions, TASK-032). `channel` uses the same enum (default `WHATSAPP`). Index on `order_id`.
+- Settings (§20): `cod.confirmation_timeout_hours` (1–72, default 72), `cod.reminder_interval_hours` (default 24), `cod.reminder_max_count` (default 2, 0 allowed), `cod.confirmation_channel` (`WHATSAPP` | `PHONE`, default `WHATSAPP`).

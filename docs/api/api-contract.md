@@ -1640,3 +1640,28 @@ Added by TASK-030 (`docs/tasks/TASK-030-order-core.md`, ADR-0036). Business rule
 | Unknown order, or another customer's | `404 NOT_FOUND` |
 | Transition not allowed from the current status (for example `confirm` on `PENDING_CONFIRMATION`, or confirming twice) | `409 ORDER_STATE_INVALID`, `details = { status, to }` |
 | Missing permission, or the `phone` filter without `VIEW_CUSTOMER_CONTACT` | `403 PERMISSION_DENIED` |
+
+## TASK-031 Amendments
+
+Added by TASK-031 (`docs/tasks/TASK-031-cod-confirmation.md`, ADR-0037). Business rules: Q18, Q24, Q25, Q27, Q31, Q54, R1, R10, R16, R21, R36, R39. Implements `confirm-cod` and `record-phone-confirmation` from §15.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /orders/{orderId}/confirm-cod` | Secure COD token (no sign-in) | `{ token }` | `200` `{ orderNumber, codConfirmedAt }`; `PENDING_CONFIRMATION → NEW` by the System, source `WHATSAPP`, event `ORDER_COD_CONFIRMED`. Opening a used link again returns the same body. |
+| `POST /admin/orders/{orderId}/record-phone-confirmation` | `RECORD_COD_CONFIRMATION` | — | `200` `adminOrder`; `PENDING_CONFIRMATION → NEW` by the System, source `PHONE`, recording employee stored, event `ORDER_COD_CONFIRMED` |
+
+- The link token (`bfo_…`) is issued by the WhatsApp sender for the request and each reminder; each is valid until the order's deadline. The response never shows status, tracking or cancellation (R16).
+- `adminOrder` gains `codConfirmation: { deadlineAt, source, confirmedAt, recordedByEmployeeId, reminderCount, lastReminderAt }` and `expiredAt`.
+- Status history of the transition: `changedByType = SYSTEM`, `reason` = `COD_CONFIRMED_WHATSAPP` | `COD_CONFIRMED_PHONE`; expiry: `reason = COD_CONFIRMATION_TIMEOUT`.
+- Audit actions added (entity `ORDER`): `ORDER_COD_CONFIRMED` (actor: the customer, SYSTEM for guests, or the recording employee) and `ORDER_EXPIRED` (SYSTEM).
+- Outbox events (§31) added: `COD_CONFIRMATION_REQUESTED` (checkout, WhatsApp channel only), `COD_CONFIRMATION_REMINDER` (`{ orderId, reminderNumber }`), `ORDER_COD_CONFIRMED` (`{ orderId, source }`), `ORDER_EXPIRED` (`{ orderId }`).
+- Jobs (run every few minutes, scheduled by TASK-066): `npm run jobs:send-cod-reminders` (WhatsApp channel only, R39) and `npm run jobs:expire-cod-orders` (`PENDING_CONFIRMATION → EXPIRED` at the deadline; releases stock, discount use and wallet hold).
+- `confirm-cod` is rate limited to 20 attempts per IP per hour.
+
+| Situation | Response |
+|---|---|
+| Unknown or malformed token, a token of another order, or an unknown order | `404 NOT_FOUND` |
+| Order no longer `PENDING_CONFIRMATION` (an unused link, or recording twice) | `409 ORDER_STATE_INVALID`, `details = { status, to: "NEW" }` |
+| The order's deadline has passed (before the expiry job ran) | `409 ORDER_STATE_INVALID`, `details = { status, to: "NEW", reason: "CONFIRMATION_DEADLINE_PASSED" }` |
+| Too many link attempts | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
+| Missing `RECORD_COD_CONFIRMATION` | `403 PERMISSION_DENIED` |

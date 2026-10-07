@@ -106,6 +106,9 @@ export const AUDIT_ACTIONS = [
   "ORDER_CONFIRMED",
   "ORDER_PREPARING_STARTED",
   "ORDER_READY_FOR_SHIPMENT",
+  // COD confirmation and expiry (TASK-031)
+  "ORDER_COD_CONFIRMED",
+  "ORDER_EXPIRED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

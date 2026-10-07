@@ -1057,6 +1057,14 @@ Product-owner decisions made on 2026-10-05.
 7. **Wallet capture:** wallet credit held for an order is spent (captured, `ORDER_WALLET_USE`) when the order is **Shipped**, the same moment stock is consumed (ADR-0025). Before that, cancellation or expiry releases it (Audit Correction 5); after that, money comes back only through a return refund.
 8. **Checkout abuse limit:** at most 20 checkout attempts per IP address per hour.
 
+### R39 — COD confirmation timing and channel (TASK-031; complete Q18, Q24, Q25, Q54)
+Product-owner decisions made on 2026-10-05.
+1. **Timeout:** an order waits for COD confirmation **72 hours** by default. Owner/Admin may shorten it (setting `cod.confirmation_timeout_hours`); it can never exceed 72 hours (R21).
+2. **Deadline fixed at ordering:** each order's deadline is set when the order is placed. A later change of the timeout applies to new orders only.
+3. **Reminders:** by default **one reminder every 24 hours, at most 2**, only before the deadline (settings `cod.reminder_interval_hours`, `cod.reminder_max_count`; 0 sends none).
+4. **Channel:** a setting `cod.confirmation_channel` = `WHATSAPP` (default: the System sends the secure link and the reminders) or `PHONE` (no messages; staff call the customer). Staff with `RECORD_COD_CONFIRMATION` can record a phone confirmation on either channel (R10).
+5. **At the deadline** the order becomes `Expired`; its stock, discount use and wallet credit are given back and the order is kept (Q25, Q31, R36).
+
 ## Key non-negotiables
 - Backend is authoritative for price, stock, discount, shipping, permissions and order state.
 - Checkout core DB changes are atomic; external notifications happen after commit.
@@ -1083,4 +1091,5 @@ Product-owner decisions made on 2026-10-05.
 - v1.5 cart retention (R35, 2026-10-04): guest carts expire after 30 configurable days without changes; customer carts never expire; deactivation removes the active cart. R33 clarified: the merge cap never lowers the customer's own quantity.
 - v1.6 discount application rules (R36, 2026-10-04): codeless offers listed in the cart, codes entered; the customer always chooses; percentage on targeted items, minimum on the whole subtotal, cap per order; categories include subcategories; per-customer limits need sign-in; uses count from order creation and are given back on cancellation/expiry before shipping; 1–100%, editable any time.
 - v1.8 checkout and order decisions (R38, 2026-10-05): `BF-` order numbers; changes before ordering refuse the order for review; guest email optional; no guest marketing opt-in; tax-inclusive with no rate until tax invoicing; proportional discount split per item; wallet captured at Shipped; 20 checkouts per IP per hour.
+- v1.9 COD confirmation (R39, 2026-10-05): 72-hour default timeout fixed per order at placement; reminders every 24 hours, at most 2; channel setting WhatsApp (default) or phone, phone recording always allowed; expiry gives back stock, discount use and wallet credit.
 - v1.7 shipping rules (R37, 2026-10-04): one fee per delivery area from the most specific rule (area, governorate, everywhere; priority breaks ties), the proposed company can be changed by staff without changing the fee; one store-wide free-shipping threshold (2500 EGP) on the total after discounts; no rule means no shipping.

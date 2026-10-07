@@ -157,7 +157,16 @@ export interface AdminOrderView {
     reason: string | null;
     createdAt: string;
   }[];
+  codConfirmation: {
+    deadlineAt: string | null;
+    source: "WHATSAPP" | "PHONE" | null;
+    confirmedAt: string | null;
+    recordedByEmployeeId: string | null;
+    reminderCount: number;
+    lastReminderAt: string | null;
+  };
   confirmedAt: string | null;
+  expiredAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -278,7 +287,16 @@ function toAdminView(order: OrderDetail, permissions: PermissionSet): AdminOrder
       reason: h.reason,
       createdAt: h.createdAt.toISOString(),
     })),
+    codConfirmation: {
+      deadlineAt: order.codConfirmationDeadlineAt?.toISOString() ?? null,
+      source: order.codConfirmationSource,
+      confirmedAt: order.codConfirmedAt?.toISOString() ?? null,
+      recordedByEmployeeId: order.codConfirmationRecordedByEmployeeId,
+      reminderCount: order.codReminderCount,
+      lastReminderAt: order.codLastReminderAt?.toISOString() ?? null,
+    },
     confirmedAt: order.confirmedAt?.toISOString() ?? null,
+    expiredAt: order.expiredAt?.toISOString() ?? null,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
   };

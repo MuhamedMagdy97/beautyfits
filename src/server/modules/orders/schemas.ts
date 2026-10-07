@@ -30,3 +30,6 @@ export const listOrdersQuerySchema = z.object({
 
 export type ListMyOrdersQuery = z.infer<typeof listMyOrdersQuerySchema>;
 export type ListOrdersQuery = z.infer<typeof listOrdersQuerySchema>;
+
+/** `POST /orders/{orderId}/confirm-cod`: the token from the WhatsApp link (R10). */
+export const confirmCodSchema = z.object({ token: z.string().min(1).max(100) });
