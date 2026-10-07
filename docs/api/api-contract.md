@@ -1665,3 +1665,31 @@ Added by TASK-031 (`docs/tasks/TASK-031-cod-confirmation.md`, ADR-0037). Busines
 | The order's deadline has passed (before the expiry job ran) | `409 ORDER_STATE_INVALID`, `details = { status, to: "NEW", reason: "CONFIRMATION_DEADLINE_PASSED" }` |
 | Too many link attempts | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
 | Missing `RECORD_COD_CONFIRMATION` | `403 PERMISSION_DENIED` |
+
+## TASK-032 Amendments
+
+Added by TASK-032 (`docs/tasks/TASK-032-order-modification.md`, ADR-0038). Business rules: C4, C5, Q32, R16, R36, R37, R39, R40. Implements `modify` and revision `confirm` from §15.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /orders/{orderId}/modify` | Customer (own order) | `{ items: [{ variantId, quantity }], addressId? \| address?, walletAmount? }` | `201` `revision` (`PENDING_CONFIRMATION`); the order is unchanged |
+| `POST /orders/{orderId}/revisions/{revisionId}/confirm` | Customer (own order) | — | `200` `customerOrder` with the new lines and amounts |
+
+- `items` is the whole new list (each variant once, quantity 1–999); a variant left out is removed. Without `addressId`/`address` the address stays. `walletAmount` defaults to what the order holds, at most the new total.
+- Pricing (R40): quantity already ordered keeps its order price; extra quantity and new items take today's price, so one variant may appear twice (order price and today's price). The order's discount is re-applied with its order-time terms or dropped (`discountDropped`); shipping is quoted again.
+- `revision`: `{ id, revisionNumber, status, oldTotal, newTotal, expiresAt, createdAt, confirmedAt, proposed: { items: [{ variantId, sku, name, variantName, quantity, unitPrice, discountAmount, lineTotal }], subtotal, discountTotal, discountDropped, shippingFee, freeShipping, total, walletAmount, codAmount, shippingAddress } }`. `status` = `PENDING_CONFIRMATION` | `CONFIRMED` | `SUPERSEDED` | `EXPIRED`; an open revision shows `EXPIRED` once 24 hours have passed or the order reached Preparing.
+- `customerOrder` gains `pendingRevision` (`revision` or null). `adminOrder` gains `revisions: [{ id, revisionNumber, status, oldTotal, newTotal, createdAt, confirmedAt }]`.
+- Confirming re-prices the revision; any difference (price, stock, shipping, wallet) is `409 RECONFIRMATION_REQUIRED` and the order stays unchanged. On success the stock and wallet holds move to the new amounts, a dropped discount's use is given back, a `CONFIRMED` order goes back to `NEW` (history actor the customer, `reason = ORDER_REVISED`), and a `PENDING_CONFIRMATION` order whose wallet now covers the total moves to `NEW` (`WALLET_COVERS_TOTAL`).
+- Revisions are confirmed by the signed-in customer only (R40); the secure-token path listed in §15 is not used.
+- Audit actions added (entity `ORDER`, actor the customer): `ORDER_REVISION_REQUESTED`, `ORDER_REVISED`. Outbox event `ORDER_REVISED` (`{ orderId, revisionId, revisionNumber }`).
+
+| Situation | Response |
+|---|---|
+| Unknown order, another customer's, or unknown revision | `404 NOT_FOUND` |
+| Order is `PREPARING` or later, cancelled or expired | `409 ORDER_STATE_INVALID`, `details = { status, reason: "NOT_EDITABLE" }` |
+| The request changes nothing | `409 CONFLICT`, `details.reason = NO_CHANGE` |
+| Revision replaced, already confirmed or lapsed | `409 CONFLICT`, `details.reason` = `REVISION_SUPERSEDED` \| `REVISION_CONFIRMED` \| `REVISION_EXPIRED` |
+| Re-pricing at confirmation differs | `409 RECONFIRMATION_REQUIRED`, `details.reason = REVISION_CHANGED` |
+| Extra quantity not available or not purchasable | `409 STOCK_CHANGED`, `details.items` |
+| Wallet amount above the total / not enough credit | `400 VALIDATION_ERROR` / `422 WALLET_INSUFFICIENT_FUNDS` |
+| No delivery rule for the new address | `422 SHIPPING_UNAVAILABLE` |
