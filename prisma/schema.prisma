@@ -178,6 +178,7 @@ model Customer {
   orderRevisions OrderRevision[]
   wallet         Wallet?
   orders         Order[]
+  wishlist       Wishlist?
   notifications  Notification[]
 
   @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
@@ -700,6 +701,7 @@ model ProductVariant {
   supplierReturnItems   SupplierReturnItem[]
   cartItems             CartItem[]
   orderItems            OrderItem[]
+  wishlistItems         WishlistItem[]
 
   @@unique([productId], map: "product_variants_one_default_key", where: raw("is_default"))
   @@index([productId, createdAt])
@@ -1470,6 +1472,38 @@ model CartItem {
   @@unique([cartId, productVariantId])
   @@index([productVariantId])
   @@map("cart_items")
+}
+
+// ---------------------------------------------------------------------------
+// Wishlist (TASK-042, DB design §15, Business Spec Q4, Q47, Q48, ADR-0041).
+// Account-only. Items stay whatever happens to the variant (Q48).
+// ---------------------------------------------------------------------------
+
+/// One wishlist per customer, created on the first add.
+model Wishlist {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  customerId String   @unique @map("customer_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  items    WishlistItem[]
+
+  @@map("wishlists")
+}
+
+model WishlistItem {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  wishlistId       String   @map("wishlist_id") @db.Uuid
+  productVariantId String   @map("product_variant_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  wishlist Wishlist       @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  variant  ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@unique([wishlistId, productVariantId])
+  @@index([productVariantId])
+  @@map("wishlist_items")
 }
 
 // ---------------------------------------------------------------------------
