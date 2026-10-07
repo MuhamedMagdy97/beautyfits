@@ -1982,3 +1982,13 @@ Added by TASK-045 (`docs/tasks/TASK-045-notification-service.md`, ADR-0043). Mig
 - `notifications` (§17, DB-6): enums `notification_recipient_type` (`CUSTOMER` | `EMPLOYEE`) and `notification_type` (`TRANSACTIONAL` | `MARKETING` | `RESTOCK`); FKs `customer_id` → `customers`, `employee_id` → `employees` (`RESTRICT`); check: exactly the recipient named by `recipient_type`. Added `source_event_id` (unique, nullable): the outbox event that produced it, so each event makes at most one notification. Indexes `(customer_id, read_at, created_at desc)` and `(employee_id, read_at, created_at desc)`. Rows are never deleted (Q58).
 - `notification_deliveries` (§17, DB-6): `notification_id` nullable (FK `RESTRICT`), `order_id` nullable (FK `orders`, `RESTRICT`), `template_key`, `locale`, `channel` (enum `notification_channel` = `EMAIL` | `WHATSAPP`), `recipient`, `attempt_number` (≥ 1), `status` (enum `notification_delivery_status` = `PENDING` | `SENT` | `FAILED` | `FALLBACK_SENT`; `sent_at` required when sent), `provider_reference`, `failure_reason`, `created_at`, `sent_at` nullable. Added `source_event_id` with unique `(source_event_id, attempt_number)`: attempts are numbered per outbox event, and a sent event is never sent again. The message text is not stored (it may hold a COD link). Indexes `(status, created_at)`, `order_id`, `notification_id`.
 - `outbox_events` is unchanged; the dispatcher uses `status`, `attempt_count`, `available_at` (lease and backoff) and `last_error` (ADR-0043 §1).
+
+## v1.2 TASK-050 Amendments
+
+Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Migrated in `prisma/migrations/*_analytics_events`.
+
+- `analytics_events` (§19): `event_type` is enum `analytics_event_type` = `PRODUCT_VIEW` | `ADD_TO_CART` | `CHECKOUT_STARTED` | `CHECKOUT_ABANDONED` | `ORDER_CREATED` (the other §19 types are added by the tasks that record them). `entity_type` = `PRODUCT` | `CART` | `ORDER`; `entity_id` is a UUID. `metadata_json` defaults to `{}` (`ADD_TO_CART`: `variantId`, `quantity`; `CHECKOUT_ABANDONED`: `checkoutStartedEventId`).
+- New `dedupe_key` (unique, nullable) keeps server-recorded events single: `ORDER_CREATED:<orderId>`, `CHECKOUT_ABANDONED:<startEventId>`.
+- `session_id` is not created: there is no browsing-session concept yet (added when a task needs it).
+- No foreign keys: carts are deleted on deactivation (R34) and analytics must never block or be blocked by domain rows. No IP address, user agent or contact data is stored.
+- Indexes: `(event_type, occurred_at)` (§22) and `(entity_id, event_type, occurred_at)` for the refresh, open-start and abandonment checks.
