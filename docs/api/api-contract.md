@@ -1772,6 +1772,40 @@ Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules:
 | 100 items already | `409 CONFLICT`, `details = { reason: "WISHLIST_LIMIT_REACHED", limit: 100 }` |
 | Move-to-cart refused by the cart (no stock / unavailable / 50-line limit) | `422 OUT_OF_STOCK` / `404 NOT_FOUND` / `409 CONFLICT`, as `POST /cart/items`; nothing changes |
 
+## TASK-044 Amendments
+
+Added by TASK-044 (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042). Business rules: Q3, Q11, Q12, Q49, Q50, Q171–Q174, C6; User Flows §5. Implements §20 and "Review moderation".
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /products/{productId}/reviews` | Public | `?page&pageSize` | `200` `{ summary: { reviewCount, averageRating }, items: [publicReview] }` + `meta.pagination`; published reviews only, newest first |
+| `POST /orders/{orderId}/items/{orderItemId}/review` | Customer | `{ rating, body }` | `201` `myReview`, `status = PUBLISHED` |
+| `PATCH /reviews/{reviewId}` | Customer (author) | `{ rating?, body? }` (at least one) | `200` `myReview` |
+| `POST /reviews/{reviewId}/report` | Customer | `{ reason? }` (optional body) | `200` `{ reviewId }`; repeating answers the same |
+| `GET /admin/reviews` | `REVIEW_MODERATE` | `?page&pageSize&status&productId&customerId&reported` | `200` `[adminReview]` + `meta.pagination`, newest first |
+| `POST /admin/reviews/{reviewId}/hide` | `REVIEW_MODERATE` | `{ reason }` (required) | `200` `adminReview`, `status = HIDDEN` |
+| `POST /admin/reviews/{reviewId}/restore` | `REVIEW_MODERATE` | `{ reason? }` (optional body) | `200` `adminReview`, `status = PUBLISHED` |
+
+- `rating`: integer 1–5. `body`: trimmed, 1–2000 characters. Reasons: trimmed, at most 1000 characters (blank means none for the optional ones).
+- Eligibility: the order belongs to the signed-in customer and is `DELIVERED` (the "successful purchase"; delivery arrives with TASK-034). One review per order and product: two variants of one product in one order give one review. A later delivered order may review the product again (Q12, Q49).
+- `myReview`: `{ id, orderId, orderItemId, productId, variantId, rating, body, status, createdAt, updatedAt }`.
+- `publicReview`: `{ id, rating, body, variantName, verifiedPurchase: true, createdAt, updatedAt }`. `variantName` is the order-time variant name in the request locale (or `null`). The reviewer is never named (see the task's open items). `averageRating` is rounded to one decimal, `null` without reviews.
+- `adminReview`: `myReview` plus `{ customerId, orderNumber, sku, productName, variantName, moderationReason, openReportCount, reports: [{ id, customerId, reason, createdAt, resolvedAt }], moderationHistory: [{ fromStatus, toStatus, employeeId, reason, createdAt }] }` (names are the order-time `{ ar, en }` snapshots).
+- Editing keeps the status: an edited hidden review stays hidden (Q50, Q174). `updatedAt` changes only on the author's edits.
+- Reports: one per customer and review, published reviews only. Hiding resolves the open reports; `reported=true` lists reviews with open reports, `reported=false` those without.
+- Audit actions added (entity `REVIEW`): `REVIEW_CREATED`, `REVIEW_UPDATED` (previous/new rating and body), `REVIEW_REPORTED` (actor: the customer), `REVIEW_HIDDEN`, `REVIEW_RESTORED` (actor: the employee, with the reason).
+- Not rate limited yet: thresholds are an open business decision (TASK-061). Creation is bounded by delivered orders and reports by one per customer and review.
+
+| Situation | Response |
+|---|---|
+| Unknown order item, an item of another order, another customer's order or a guest order | `404 NOT_FOUND` |
+| Order not `DELIVERED` | `409 ORDER_STATE_INVALID`, `details = { status, required: "DELIVERED" }` |
+| The order already has a review of this product | `409 CONFLICT`, `details = { reviewId }` |
+| Editing another customer's review; reporting a hidden or unknown review | `404 NOT_FOUND` |
+| Unpublished or unknown product (public list) | `404 NOT_FOUND` |
+| Hiding a hidden review, restoring a published one | `409 CONFLICT`, `details = { status }` |
+| Missing `REVIEW_MODERATE` | `403 PERMISSION_DENIED` |
+
 ## TASK-050 Amendments
 
 Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Business rules: Q145–Q148, R35. Implements `POST /analytics/events` from §27.
