@@ -1962,3 +1962,15 @@ Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Migrated in `pr
 
 - `wishlists` and `wishlist_items` as in §15. `wishlists.customer_id` unique, FK `customers` (`RESTRICT`); the wishlist is created on the first add. `wishlist_items.wishlist_id` FK (`CASCADE`), `product_variant_id` FK `product_variants` (`RESTRICT`), index on `product_variant_id`, unique `(wishlist_id, product_variant_id)`.
 - Items are deleted when the customer removes them or moves them to the cart; nothing else references them. The R6 reminder state columns ("Wishlist reminder state") are added by TASK-043.
+
+## v1.2 TASK-044 Amendments
+
+Added by TASK-044 (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042). Migrated in `prisma/migrations/*_reviews`.
+
+- `reviews` (§16): `id`, `customer_id` (FK `customers`), `product_id` (FK `products`; display is product-level, C6), `order_id` (FK `orders`), `order_item_id` (FK `order_items`; names the purchased variant), `rating` (check 1–5), `body` (check: not blank), `status` (enum `review_status` = `PUBLISHED` | `HIDDEN`, default `PUBLISHED`), `moderation_reason` (the current hide's reason, null while published), `created_at`, `updated_at` (author edits only). All FKs `RESTRICT`.
+  - Unique `(order_id, product_id)`: one review per successful order and product (Business Spec Q12/Q49 and User Flows §5 "one review for the product" win over §16's "per order item": two variants of one product in one order give one review).
+  - Indexes `(product_id, status, created_at DESC)`, `(status, created_at DESC)`, `(customer_id)`.
+  - `REPORTED` is not a status: reports live in `review_reports`, so several reports and a hide/restore never overwrite each other.
+- `review_moderation_history`: `id`, `review_id`, `from_status`, `to_status`, `employee_id` (FK `employees`), `reason`, `created_at`. Index `(review_id, created_at)`. Append-only (Q174).
+- `review_reports`: `id`, `review_id`, `customer_id`, `reason`, `created_at`, `resolved_at` (set when the review is hidden). Unique `(review_id, customer_id)`; index `(review_id, resolved_at)`.
+- Triggers (`reviews_reject_change`): `reviews` and `review_reports` reject `DELETE`; `review_moderation_history` rejects `UPDATE` and `DELETE`.

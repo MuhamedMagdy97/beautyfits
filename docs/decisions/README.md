@@ -46,6 +46,7 @@
 | [ADR-0039](ADR-0039-order-cancellation.md) | Order cancellation | TASK-033 |
 | [ADR-0040](ADR-0040-shipments.md) | Shipments, carrier handoff and delivery | TASK-034 |
 | [ADR-0041](ADR-0041-wishlist.md) | Wishlist | TASK-042 |
+| [ADR-0042](ADR-0042-verified-reviews.md) | Verified reviews and moderation history | TASK-044 |
 | [ADR-0045](ADR-0045-dashboard-shell.md) | Dashboard shell: API client, session handling, navigation | TASK-052 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.
