@@ -36,6 +36,14 @@ export type ListOrdersQuery = z.infer<typeof listOrdersQuerySchema>;
 /** `POST /orders/{orderId}/confirm-cod`: the token from the WhatsApp link (R10). */
 export const confirmCodSchema = z.object({ token: z.string().min(1).max(100) });
 
+/** `POST /orders/{orderId}/cancel`: the customer may say why (R11). */
+export const cancelMyOrderSchema = z.object({
+  reason: z.string().trim().min(1).max(500).optional(),
+});
+
+/** `POST /admin/orders/{orderId}/cancel`: a reason is required (Q86). */
+export const cancelOrderSchema = z.object({ reason: z.string().trim().min(1).max(500) });
+
 /**
  * `POST /orders/{orderId}/modify` (C5, R40): the whole new item list (left
  * out = removed), optionally another address, optionally the wallet credit
