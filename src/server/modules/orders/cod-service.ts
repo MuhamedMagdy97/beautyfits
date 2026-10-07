@@ -11,16 +11,18 @@ import {
   type AuditActor,
 } from "@/server/modules/audit/audit";
 import { generateToken, hashToken, isWellFormedToken } from "@/server/modules/auth/tokens";
-import { releaseDiscountUsage } from "@/server/modules/discounts/discounts-service";
-import { releaseForOrder } from "@/server/modules/inventory/reservations";
-import { changeOrderStatus, lockOrder, orderNotFound } from "@/server/modules/orders/orders";
+import {
+  changeOrderStatus,
+  lockOrder,
+  orderNotFound,
+  releaseOrderHolds,
+} from "@/server/modules/orders/orders";
 import {
   createOrdersService,
   type AdminOrderView,
   type OrderActor,
 } from "@/server/modules/orders/orders-service";
 import { readCodSettings } from "@/server/modules/settings/settings";
-import { releaseWalletReservation } from "@/server/modules/wallet/wallet-service";
 import { getBlockedUntil, recordHit, type RateLimitPolicy } from "@/server/rate-limit/rate-limit";
 import { MS_PER_HOUR, systemClock, type Clock } from "@/server/time/time";
 
@@ -351,14 +353,12 @@ export function createCodService(deps: { db: PrismaClient; clock: Clock }) {
             reason: "COD_CONFIRMATION_TIMEOUT",
             data: { expiredAt: now },
           });
-          await releaseForOrder(tx, {
+          await releaseOrderHolds(tx, {
             orderId,
             actor: SYSTEM_ACTOR,
             now,
             reason: "COD_CONFIRMATION_TIMEOUT",
           });
-          await releaseDiscountUsage(tx, orderId, now);
-          await releaseWalletReservation(tx, { orderId, now });
           await recordAudit(tx, {
             actor: SYSTEM_ACTOR,
             action: "ORDER_EXPIRED",

@@ -1898,6 +1898,8 @@ model Order {
   codReminderCount                    Int                    @default(0) @map("cod_reminder_count")
   codLastReminderAt                   DateTime?              @map("cod_last_reminder_at") @db.Timestamptz(3)
   expiredAt                           DateTime?              @map("expired_at") @db.Timestamptz(3)
+  /// Set by `→ Cancelled` (TASK-033, R11); who and why are in the status history.
+  cancelledAt                         DateTime?              @map("cancelled_at") @db.Timestamptz(3)
   /// Set by `Shipped → Delivered` (shipment delivered, TASK-034).
   deliveredAt                         DateTime?              @map("delivered_at") @db.Timestamptz(3)
   createdAt                           DateTime               @map("created_at") @db.Timestamptz(3)
