@@ -410,6 +410,66 @@ async function findOwnItem(tx: Db, cartId: string | null, itemId: string) {
   return item;
 }
 
+/** Adds `input` to a locked cart: the line rules of `addItem`. */
+async function addLine(
+  tx: Db,
+  cartId: string,
+  input: AddCartItemInput,
+  locale: SupportedLocale,
+  now: Date,
+): Promise<CartView> {
+  const { variant, price } = await findPurchasableVariant(tx, input.variantId);
+  const line = await tx.cartItem.findUnique({
+    where: { cartId_productVariantId: { cartId, productVariantId: variant.id } },
+  });
+  const quantity = (line?.quantity ?? 0) + input.quantity;
+  if (quantity > available(variant)) {
+    throw outOfStock(variant.id, available(variant));
+  }
+  if (line) {
+    await tx.cartItem.update({
+      where: { id: line.id },
+      data: { quantity, lastSeenUnitPrice: price, updatedAt: now },
+    });
+  } else {
+    if ((await tx.cartItem.count({ where: { cartId } })) >= MAX_CART_LINES) {
+      throw conflict(`A cart can hold up to ${MAX_CART_LINES} different items.`, {
+        reason: "CART_LINE_LIMIT_REACHED",
+        limit: MAX_CART_LINES,
+      });
+    }
+    await tx.cartItem.create({
+      data: {
+        cartId,
+        productVariantId: variant.id,
+        quantity,
+        lastSeenUnitPrice: price,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+  }
+  await tx.cart.update({ where: { id: cartId }, data: { updatedAt: now } });
+  return loadView(tx, cartId, locale, now);
+}
+
+/**
+ * `addItem` for a customer inside the caller's transaction (wishlist
+ * move-to-cart, TASK-042): same rules, the active cart is created if needed.
+ */
+export async function addToCustomerCart(
+  tx: Db,
+  customerId: string,
+  input: AddCartItemInput,
+  locale: SupportedLocale,
+  now: Date,
+): Promise<CartView> {
+  const cartId =
+    (await findActiveCart(tx, { kind: "customer", customerId }, now)) ??
+    (await tx.cart.create({ data: { customerId, createdAt: now, updatedAt: now } })).id;
+  return addLine(tx, cartId, input, locale, now);
+}
+
 export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
   const { db, clock } = deps;
 
@@ -476,40 +536,7 @@ export function createCartService(deps: { db: PrismaClient; clock: Clock }) {
             select: { id: true },
           })
         ).id;
-
-        const { variant, price } = await findPurchasableVariant(tx, input.variantId);
-        const line = await tx.cartItem.findUnique({
-          where: { cartId_productVariantId: { cartId, productVariantId: variant.id } },
-        });
-        const quantity = (line?.quantity ?? 0) + input.quantity;
-        if (quantity > available(variant)) {
-          throw outOfStock(variant.id, available(variant));
-        }
-        if (line) {
-          await tx.cartItem.update({
-            where: { id: line.id },
-            data: { quantity, lastSeenUnitPrice: price, updatedAt: now },
-          });
-        } else {
-          if ((await tx.cartItem.count({ where: { cartId } })) >= MAX_CART_LINES) {
-            throw conflict(`A cart can hold up to ${MAX_CART_LINES} different items.`, {
-              reason: "CART_LINE_LIMIT_REACHED",
-              limit: MAX_CART_LINES,
-            });
-          }
-          await tx.cartItem.create({
-            data: {
-              cartId,
-              productVariantId: variant.id,
-              quantity,
-              lastSeenUnitPrice: price,
-              createdAt: now,
-              updatedAt: now,
-            },
-          });
-        }
-        await tx.cart.update({ where: { id: cartId }, data: { updatedAt: now } });
-        return loadView(tx, cartId, locale, now);
+        return addLine(tx, cartId, input, locale, now);
       },
       {},
       db,

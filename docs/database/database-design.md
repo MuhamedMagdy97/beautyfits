@@ -1956,6 +1956,13 @@ Added by TASK-034 (`docs/tasks/TASK-034-shipment-core.md`, ADR-0040). Migrated i
 - `shipments` (§9): `id`, `order_id` (FK, `RESTRICT`), `shipping_company_id` (FK, `RESTRICT`, required), `tracking_number` nullable, `status` (enum `shipment_status`), `picked_up_at` (carrier handoff), `delivered_at`, `created_at`, `updated_at`. The row is created at handoff (`mark-shipped`); the documented `PENDING`/`READY` values are not stored (the order's `READY_FOR_SHIPMENT` is that stage, ADR-0040 §1). `status` = `SHIPPED` | `OUT_FOR_DELIVERY` | `DELIVERY_FAILED` | `RETURN_TO_SENDER` | `RETURNED` | `DELIVERED`. `attempt_count` (TASK-035) and `returned_at` (TASK-036) are added by their tasks. Unique `(shipping_company_id, tracking_number)` (§22); indexes `order_id`, `tracking_number`. Checks: `delivered_at` set exactly when `DELIVERED`; a tracking number is not blank. Trigger `shipments_no_delete`.
 - `shipment_events` (§9): fields of §9; `event_type` enum `shipment_event_type` (`SHIPPED`, `TRACKING_UPDATED`, `OUT_FOR_DELIVERY`, `DELIVERED`; later tasks add theirs, e.g. `SHIPPING_CANCELLATION_REQUESTED`); `notes` nullable. Index `(shipment_id, event_at)`. Append-only (trigger `shipment_events_append_only`).
 
+## v1.2 TASK-042 Amendments
+
+Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Migrated in `prisma/migrations/20261008042000_wishlist`.
+
+- `wishlists` and `wishlist_items` as in §15. `wishlists.customer_id` unique, FK `customers` (`RESTRICT`); the wishlist is created on the first add. `wishlist_items.wishlist_id` FK (`CASCADE`), `product_variant_id` FK `product_variants` (`RESTRICT`), index on `product_variant_id`, unique `(wishlist_id, product_variant_id)`.
+- Items are deleted when the customer removes them or moves them to the cart; nothing else references them. The R6 reminder state columns ("Wishlist reminder state") are added by TASK-043.
+
 ## v1.2 TASK-044 Amendments
 
 Added by TASK-044 (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042). Migrated in `prisma/migrations/*_reviews`.
