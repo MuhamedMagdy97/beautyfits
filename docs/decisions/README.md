@@ -44,6 +44,7 @@
 | [ADR-0037](ADR-0037-cod-confirmation.md) | COD confirmation, reminders and expiry | TASK-031 |
 | [ADR-0038](ADR-0038-order-revisions.md) | Order revisions | TASK-032 |
 | [ADR-0039](ADR-0039-order-cancellation.md) | Order cancellation | TASK-033 |
+| [ADR-0040](ADR-0040-shipments.md) | Shipments, carrier handoff and delivery | TASK-034 |
 | [ADR-0045](ADR-0045-dashboard-shell.md) | Dashboard shell: API client, session handling, navigation | TASK-052 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

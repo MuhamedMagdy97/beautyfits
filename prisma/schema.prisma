@@ -1612,8 +1612,9 @@ model ShippingCompany {
   createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  rules  ShippingRule[]
-  orders Order[]
+  rules     ShippingRule[]
+  orders    Order[]
+  shipments Shipment[]
 
   @@map("shipping_companies")
 }
@@ -1648,6 +1649,78 @@ model ShippingRule {
 
   @@index([status])
   @@map("shipping_rules")
+}
+
+// Shipments (TASK-034, Business Spec Q84, Q85, Q127, R2, R4; ADR-0040).
+// Shipment state is separate from order state; the shipment row is created
+// at carrier handoff (`mark-shipped`). Before that the order's own status
+// (`READY_FOR_SHIPMENT`) is the shipment's Created/Ready stage.
+
+/// Shipment lifecycle of R2 from carrier handoff on. TASK-034 moves
+/// SHIPPED → OUT_FOR_DELIVERY → DELIVERED; delivery failures (TASK-035) and
+/// return to sender (TASK-036) use the other values.
+enum ShipmentStatus {
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERY_FAILED
+  RETURN_TO_SENDER
+  RETURNED
+  DELIVERED
+
+  @@map("shipment_status")
+}
+
+/// What a shipment event records. Later tasks add theirs (failed attempts,
+/// shipping cancellation requests, provider events).
+enum ShipmentEventType {
+  SHIPPED
+  TRACKING_UPDATED
+  OUT_FOR_DELIVERY
+  DELIVERED
+
+  @@map("shipment_event_type")
+}
+
+/// An order's parcel with a contracted company (Q84, Q126). Order 1─N
+/// shipments (split shipments later); never deleted.
+model Shipment {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  orderId           String         @map("order_id") @db.Uuid
+  shippingCompanyId String         @map("shipping_company_id") @db.Uuid
+  /// Unique per company; may be added after handoff.
+  trackingNumber    String?        @map("tracking_number")
+  status            ShipmentStatus @default(SHIPPED)
+  /// Carrier handoff (mark-shipped).
+  pickedUpAt        DateTime       @map("picked_up_at") @db.Timestamptz(3)
+  deliveredAt       DateTime?      @map("delivered_at") @db.Timestamptz(3)
+  createdAt         DateTime       @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @map("updated_at") @db.Timestamptz(3)
+
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  shippingCompany ShippingCompany @relation(fields: [shippingCompanyId], references: [id], onDelete: Restrict)
+  events          ShipmentEvent[]
+
+  @@unique([shippingCompanyId, trackingNumber])
+  @@index([orderId])
+  @@index([trackingNumber])
+  @@map("shipments")
+}
+
+/// Append-only history of a shipment (DB design §9).
+model ShipmentEvent {
+  id                   String            @id @default(uuid(7)) @db.Uuid
+  shipmentId           String            @map("shipment_id") @db.Uuid
+  eventType            ShipmentEventType @map("event_type")
+  eventAt              DateTime          @map("event_at") @db.Timestamptz(3)
+  location             String?
+  /// A carrier's own event id (provider integration, later).
+  rawProviderReference String?           @map("raw_provider_reference")
+  notes                String?
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+
+  @@index([shipmentId, eventAt])
+  @@map("shipment_events")
 }
 
 // ---------------------------------------------------------------------------
@@ -1827,6 +1900,8 @@ model Order {
   expiredAt                           DateTime?              @map("expired_at") @db.Timestamptz(3)
   /// Set by `→ Cancelled` (TASK-033, R11); who and why are in the status history.
   cancelledAt                         DateTime?              @map("cancelled_at") @db.Timestamptz(3)
+  /// Set by `Shipped → Delivered` (shipment delivered, TASK-034).
+  deliveredAt                         DateTime?              @map("delivered_at") @db.Timestamptz(3)
   createdAt                           DateTime               @map("created_at") @db.Timestamptz(3)
   updatedAt                           DateTime               @map("updated_at") @db.Timestamptz(3)
 
@@ -1842,6 +1917,7 @@ model Order {
   discountUsage             DiscountUsage?
   walletHolds               WalletReservation[]
   revisions                 OrderRevision[]
+  shipments                 Shipment[]
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
