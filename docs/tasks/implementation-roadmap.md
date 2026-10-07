@@ -380,6 +380,8 @@ Implement configurable confirmation channel, reminder schedule, 3-day hard maxim
 
 Allow edits before Preparing. Material changes recalculate everything and require customer re-confirmation. Preserve revisions.
 
+**Status after TASK-032** (`docs/tasks/TASK-032-order-modification.md`, ADR-0038, Business Spec R40): `POST /orders/{orderId}/modify` prices a change as an `order_revisions` row; `POST /orders/{orderId}/revisions/{revisionId}/confirm` re-prices it and, in one transaction, moves stock and wallet holds, keeps or releases the discount use, replaces the lines and amounts (previous state kept on the revision) and sends a Confirmed order back to New. Ordered quantity keeps its price; one variant may have two lines. Signed-in customers only, 24-hour window.
+
 ### TASK-033 — Cancellation & Expiration
 **Depends on:** TASK-030 → TASK-032
 

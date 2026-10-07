@@ -11,13 +11,15 @@ import type { AuditActor } from "@/server/modules/audit/audit";
  *
  * - `PENDING_CONFIRMATION → NEW` only by the System after COD confirmation (R1, R10).
  * - `EXPIRED` only from `PENDING_CONFIRMATION` (COD timeout, Q25).
+ * - `CONFIRMED → NEW` only when the customer confirms a revision, so staff
+ *   review the changed order again (C5, R40).
  * - Direct cancellation before carrier pickup (R11); `SHIPPED → CANCELLED`
  *   only after the shipment came back (R3, TASK-036).
  */
 export const ORDER_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
   PENDING_CONFIRMATION: ["NEW", "CANCELLED", "EXPIRED"],
   NEW: ["CONFIRMED", "CANCELLED"],
-  CONFIRMED: ["PREPARING", "CANCELLED"],
+  CONFIRMED: ["PREPARING", "CANCELLED", "NEW"],
   PREPARING: ["READY_FOR_SHIPMENT", "CANCELLED"],
   READY_FOR_SHIPMENT: ["SHIPPED", "CANCELLED"],
   SHIPPED: ["DELIVERED", "CANCELLED"],

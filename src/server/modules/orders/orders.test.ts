@@ -15,7 +15,7 @@ describe("order transitions", () => {
   it("rejects jumps, going back and leaving a final status", () => {
     expect(canTransition("PREPARING", "SHIPPED")).toBe(false); // R4
     expect(canTransition("PENDING_CONFIRMATION", "CONFIRMED")).toBe(false);
-    expect(canTransition("CONFIRMED", "NEW")).toBe(false);
+    expect(canTransition("PREPARING", "NEW")).toBe(false);
     expect(canTransition("NEW", "EXPIRED")).toBe(false);
     for (const final of ["DELIVERED", "CANCELLED", "EXPIRED"] as const) {
       expect(ORDER_TRANSITIONS[final]).toEqual([]);
@@ -34,5 +34,11 @@ describe("order transitions", () => {
       expect(canTransition(from, "CANCELLED")).toBe(true);
     }
     expect(canTransition("DELIVERED", "CANCELLED")).toBe(false);
+  });
+});
+
+describe("revised orders (C5, R40)", () => {
+  it("go back from Confirmed to New for another staff review", () => {
+    expect(canTransition("CONFIRMED", "NEW")).toBe(true);
   });
 });
