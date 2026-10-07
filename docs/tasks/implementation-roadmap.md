@@ -518,6 +518,8 @@ Implement dashboards for revenue, orders, customers, views, conversion funnel, C
 
 Implement layout, authentication, permission-aware navigation, session handling and error states.
 
+**Status after TASK-052** (`docs/tasks/TASK-052-dashboard-shell.md`, ADR-0045): the dashboard lives at `/staff` in the Next.js app: sign-in with email code, forgot-password and `/staff/accept-invitation` pages; the shell loads `GET /employee-auth/session`, filters the sidebar by permissions (cosmetic only), refreshes the access token once and sends ended sessions to sign-in; Arabic (RTL) and English. Sections without a screen show a placeholder at `/staff/[section]`; TASK-053..057 add real routes there and reuse `staffApi`, `useStaffSession`, `StatusPanel` and `errorMessage` from `src/app/staff/_lib` and `_components`.
+
 ### TASK-053 — Catalog & Inventory Dashboard
 **Depends on:** TASK-014 → TASK-020
 

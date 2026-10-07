@@ -10,6 +10,18 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* BeautyFits brand tokens (design-reference/google-stitch/editorial_velvet). */
+  --color-plum: #4e0529;
+  --color-plum-soft: #6b1e3f;
+  --color-blush: #feb9cb;
+  --color-velvet: #fff7fb;
+  --color-velvet-low: #f9f2f6;
+  --color-ink: #1d1b1e;
+  --color-ink-soft: #534247;
+  --color-line: #d8c1c6;
+  --color-danger: #ba1a1a;
+  --color-danger-soft: #ffdad6;
 }
 
 @media (prefers-color-scheme: dark) {
