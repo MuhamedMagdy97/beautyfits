@@ -1932,6 +1932,22 @@ Added by TASK-031 (`docs/tasks/TASK-031-cod-confirmation.md`, ADR-0037). Migrate
 - `cod_confirmation_tokens` as in "Orders & COD", without `order_revision_id` (added with revisions, TASK-032). `channel` uses the same enum (default `WHATSAPP`). Index on `order_id`.
 - Settings (§20): `cod.confirmation_timeout_hours` (1–72, default 72), `cod.reminder_interval_hours` (default 24), `cod.reminder_max_count` (default 2, 0 allowed), `cod.confirmation_channel` (`WHATSAPP` | `PHONE`, default `WHATSAPP`).
 
+## v1.2 TASK-032 Amendments
+
+Added by TASK-032 (`docs/tasks/TASK-032-order-modification.md`, ADR-0038). Migrated in `prisma/migrations/*_order_revisions`.
+
+- `order_revisions`: `id`, `order_id`, `revision_number` (unique per order), `requested_by_customer_id` (FK `customers`), `status` (enum `order_revision_status` = `PENDING_CONFIRMATION` | `CONFIRMED` | `SUPERSEDED` | `EXPIRED`; `SUPERSEDED` replaces the documented `REJECTED`), `old_total`, `new_total`, `request_json` (the resolved request), `previous_snapshot_json` (the order's lines and amounts before), `proposed_snapshot_json` (the priced new state), `expires_at` (24 hours, R40), `created_at`, `confirmed_at`. No `reason` column (not collected). Partial unique index: one `PENDING_CONFIRMATION` revision per order.
+- `order_items` unique key becomes `(order_id, product_variant_id, unit_price)`: after a revision a variant may have a line at its order price and one at today's price (R40).
+- `orders_immutable` / `order_items_immutable` amended: a confirmed revision may replace the order's items and its commercial columns (amounts, discount, shipping rule, address snapshot) only inside a transaction that sets the local flag `beautyfits.order_revision = on`. Order number, contact, payment method, currency, locale, `tax_included`, the customer snapshot and `created_at` never change; deleting orders and updating item rows are always refused.
+- `cod_confirmation_tokens.order_revision_id` is not added: revisions are confirmed in the app (R40).
+
+## v1.2 TASK-033 Amendments
+
+Added by TASK-033 (`docs/tasks/TASK-033-cancellation-expiration.md`, ADR-0039). Migrated in `prisma/migrations/*_order_cancellation`.
+
+- `orders.cancelled_at` (§8): set by `→ CANCELLED`; a lifecycle column, writable under `orders_immutable`. Who cancelled and why live in `order_status_history` (`changed_by_type`, `changed_by_id`, `reason`) and `audit_logs`; no separate columns.
+- "Order expiration/cancellation" (§ transactions) is implemented by one shared step for both paths: change the status with history, then release the inventory reservations (`RELEASE_RESERVATION` movements), the discount use and the wallet reservation, in the same transaction.
+
 ## v1.2 TASK-050 Amendments
 
 Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Migrated in `prisma/migrations/*_analytics_events`.

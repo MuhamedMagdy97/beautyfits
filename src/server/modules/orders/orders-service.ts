@@ -1,17 +1,35 @@
-import type { OrderStatus, Prisma, PrismaClient } from "@/generated/prisma/client";
+import type {
+  OrderRevisionStatus,
+  OrderStatus,
+  Prisma,
+  PrismaClient,
+} from "@/generated/prisma/client";
 import { getDb } from "@/server/db/client";
 import { runInTransaction, type Db } from "@/server/db/transaction";
 import type { Pagination } from "@/server/http/response";
 import type { SupportedLocale } from "@/server/http/locale";
 import type { Logger } from "@/server/logging/logger";
+import { AppError } from "@/server/errors/app-error";
 import {
   AUDIT_ENTITY_TYPES,
   employeeActor,
   recordAudit,
   type AuditAction,
+  type AuditActor,
 } from "@/server/modules/audit/audit";
 import { mediaContentUrl } from "@/server/modules/media/uploads-service";
-import { changeOrderStatus, orderNotFound } from "@/server/modules/orders/orders";
+import {
+  CANCELLABLE_ORDER_STATUSES,
+  changeOrderStatus,
+  lockOrder,
+  orderNotFound,
+  releaseOrderHolds,
+} from "@/server/modules/orders/orders";
+import {
+  effectiveRevisionStatus,
+  toRevisionView,
+  type RevisionView,
+} from "@/server/modules/orders/revisions";
 import type { ListMyOrdersQuery, ListOrdersQuery } from "@/server/modules/orders/schemas";
 import { permissionDenied, type PermissionSet } from "@/server/modules/rbac/authorization";
 import { toJsonNumber } from "@/server/money/money";
@@ -31,6 +49,8 @@ import { systemClock, type Clock } from "@/server/time/time";
  *   their permission (Q82, Q83, R4); no approval in v1 (R19). Each change
  *   writes status history and an audit entry; confirming also writes the
  *   `ORDER_CONFIRMED` outbox event.
+ * - Customers (own orders) and staff with `CANCEL_ORDER` cancel before
+ *   carrier pickup (TASK-033, R11, ADR-0039).
  */
 
 const ITEMS = {
@@ -43,6 +63,7 @@ const DETAIL = {
   ...ITEMS,
   statusHistory: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
   shippingCompany: { select: { id: true, code: true, name: true } },
+  revisions: { orderBy: { revisionNumber: "asc" } },
 } as const satisfies Prisma.OrderInclude;
 
 type OrderDetail = Prisma.OrderGetPayload<{ include: typeof DETAIL }>;
@@ -88,6 +109,8 @@ export interface CustomerOrderView extends OrderSummaryView {
   discount: { code: string | null; name: string | null } | null;
   shippingAddress: Prisma.JsonValue;
   statusHistory: { status: OrderStatus; at: string }[];
+  /** The open change waiting for the customer's confirmation (TASK-032). */
+  pendingRevision: RevisionView | null;
 }
 
 /** One row of `GET /me/orders` and `GET /admin/orders`. */
@@ -167,6 +190,17 @@ export interface AdminOrderView {
   };
   confirmedAt: string | null;
   expiredAt: string | null;
+  cancelledAt: string | null;
+  /** Customer changes of the order (TASK-032), oldest first. */
+  revisions: {
+    id: string;
+    revisionNumber: number;
+    status: OrderRevisionStatus;
+    oldTotal: number;
+    newTotal: number;
+    createdAt: string;
+    confirmedAt: string | null;
+  }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -212,7 +246,10 @@ export async function loadOrderSummary(
   return toSummary(order, locale);
 }
 
-function toCustomerView(order: OrderDetail, locale: SupportedLocale): CustomerOrderView {
+function toCustomerView(order: OrderDetail, locale: SupportedLocale, now: Date): CustomerOrderView {
+  const open = order.revisions.find(
+    (r) => effectiveRevisionStatus(r, order.status, now) === "PENDING_CONFIRMATION",
+  );
   const discount = order.discountSnapshot as Snapshot | null;
   return {
     ...toSummary(order, locale),
@@ -225,10 +262,11 @@ function toCustomerView(order: OrderDetail, locale: SupportedLocale): CustomerOr
       status: h.toStatus,
       at: h.createdAt.toISOString(),
     })),
+    pendingRevision: open ? toRevisionView(open, order.status, locale, now) : null,
   };
 }
 
-function toAdminView(order: OrderDetail, permissions: PermissionSet): AdminOrderView {
+function toAdminView(order: OrderDetail, permissions: PermissionSet, now: Date): AdminOrderView {
   const contact = permissions.has("VIEW_CUSTOMER_CONTACT");
   const costs = permissions.has("VIEW_COST_PRICE");
   const person = order.customerSnapshot as Snapshot;
@@ -297,6 +335,16 @@ function toAdminView(order: OrderDetail, permissions: PermissionSet): AdminOrder
     },
     confirmedAt: order.confirmedAt?.toISOString() ?? null,
     expiredAt: order.expiredAt?.toISOString() ?? null,
+    cancelledAt: order.cancelledAt?.toISOString() ?? null,
+    revisions: order.revisions.map((r) => ({
+      id: r.id,
+      revisionNumber: r.revisionNumber,
+      status: effectiveRevisionStatus(r, order.status, now),
+      oldTotal: toJsonNumber(r.oldTotal),
+      newTotal: toJsonNumber(r.newTotal),
+      createdAt: r.createdAt.toISOString(),
+      confirmedAt: r.confirmedAt?.toISOString() ?? null,
+    })),
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
   };
@@ -381,7 +429,7 @@ export function createOrdersService(deps: { db: PrismaClient; clock: Clock }) {
     if (!order) {
       throw orderNotFound();
     }
-    return toCustomerView(order, locale);
+    return toCustomerView(order, locale, clock.now());
   }
 
   /** `GET /admin/orders`. */
@@ -424,7 +472,7 @@ export function createOrdersService(deps: { db: PrismaClient; clock: Clock }) {
     if (!order) {
       throw orderNotFound();
     }
-    return toAdminView(order, permissions);
+    return toAdminView(order, permissions, clock.now());
   }
 
   async function staffStep(
@@ -474,11 +522,109 @@ export function createOrdersService(deps: { db: PrismaClient; clock: Clock }) {
     return getOrder(orderId, actor.permissions);
   }
 
+  /**
+   * Direct cancellation before carrier pickup (Q10, Q33, Q86, Q87, R11): one
+   * transaction moves the order to `CANCELLED`, gives back its stock,
+   * discount use and wallet hold, and writes history, audit and the
+   * `ORDER_CANCELLED` event. A `SHIPPED` order needs a shipping cancellation
+   * request on its shipment instead (R3, TASK-036).
+   */
+  async function cancel(
+    orderId: string,
+    actor: AuditActor,
+    reason: string | null,
+    ctx: Ctx,
+  ): Promise<void> {
+    const now = clock.now();
+    await runInTransaction(
+      async (tx) => {
+        const status = await lockOrder(tx, orderId);
+        if (!CANCELLABLE_ORDER_STATUSES.includes(status)) {
+          throw new AppError(
+            "ORDER_CANCELLATION_NOT_ALLOWED",
+            `An order in ${status} cannot be cancelled.`,
+            {
+              details: {
+                status,
+                ...(status === "SHIPPED" ? { reason: "AFTER_CARRIER_PICKUP" } : {}),
+              },
+            },
+          );
+        }
+        await changeOrderStatus(tx, {
+          orderId,
+          to: "CANCELLED",
+          actor,
+          now,
+          reason,
+          data: { cancelledAt: now },
+        });
+        await releaseOrderHolds(tx, { orderId, actor, now, reason: "ORDER_CANCELLED" });
+        await recordAudit(tx, {
+          actor,
+          action: "ORDER_CANCELLED",
+          entityType: AUDIT_ENTITY_TYPES.order,
+          entityId: orderId,
+          previous: { status },
+          next: { status: "CANCELLED" },
+          reason,
+          correlationId: ctx.correlationId,
+          createdAt: now,
+        });
+        await tx.outboxEvent.create({
+          data: {
+            eventType: "ORDER_CANCELLED",
+            aggregateType: "ORDER",
+            aggregateId: orderId,
+            payload: { orderId, cancelledBy: actor.type, correlationId: ctx.correlationId },
+            availableAt: now,
+            createdAt: now,
+          },
+        });
+      },
+      {},
+      db,
+    );
+    ctx.logger.info("order cancelled", { orderId, by: actor.type });
+  }
+
+  /** `POST /orders/{orderId}/cancel`: own orders only; another's is 404. */
+  async function cancelMyOrder(
+    customerId: string,
+    orderId: string,
+    reason: string | null,
+    locale: SupportedLocale,
+    ctx: Ctx,
+  ): Promise<CustomerOrderView> {
+    const own = await db.order.findFirst({
+      where: { id: orderId, customerId },
+      select: { id: true },
+    });
+    if (!own) {
+      throw orderNotFound();
+    }
+    await cancel(orderId, { type: "CUSTOMER", id: customerId }, reason, ctx);
+    return getMyOrder(customerId, orderId, locale);
+  }
+
+  /** `POST /admin/orders/{orderId}/cancel` (`CANCEL_ORDER`, reason required, Q86). */
+  async function cancelOrder(
+    actor: OrderActor,
+    orderId: string,
+    reason: string,
+    ctx: Ctx,
+  ): Promise<AdminOrderView> {
+    await cancel(orderId, employeeActor(actor.employeeId), reason, ctx);
+    return getOrder(orderId, actor.permissions);
+  }
+
   return {
     listMyOrders,
     getMyOrder,
     listOrders,
     getOrder,
+    cancelMyOrder,
+    cancelOrder,
     confirmOrder: (a: OrderActor, id: string, ctx: Ctx) => staffStep("confirm", a, id, ctx),
     startPreparing: (a: OrderActor, id: string, ctx: Ctx) =>
       staffStep("startPreparing", a, id, ctx),
