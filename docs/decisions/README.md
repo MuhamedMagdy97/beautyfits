@@ -42,5 +42,6 @@
 | [ADR-0035](ADR-0035-checkout.md) | Atomic checkout and order creation | TASK-029 |
 | [ADR-0036](ADR-0036-order-core.md) | Order core: reads, state machine and immutable snapshots | TASK-030 |
 | [ADR-0037](ADR-0037-cod-confirmation.md) | COD confirmation, reminders and expiry | TASK-031 |
+| [ADR-0042](ADR-0042-verified-reviews.md) | Verified reviews and moderation history | TASK-044 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

@@ -177,6 +177,8 @@ model Customer {
   discountUsages DiscountUsage[]
   wallet         Wallet?
   orders         Order[]
+  reviews        Review[]
+  reviewReports  ReviewReport[]
 
   @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
   @@index([phone])
@@ -336,29 +338,30 @@ model Employee {
   createdBy Employee?  @relation("EmployeeCreatedBy", fields: [createdByEmployeeId], references: [id])
   created   Employee[] @relation("EmployeeCreatedBy")
 
-  roles                 EmployeeRole[]        @relation("EmployeeRoleHolder")
-  rolesAssigned         EmployeeRole[]        @relation("EmployeeRoleAssigner")
-  rolesCreated          Role[]                @relation("RoleCreatedBy")
-  invitationsSent       EmployeeInvitation[]  @relation("InvitationInvitedBy")
-  invitationsRevoked    EmployeeInvitation[]  @relation("InvitationRevokedBy")
-  invitation            EmployeeInvitation?   @relation("InvitationAcceptedAs")
-  settingsUpdated       Setting[]             @relation("SettingUpdatedBy")
-  approvalsRequested    ApprovalRequest[]     @relation("ApprovalRequestedBy")
-  approvalsResolved     ApprovalRequest[]     @relation("ApprovalResolvedBy")
-  mediaUploaded         MediaAsset[]          @relation("MediaAssetCreatedBy")
-  purchasesCreated      PurchaseOrder[]       @relation("PurchaseOrderCreatedBy")
-  purchasesApproved     PurchaseOrder[]       @relation("PurchaseOrderApprovedBy")
-  purchasesCancelled    PurchaseOrder[]       @relation("PurchaseOrderCancelledBy")
-  purchasesClosed       PurchaseOrder[]       @relation("PurchaseOrderClosedBy")
-  goodsReceipts         GoodsReceipt[]        @relation("GoodsReceiptReceivedBy")
-  invoicesRecorded      PurchaseInvoice[]     @relation("PurchaseInvoiceRecordedBy")
-  returnsCreated        SupplierReturn[]      @relation("SupplierReturnCreatedBy")
-  returnsApproved       SupplierReturn[]      @relation("SupplierReturnApprovedBy")
-  returnsSettled        SupplierReturn[]      @relation("SupplierReturnSettledBy")
-  paymentsRecorded      SupplierPayment[]     @relation("SupplierPaymentRecordedBy")
-  ledgerEntries         SupplierLedgerEntry[] @relation("SupplierLedgerEntryCreatedBy")
-  discountsCreated      Discount[]            @relation("DiscountCreatedBy")
-  codPhoneConfirmations Order[]               @relation("OrderCodConfirmationRecordedBy")
+  roles                 EmployeeRole[]          @relation("EmployeeRoleHolder")
+  rolesAssigned         EmployeeRole[]          @relation("EmployeeRoleAssigner")
+  rolesCreated          Role[]                  @relation("RoleCreatedBy")
+  invitationsSent       EmployeeInvitation[]    @relation("InvitationInvitedBy")
+  invitationsRevoked    EmployeeInvitation[]    @relation("InvitationRevokedBy")
+  invitation            EmployeeInvitation?     @relation("InvitationAcceptedAs")
+  settingsUpdated       Setting[]               @relation("SettingUpdatedBy")
+  approvalsRequested    ApprovalRequest[]       @relation("ApprovalRequestedBy")
+  approvalsResolved     ApprovalRequest[]       @relation("ApprovalResolvedBy")
+  mediaUploaded         MediaAsset[]            @relation("MediaAssetCreatedBy")
+  purchasesCreated      PurchaseOrder[]         @relation("PurchaseOrderCreatedBy")
+  purchasesApproved     PurchaseOrder[]         @relation("PurchaseOrderApprovedBy")
+  purchasesCancelled    PurchaseOrder[]         @relation("PurchaseOrderCancelledBy")
+  purchasesClosed       PurchaseOrder[]         @relation("PurchaseOrderClosedBy")
+  goodsReceipts         GoodsReceipt[]          @relation("GoodsReceiptReceivedBy")
+  invoicesRecorded      PurchaseInvoice[]       @relation("PurchaseInvoiceRecordedBy")
+  returnsCreated        SupplierReturn[]        @relation("SupplierReturnCreatedBy")
+  returnsApproved       SupplierReturn[]        @relation("SupplierReturnApprovedBy")
+  returnsSettled        SupplierReturn[]        @relation("SupplierReturnSettledBy")
+  paymentsRecorded      SupplierPayment[]       @relation("SupplierPaymentRecordedBy")
+  ledgerEntries         SupplierLedgerEntry[]   @relation("SupplierLedgerEntryCreatedBy")
+  discountsCreated      Discount[]              @relation("DiscountCreatedBy")
+  codPhoneConfirmations Order[]                 @relation("OrderCodConfirmationRecordedBy")
+  reviewModerations     ReviewModerationEvent[]
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -649,6 +652,7 @@ model Product {
   media      ProductMedia[]
   orderItems OrderItem[]
   discounts  DiscountProduct[]
+  reviews    Review[]
 
   @@index([status, createdAt(sort: Desc)])
   @@index([brandId])
@@ -1838,6 +1842,7 @@ model Order {
   reservations              InventoryReservation[]
   discountUsage             DiscountUsage?
   walletHolds               WalletReservation[]
+  reviews                   Review[]
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
@@ -1888,6 +1893,7 @@ model OrderItem {
   order   Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
   product Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
   variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  reviews Review[]
 
   @@unique([orderId, productVariantId])
   @@index([productVariantId])
@@ -1938,4 +1944,84 @@ model CheckoutAttempt {
 
   @@unique([scope, idempotencyKey])
   @@map("checkout_attempts")
+}
+
+// ---------------------------------------------------------------------------
+// Reviews (DB design §16; TASK-044, ADR-0042). Verified purchase only: one
+// review per delivered order and product (Q12, Q49), published immediately
+// (Q11, Q173), hidden by moderation with its history kept (Q174).
+// ---------------------------------------------------------------------------
+
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN
+
+  @@map("review_status")
+}
+
+/// One customer's review of a product, from one delivered order. Never
+/// hard-deleted (trigger `reviews_no_delete`); hiding keeps it.
+model Review {
+  id               String       @id @default(uuid(7)) @db.Uuid
+  customerId       String       @map("customer_id") @db.Uuid
+  productId        String       @map("product_id") @db.Uuid
+  orderId          String       @map("order_id") @db.Uuid
+  /// The qualifying line; it names the purchased variant (C6).
+  orderItemId      String       @map("order_item_id") @db.Uuid
+  /// 1-5 (Q171; check constraint).
+  rating           Int
+  body             String
+  status           ReviewStatus @default(PUBLISHED)
+  /// The reason of the current hide; null while published.
+  moderationReason String?      @map("moderation_reason")
+  createdAt        DateTime     @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime     @map("updated_at") @db.Timestamptz(3)
+
+  customer          Customer                @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  product           Product                 @relation(fields: [productId], references: [id], onDelete: Restrict)
+  order             Order                   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderItem         OrderItem               @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  moderationHistory ReviewModerationEvent[]
+  reports           ReviewReport[]
+
+  @@unique([orderId, productId])
+  @@index([productId, status, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([customerId])
+  @@map("reviews")
+}
+
+/// Hide/restore history (Q174). Append-only (trigger).
+model ReviewModerationEvent {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  reviewId   String       @map("review_id") @db.Uuid
+  fromStatus ReviewStatus @map("from_status")
+  toStatus   ReviewStatus @map("to_status")
+  employeeId String       @map("employee_id") @db.Uuid
+  reason     String?
+  createdAt  DateTime     @map("created_at") @db.Timestamptz(3)
+
+  review   Review   @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([reviewId, createdAt])
+  @@map("review_moderation_history")
+}
+
+/// A customer's report of a review, once per customer and review. Open until
+/// the review is hidden.
+model ReviewReport {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  reviewId   String    @map("review_id") @db.Uuid
+  customerId String    @map("customer_id") @db.Uuid
+  reason     String?
+  createdAt  DateTime  @map("created_at") @db.Timestamptz(3)
+  resolvedAt DateTime? @map("resolved_at") @db.Timestamptz(3)
+
+  review   Review   @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@unique([reviewId, customerId])
+  @@index([reviewId, resolvedAt])
+  @@map("review_reports")
 }

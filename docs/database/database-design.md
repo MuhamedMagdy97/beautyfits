@@ -1931,3 +1931,15 @@ Added by TASK-031 (`docs/tasks/TASK-031-cod-confirmation.md`, ADR-0037). Migrate
 - `orders` (§8, R10, R39): `cod_confirmation_deadline_at` (set at checkout for `PENDING_CONFIRMATION` orders: creation + the timeout setting, at most 72 hours; never recomputed), `cod_confirmation_source` (enum `cod_confirmation_source` = `WHATSAPP` | `PHONE`), `cod_confirmed_at`, `cod_confirmation_recorded_by_employee_id` (FK `employees`, `RESTRICT`; check: required when the source is `PHONE`), `cod_reminder_count` (default 0, never negative), `cod_last_reminder_at`, `expired_at`. Index `(status, cod_confirmation_deadline_at)` for the reminder and expiry jobs. All are lifecycle columns, writable under `orders_immutable`. Orders already pending at migration time got the 72-hour deadline.
 - `cod_confirmation_tokens` as in "Orders & COD", without `order_revision_id` (added with revisions, TASK-032). `channel` uses the same enum (default `WHATSAPP`). Index on `order_id`.
 - Settings (§20): `cod.confirmation_timeout_hours` (1–72, default 72), `cod.reminder_interval_hours` (default 24), `cod.reminder_max_count` (default 2, 0 allowed), `cod.confirmation_channel` (`WHATSAPP` | `PHONE`, default `WHATSAPP`).
+
+## v1.2 TASK-044 Amendments
+
+Added by TASK-044 (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042). Migrated in `prisma/migrations/*_reviews`.
+
+- `reviews` (§16): `id`, `customer_id` (FK `customers`), `product_id` (FK `products`; display is product-level, C6), `order_id` (FK `orders`), `order_item_id` (FK `order_items`; names the purchased variant), `rating` (check 1–5), `body` (check: not blank), `status` (enum `review_status` = `PUBLISHED` | `HIDDEN`, default `PUBLISHED`), `moderation_reason` (the current hide's reason, null while published), `created_at`, `updated_at` (author edits only). All FKs `RESTRICT`.
+  - Unique `(order_id, product_id)`: one review per successful order and product (Business Spec Q12/Q49 and User Flows §5 "one review for the product" win over §16's "per order item": two variants of one product in one order give one review).
+  - Indexes `(product_id, status, created_at DESC)`, `(status, created_at DESC)`, `(customer_id)`.
+  - `REPORTED` is not a status: reports live in `review_reports`, so several reports and a hide/restore never overwrite each other.
+- `review_moderation_history`: `id`, `review_id`, `from_status`, `to_status`, `employee_id` (FK `employees`), `reason`, `created_at`. Index `(review_id, created_at)`. Append-only (Q174).
+- `review_reports`: `id`, `review_id`, `customer_id`, `reason`, `created_at`, `resolved_at` (set when the review is hidden). Unique `(review_id, customer_id)`; index `(review_id, resolved_at)`.
+- Triggers (`reviews_reject_change`): `reviews` and `review_reports` reject `DELETE`; `review_moderation_history` rejects `UPDATE` and `DELETE`.

@@ -452,6 +452,8 @@ Implement explicit restock subscriptions, one notification per restock event, an
 
 Implement one review per successful purchase/order, product-level review display, direct publishing after automated abuse checks and moderation/hide history.
 
+**Status after TASK-044** (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042): `reviews`, `review_moderation_history` and `review_reports` (never deleted; history append-only). Customers review a product of their own `DELIVERED` order once per order and product (`POST /orders/{orderId}/items/{orderItemId}/review`), edit (`PATCH /reviews/{id}`, status kept) and report (`POST /reviews/{id}/report`); `GET /products/{productId}/reviews` lists published reviews with a count and average. `REVIEW_MODERATE` lists, hides (reason required, resolves reports) and restores with history and audit. `DELIVERED` is reached by TASK-034; review rate limits and content filters wait for owner decisions (TASK-061).
+
 ### TASK-045 — Notification Service
 **Depends on:** TASK-005, TASK-007
 
