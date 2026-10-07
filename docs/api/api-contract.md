@@ -1693,3 +1693,27 @@ Added by TASK-032 (`docs/tasks/TASK-032-order-modification.md`, ADR-0038). Busin
 | Extra quantity not available or not purchasable | `409 STOCK_CHANGED`, `details.items` |
 | Wallet amount above the total / not enough credit | `400 VALIDATION_ERROR` / `422 WALLET_INSUFFICIENT_FUNDS` |
 | No delivery rule for the new address | `422 SHIPPING_UNAVAILABLE` |
+
+## TASK-033 Amendments
+
+Added by TASK-033 (`docs/tasks/TASK-033-cancellation-expiration.md`, ADR-0039). Business rules: Q10, Q28, Q33, Q86, Q87, R3, R11, R16, R36, Audit Correction 5. Implements both `cancel` endpoints from §15. `request-shipping-cancellation` and the customer `cancel` of a `SHIPPED` order (recorded on the Shipment) come with TASK-036, once shipments exist (TASK-034).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /orders/{orderId}/cancel` | Customer (own order) | `{ reason? }` (1–500 characters; the body may be empty) | `200` `customerOrder` (`CANCELLED`) |
+| `POST /admin/orders/{orderId}/cancel` | `CANCEL_ORDER` | `{ reason }` (required, 1–500 characters, Q86) | `200` `adminOrder` (`CANCELLED`) |
+
+- Accepted while the order is `PENDING_CONFIRMATION`, `NEW`, `CONFIRMED`, `PREPARING` or `READY_FOR_SHIPMENT` (R11). One transaction moves it to `CANCELLED` (`cancelled_at`; history actor the customer or employee with the reason), gives back its reserved stock (`RELEASE_RESERVATION` movements), its discount use (R36) and its wallet hold (no ledger entry), writes the audit entry and the outbox event.
+- An open revision (TASK-032) then shows as `EXPIRED`; a COD link of the order no longer confirms (`ORDER_STATE_INVALID`); the expiry job skips the order.
+- `adminOrder` gains `cancelledAt`. The customer sees the cancellation in `statusHistory`.
+- Audit action added (entity `ORDER`): `ORDER_CANCELLED` (actor the customer or the employee, `reason`). Outbox event `ORDER_CANCELLED` (`{ orderId, cancelledBy: "CUSTOMER" | "EMPLOYEE", correlationId }`).
+- A repeated cancel is refused (`ORDER_CANCELLATION_NOT_ALLOWED`, `details.status = CANCELLED`); nothing is released twice.
+
+| Situation | Response |
+|---|---|
+| No customer session (guests cannot cancel online, R16) | `401 UNAUTHENTICATED` |
+| Unknown order or another customer's | `404 NOT_FOUND` |
+| Staff without `CANCEL_ORDER` | `403 PERMISSION_DENIED` |
+| Missing/blank staff reason, reason over 500 characters | `400 VALIDATION_ERROR` |
+| Order `SHIPPED` (after carrier pickup) | `422 ORDER_CANCELLATION_NOT_ALLOWED`, `details = { status: "SHIPPED", reason: "AFTER_CARRIER_PICKUP" }`. Interim for the customer endpoint until TASK-036 records the shipping cancellation request instead (§15). |
+| Order `DELIVERED`, `CANCELLED` or `EXPIRED` | `422 ORDER_CANCELLATION_NOT_ALLOWED`, `details.status` |

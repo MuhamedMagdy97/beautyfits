@@ -112,6 +112,8 @@ export const AUDIT_ACTIONS = [
   // Order revisions (TASK-032)
   "ORDER_REVISION_REQUESTED",
   "ORDER_REVISED",
+  // Cancellation (TASK-033)
+  "ORDER_CANCELLED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
