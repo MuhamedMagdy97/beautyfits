@@ -1806,6 +1806,30 @@ Added by TASK-044 (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042). Busines
 | Hiding a hidden review, restoring a published one | `409 CONFLICT`, `details = { status }` |
 | Missing `REVIEW_MODERATE` | `403 PERMISSION_DENIED` |
 
+## TASK-045 Amendments
+
+Added by TASK-045 (`docs/tasks/TASK-045-notification-service.md`, ADR-0043). Business rules: Q53, Q55–Q58, Q61, Q63, R10, R14, R39. Implements the notification rows of §11 (`/me/notifications`) and "Staff notifications and delivery logs".
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /me/notifications` | Customer | `?page&pageSize&unread=true\|false` | `200` list of `{ id, type, title, body, deepLink: { type, id } \| null, readAt, createdAt }`, newest first, with `pagination` (`unread=true`: unread only; its `total` is the unread count) |
+| `POST /me/notifications/{notificationId}/read` | Customer | — | `200` the notification; reading it again keeps the first `readAt` |
+| `POST /me/notifications/read-all` | Customer | — | `200` `{ updated }` |
+| `GET /admin/me/notifications` | Employee | as `/me/notifications` | `200` the employee's own notifications |
+| `POST /admin/me/notifications/{id}/read` | Employee | — | `200` the notification |
+| `GET /admin/notifications/deliveries` | `NOTIFICATION_LOG_VIEW` | `?page&pageSize&status&channel&orderId` | `200` list of `{ id, notificationId, orderId, templateKey, locale, channel, recipient?, attemptNumber, status, providerReference, failureReason, createdAt, sentAt }`, newest first; `recipient` only with `VIEW_CUSTOMER_CONTACT` |
+
+- Notifications are rendered in the order's language when created and kept (history). `deepLink.type` is `ORDER` for order messages (Q57).
+- Transactional messages (Q53, cannot be switched off), sent after commit by `npm run jobs:dispatch-notifications` from these outbox events (§31): `ORDER_CREATED`, `ORDER_COD_CONFIRMED`, `ORDER_CONFIRMED`, `ORDER_EXPIRED` (in-app for customers + WhatsApp, email fallback) and `COD_CONFIRMATION_REQUESTED`, `COD_CONFIRMATION_REMINDER` (WhatsApp only, with the secure link `WEBSITE_URL/orders/{orderId}/confirm-cod#token=bfo_…`; the page posts the token to `confirm-cod`).
+- Fallback goes only to an authorized address: a customer's verified account email, or the guest's checkout email (Q61). Every attempt is a delivery row: `SENT`, `FAILED`, or `FALLBACK_SENT` (a later channel after a failure).
+- `/me/preferences` is not added: the language is already `PATCH /me` (`preferredLocale`), and restock channels are chosen per subscription (`restock_subscriptions`, TASK-043). See the task file.
+
+| Error | Response |
+|---|---|
+| Unknown, malformed or someone else's notification id | `404 NOT_FOUND` |
+| No session / wrong session type | `401 UNAUTHENTICATED` / `403 FORBIDDEN` |
+| Delivery log without `NOTIFICATION_LOG_VIEW` | `403 PERMISSION_DENIED` |
+
 ## TASK-050 Amendments
 
 Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Business rules: Q145–Q148, R35. Implements `POST /analytics/events` from §27.

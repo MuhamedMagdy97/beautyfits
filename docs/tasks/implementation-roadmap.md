@@ -467,6 +467,8 @@ Implement one review per successful purchase/order, product-level review display
 
 Implement in-app notification center, read/unread, transactional notifications, Email/WhatsApp provider abstraction, fallback only when the fallback channel is authorized, delivery attempts and logs.
 
+**Status after TASK-045** (`docs/tasks/TASK-045-notification-service.md`, ADR-0043): `notifications` and `notification_deliveries`; `npm run jobs:dispatch-notifications` turns committed outbox events into the in-app notification plus WhatsApp with email fallback to an authorized address only (verified customer email / guest checkout email), one attempt row each, retry with backoff, never resending a delivered event. COD request and reminders are sent on WhatsApp only with a fresh `issueConfirmationToken` link (`WEBSITE_URL`). `WhatsAppSender` port with a local `.json` transport (`WHATSAPP_DIR`). Endpoints `/me/notifications` (list, read, read-all), `/admin/me/notifications`, `/admin/notifications/deliveries` (`NOTIFICATION_LOG_VIEW`). Other modules add in-app notifications with `createNotification` and new transactional messages with a template; TASK-049 and TASK-043 add consent-aware marketing/restock delivery on the same log; TASK-066 schedules the job.
+
 ---
 
 # Phase 9 — Marketing
