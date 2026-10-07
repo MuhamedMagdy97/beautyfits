@@ -1718,6 +1718,37 @@ Added by TASK-033 (`docs/tasks/TASK-033-cancellation-expiration.md`, ADR-0039). 
 | Order `SHIPPED` (after carrier pickup) | `422 ORDER_CANCELLATION_NOT_ALLOWED`, `details = { status: "SHIPPED", reason: "AFTER_CARRIER_PICKUP" }`. Interim for the customer endpoint until TASK-036 records the shipping cancellation request instead (§15). |
 | Order `DELIVERED`, `CANCELLED` or `EXPIRED` | `422 ORDER_CANCELLATION_NOT_ALLOWED`, `details.status` |
 
+## TASK-034 Amendments
+
+Added by TASK-034 (`docs/tasks/TASK-034-shipment-core.md`, ADR-0040). Business rules: Q84, Q85, Q126, Q127, R2, R4, R37, R38.7. Implements `mark-shipped` (§15), `assign-shipping`, shipment `tracking` and the delivery path of shipment `status` (§16). `DELIVERY_FAILED` (TASK-035), `RETURN_TO_SENDER` / `RETURNED` (TASK-036) and the contact tasks come later.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /admin/orders/{orderId}/assign-shipping` | `ASSIGN_SHIPPING` | `{ shippingCompanyId }` | `200` `adminOrder`; the order's carrier changes, the fee does not |
+| `POST /admin/orders/{orderId}/mark-shipped` | `MARK_AS_SHIPPED` | optional `{ trackingNumber? }` | `200` `adminOrder`; `READY_FOR_SHIPMENT → SHIPPED`, shipment created, stock committed, wallet hold captured, event `ORDER_SHIPPED` |
+| `POST /admin/shipments/{shipmentId}/tracking` | `MANAGE_SHIPMENT` | `{ trackingNumber }` | `200` `shipment` |
+| `POST /admin/shipments/{shipmentId}/status` | `MANAGE_SHIPMENT`; `DELIVERED` also `MARK_AS_DELIVERED` | `{ status: "OUT_FOR_DELIVERY" \| "DELIVERED", location?, notes? }` | `200` `shipment`; `DELIVERED` also moves the order `SHIPPED → DELIVERED`, event `ORDER_DELIVERED` |
+
+- `assign-shipping` is accepted while the order is `PENDING_CONFIRMATION` … `READY_FOR_SHIPMENT` (before carrier handoff), for an `ACTIVE` company.
+- `mark-shipped` uses the order's assigned company, which must be `ACTIVE`. In one transaction: the order's reserved stock is consumed (`CUSTOMER_ORDER_COMMIT` movements), its wallet hold is captured (`ORDER_WALLET_USE` debit; `adminOrder.walletAmountCaptured`), and the shipment is created with status `SHIPPED`.
+- `trackingNumber`: 1–100 of `A–Z a–z 0–9 - _ . /`, unique per shipping company.
+- Shipment status moves one step at a time: `SHIPPED → OUT_FOR_DELIVERY → DELIVERED`. Every change writes a shipment event; `location` and `notes` are stored on the event (staff only).
+- `shipment`: `{ id, orderId, status, company: { id, code, name }, trackingNumber, shippedAt, deliveredAt, events: [{ id, type, at, location, notes }], createdAt, updatedAt }`. `status` = `SHIPPED` \| `OUT_FOR_DELIVERY` \| `DELIVERY_FAILED` \| `RETURN_TO_SENDER` \| `RETURNED` \| `DELIVERED`; event `type` = `SHIPPED` \| `TRACKING_UPDATED` \| `OUT_FOR_DELIVERY` \| `DELIVERED` (later tasks add theirs).
+- `adminOrder` gains `deliveredAt` and `shipments: [shipment]`. `customerOrder` gains `shipments: [{ status, company: { name }, trackingNumber, shippedAt, deliveredAt, events: [{ type, at }] }]` (Q127 tracking; no notes or locations).
+- Audit actions added: `ORDER_SHIPPING_ASSIGNED`, `ORDER_SHIPPED`, `ORDER_DELIVERED` (entity `ORDER`), `SHIPMENT_TRACKING_UPDATED`, `SHIPMENT_STATUS_CHANGED` (entity `SHIPMENT`).
+- Outbox events (§31): `ORDER_SHIPPED` and `ORDER_DELIVERED`, payload `{ orderId, shipmentId }`.
+
+| Situation | Response |
+|---|---|
+| Unknown order or shipment | `404 NOT_FOUND` |
+| `mark-shipped` not from `READY_FOR_SHIPMENT`, or shipping twice | `409 ORDER_STATE_INVALID`, `details = { status, to: "SHIPPED" }` |
+| `assign-shipping` after handoff, or on a cancelled/expired order | `409 ORDER_STATE_INVALID`, `details.status` |
+| No company assigned / assigned company inactive at handoff | `409 CONFLICT`, `details.reason = SHIPPING_COMPANY_REQUIRED` / `SHIPPING_COMPANY_INACTIVE` |
+| Unknown or inactive company (`assign-shipping`) | `400 VALIDATION_ERROR`, issue code `not_found` / `inactive` (path `shippingCompanyId`) |
+| Tracking number used by another shipment of the company | `409 CONFLICT`, `details.reason = TRACKING_NUMBER_TAKEN` |
+| Shipment step not allowed (e.g. `SHIPPED → DELIVERED`) | `409 CONFLICT`, `details = { reason: "SHIPMENT_STATE_INVALID", status, to }` |
+| `DELIVERED` without `MARK_AS_DELIVERED` | `403 PERMISSION_DENIED` |
+
 ## TASK-045 Amendments
 
 Added by TASK-045 (`docs/tasks/TASK-045-notification-service.md`, ADR-0043). Business rules: Q53, Q55–Q58, Q61, Q63, R10, R14, R39. Implements the notification rows of §11 (`/me/notifications`) and "Staff notifications and delivery logs".
