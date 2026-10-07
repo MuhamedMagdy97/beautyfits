@@ -87,3 +87,32 @@ export type ListShippingCompaniesQuery = z.output<typeof listShippingCompaniesQu
 export type CreateShippingRuleInput = z.output<typeof createShippingRuleSchema>;
 export type UpdateShippingRuleInput = z.output<typeof updateShippingRuleSchema>;
 export type ListShippingRulesQuery = z.output<typeof listShippingRulesQuerySchema>;
+
+// Shipments (TASK-034, API §16, ADR-0040)
+
+/** Letters, digits and `- _ . /`, as carriers print them. */
+const trackingNumber = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9._/-]{1,100}$/, { message: "Use 1–100 letters, digits, - _ . or /." });
+
+/** `POST /admin/orders/{orderId}/assign-shipping` (Q126). */
+export const assignShippingSchema = z.object({ shippingCompanyId: z.uuid() });
+
+/** `POST /admin/orders/{orderId}/mark-shipped`: tracking when the carrier gave one (User Flows §8.3). */
+export const markShippedSchema = z.object({ trackingNumber: trackingNumber.optional() });
+
+/** `POST /admin/shipments/{shipmentId}/tracking`. */
+export const updateTrackingSchema = z.object({ trackingNumber });
+
+/** `POST /admin/shipments/{shipmentId}/status`: the manual MVP updates of TASK-034. */
+export const shipmentStatusSchema = z.object({
+  status: z.enum(["OUT_FOR_DELIVERY", "DELIVERED"]),
+  location: z.string().trim().min(1).max(200).optional(),
+  notes: z.string().trim().min(1).max(1000).optional(),
+});
+
+export type AssignShippingInput = z.output<typeof assignShippingSchema>;
+export type MarkShippedInput = z.output<typeof markShippedSchema>;
+export type UpdateTrackingInput = z.output<typeof updateTrackingSchema>;
+export type ShipmentStatusInput = z.output<typeof shipmentStatusSchema>;

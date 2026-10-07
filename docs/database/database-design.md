@@ -1948,6 +1948,14 @@ Added by TASK-033 (`docs/tasks/TASK-033-cancellation-expiration.md`, ADR-0039). 
 - `orders.cancelled_at` (§8): set by `→ CANCELLED`; a lifecycle column, writable under `orders_immutable`. Who cancelled and why live in `order_status_history` (`changed_by_type`, `changed_by_id`, `reason`) and `audit_logs`; no separate columns.
 - "Order expiration/cancellation" (§ transactions) is implemented by one shared step for both paths: change the status with history, then release the inventory reservations (`RELEASE_RESERVATION` movements), the discount use and the wallet reservation, in the same transaction.
 
+## v1.2 TASK-034 Amendments
+
+Added by TASK-034 (`docs/tasks/TASK-034-shipment-core.md`, ADR-0040). Migrated in `prisma/migrations/*_shipments`.
+
+- `orders.delivered_at` (§8), set by `Shipped → Delivered` together with the shipment's (lifecycle column, writable under `orders_immutable`).
+- `shipments` (§9): `id`, `order_id` (FK, `RESTRICT`), `shipping_company_id` (FK, `RESTRICT`, required), `tracking_number` nullable, `status` (enum `shipment_status`), `picked_up_at` (carrier handoff), `delivered_at`, `created_at`, `updated_at`. The row is created at handoff (`mark-shipped`); the documented `PENDING`/`READY` values are not stored (the order's `READY_FOR_SHIPMENT` is that stage, ADR-0040 §1). `status` = `SHIPPED` | `OUT_FOR_DELIVERY` | `DELIVERY_FAILED` | `RETURN_TO_SENDER` | `RETURNED` | `DELIVERED`. `attempt_count` (TASK-035) and `returned_at` (TASK-036) are added by their tasks. Unique `(shipping_company_id, tracking_number)` (§22); indexes `order_id`, `tracking_number`. Checks: `delivered_at` set exactly when `DELIVERED`; a tracking number is not blank. Trigger `shipments_no_delete`.
+- `shipment_events` (§9): fields of §9; `event_type` enum `shipment_event_type` (`SHIPPED`, `TRACKING_UPDATED`, `OUT_FOR_DELIVERY`, `DELIVERED`; later tasks add theirs, e.g. `SHIPPING_CANCELLATION_REQUESTED`); `notes` nullable. Index `(shipment_id, event_at)`. Append-only (trigger `shipment_events_append_only`).
+
 ## v1.2 TASK-044 Amendments
 
 Added by TASK-044 (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042). Migrated in `prisma/migrations/*_reviews`.

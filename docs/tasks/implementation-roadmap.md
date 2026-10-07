@@ -398,6 +398,8 @@ Implement cancellation rules before carrier pickup, shipping-cancellation reques
 
 Implement shipment records, tracking number, carrier assignment, shipment status and events.
 
+**Status after TASK-034** (`docs/tasks/TASK-034-shipment-core.md`, ADR-0040): `shipments` (created at carrier handoff, tracking number unique per company) and append-only `shipment_events`. `assign-shipping` (`ASSIGN_SHIPPING`, active companies, until handoff, fee unchanged); `mark-shipped` (`MARK_AS_SHIPPED`) moves `READY_FOR_SHIPMENT → SHIPPED`, commits stock (`commitForOrder`), captures the wallet hold (`captureWalletReservation`), creates the shipment and writes `ORDER_SHIPPED`; `/admin/shipments/{id}/tracking` and `/status` (`OUT_FOR_DELIVERY`, then `DELIVERED` with `MARK_AS_DELIVERED`, which moves the order to `DELIVERED`, sets `delivered_at` and writes `ORDER_DELIVERED`). Order reads show the shipments. TASK-035 adds `DELIVERY_FAILED` and attempts, TASK-036 `RETURN_TO_SENDER`/`RETURNED` and the cancellation request — each adds its edges to `SHIPMENT_TRANSITIONS` in `src/server/modules/shipping/shipments.ts`.
+
 ### TASK-035 — Delivery Failure & Attempts
 **Depends on:** TASK-034
 
