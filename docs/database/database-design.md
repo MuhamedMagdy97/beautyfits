@@ -1940,3 +1940,11 @@ Added by TASK-032 (`docs/tasks/TASK-032-order-modification.md`, ADR-0038). Migra
 - `order_items` unique key becomes `(order_id, product_variant_id, unit_price)`: after a revision a variant may have a line at its order price and one at today's price (R40).
 - `orders_immutable` / `order_items_immutable` amended: a confirmed revision may replace the order's items and its commercial columns (amounts, discount, shipping rule, address snapshot) only inside a transaction that sets the local flag `beautyfits.order_revision = on`. Order number, contact, payment method, currency, locale, `tax_included`, the customer snapshot and `created_at` never change; deleting orders and updating item rows are always refused.
 - `cod_confirmation_tokens.order_revision_id` is not added: revisions are confirmed in the app (R40).
+
+## v1.2 TASK-034 Amendments
+
+Added by TASK-034 (`docs/tasks/TASK-034-shipment-core.md`, ADR-0040). Migrated in `prisma/migrations/*_shipments`.
+
+- `orders.delivered_at` (§8), set by `Shipped → Delivered` together with the shipment's (lifecycle column, writable under `orders_immutable`).
+- `shipments` (§9): `id`, `order_id` (FK, `RESTRICT`), `shipping_company_id` (FK, `RESTRICT`, required), `tracking_number` nullable, `status` (enum `shipment_status`), `picked_up_at` (carrier handoff), `delivered_at`, `created_at`, `updated_at`. The row is created at handoff (`mark-shipped`); the documented `PENDING`/`READY` values are not stored (the order's `READY_FOR_SHIPMENT` is that stage, ADR-0040 §1). `status` = `SHIPPED` | `OUT_FOR_DELIVERY` | `DELIVERY_FAILED` | `RETURN_TO_SENDER` | `RETURNED` | `DELIVERED`. `attempt_count` (TASK-035) and `returned_at` (TASK-036) are added by their tasks. Unique `(shipping_company_id, tracking_number)` (§22); indexes `order_id`, `tracking_number`. Checks: `delivered_at` set exactly when `DELIVERED`; a tracking number is not blank. Trigger `shipments_no_delete`.
+- `shipment_events` (§9): fields of §9; `event_type` enum `shipment_event_type` (`SHIPPED`, `TRACKING_UPDATED`, `OUT_FOR_DELIVERY`, `DELIVERED`; later tasks add theirs, e.g. `SHIPPING_CANCELLATION_REQUESTED`); `notes` nullable. Index `(shipment_id, event_at)`. Append-only (trigger `shipment_events_append_only`).

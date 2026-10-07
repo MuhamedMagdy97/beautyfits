@@ -24,6 +24,13 @@ import {
 } from "@/server/modules/orders/revisions";
 import type { ListMyOrdersQuery, ListOrdersQuery } from "@/server/modules/orders/schemas";
 import { permissionDenied, type PermissionSet } from "@/server/modules/rbac/authorization";
+import {
+  SHIPMENT_INCLUDE,
+  toAdminShipment,
+  toCustomerShipment,
+  type AdminShipmentView,
+  type CustomerShipmentView,
+} from "@/server/modules/shipping/shipments";
 import { toJsonNumber } from "@/server/money/money";
 import { systemClock, type Clock } from "@/server/time/time";
 
@@ -54,6 +61,7 @@ const DETAIL = {
   statusHistory: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
   shippingCompany: { select: { id: true, code: true, name: true } },
   revisions: { orderBy: { revisionNumber: "asc" } },
+  shipments: { include: SHIPMENT_INCLUDE, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
 } as const satisfies Prisma.OrderInclude;
 
 type OrderDetail = Prisma.OrderGetPayload<{ include: typeof DETAIL }>;
@@ -101,6 +109,8 @@ export interface CustomerOrderView extends OrderSummaryView {
   statusHistory: { status: OrderStatus; at: string }[];
   /** The open change waiting for the customer's confirmation (TASK-032). */
   pendingRevision: RevisionView | null;
+  /** Delivery tracking (TASK-034, Q127, R2). */
+  shipments: CustomerShipmentView[];
 }
 
 /** One row of `GET /me/orders` and `GET /admin/orders`. */
@@ -180,6 +190,10 @@ export interface AdminOrderView {
   };
   confirmedAt: string | null;
   expiredAt: string | null;
+  /** Set when the shipment is delivered (TASK-034). */
+  deliveredAt: string | null;
+  /** Carrier handoffs (TASK-034), oldest first. */
+  shipments: AdminShipmentView[];
   /** Customer changes of the order (TASK-032), oldest first. */
   revisions: {
     id: string;
@@ -252,6 +266,7 @@ function toCustomerView(order: OrderDetail, locale: SupportedLocale, now: Date):
       at: h.createdAt.toISOString(),
     })),
     pendingRevision: open ? toRevisionView(open, order.status, locale, now) : null,
+    shipments: order.shipments.map(toCustomerShipment),
   };
 }
 
@@ -324,6 +339,8 @@ function toAdminView(order: OrderDetail, permissions: PermissionSet, now: Date):
     },
     confirmedAt: order.confirmedAt?.toISOString() ?? null,
     expiredAt: order.expiredAt?.toISOString() ?? null,
+    deliveredAt: order.deliveredAt?.toISOString() ?? null,
+    shipments: order.shipments.map(toAdminShipment),
     revisions: order.revisions.map((r) => ({
       id: r.id,
       revisionNumber: r.revisionNumber,

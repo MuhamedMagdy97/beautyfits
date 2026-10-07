@@ -43,5 +43,6 @@
 | [ADR-0036](ADR-0036-order-core.md) | Order core: reads, state machine and immutable snapshots | TASK-030 |
 | [ADR-0037](ADR-0037-cod-confirmation.md) | COD confirmation, reminders and expiry | TASK-031 |
 | [ADR-0038](ADR-0038-order-revisions.md) | Order revisions | TASK-032 |
+| [ADR-0040](ADR-0040-shipments.md) | Shipments, carrier handoff and delivery | TASK-034 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.
