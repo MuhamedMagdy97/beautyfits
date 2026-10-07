@@ -13,6 +13,8 @@ describe("parseEnv", () => {
       TRUSTED_PROXIES: [],
       AUTH_ALLOWED_ORIGINS: [],
       MAIL_DIR: ".mail",
+      WHATSAPP_DIR: ".whatsapp",
+      WEBSITE_URL: "http://localhost:3000",
       MEDIA_DIR: ".media",
       DASHBOARD_URL: "http://localhost:3000",
     });
