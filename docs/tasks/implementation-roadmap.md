@@ -380,10 +380,14 @@ Implement configurable confirmation channel, reminder schedule, 3-day hard maxim
 
 Allow edits before Preparing. Material changes recalculate everything and require customer re-confirmation. Preserve revisions.
 
+**Status after TASK-032** (`docs/tasks/TASK-032-order-modification.md`, ADR-0038, Business Spec R40): `POST /orders/{orderId}/modify` prices a change as an `order_revisions` row; `POST /orders/{orderId}/revisions/{revisionId}/confirm` re-prices it and, in one transaction, moves stock and wallet holds, keeps or releases the discount use, replaces the lines and amounts (previous state kept on the revision) and sends a Confirmed order back to New. Ordered quantity keeps its price; one variant may have two lines. Signed-in customers only, 24-hour window.
+
 ### TASK-033 — Cancellation & Expiration
 **Depends on:** TASK-030 → TASK-032
 
 Implement cancellation rules before carrier pickup, shipping-cancellation request after pickup, and Expired behavior.
+
+**Status after TASK-033** (`docs/tasks/TASK-033-cancellation-expiration.md`, ADR-0039, Business Spec R11): `POST /orders/{orderId}/cancel` (own order, optional reason) and `POST /admin/orders/{orderId}/cancel` (`CANCEL_ORDER`, reason required) cancel from Pending Confirmation through Ready for Shipment in one transaction: `CANCELLED` + `cancelled_at`, history, `releaseOrderHolds` (stock, discount use, wallet hold — shared with the TASK-031 expiry job), audit `ORDER_CANCELLED` and the `ORDER_CANCELLED` event. `SHIPPED`, `DELIVERED`, `CANCELLED` and `EXPIRED` are refused with `ORDER_CANCELLATION_NOT_ALLOWED` (`SHIPPED`: `reason = AFTER_CARRIER_PICKUP`). Expired behavior stays as built in TASK-031. TASK-036 adds the shipping cancellation request on the Shipment (customer `cancel` of a `SHIPPED` order and `request-shipping-cancellation`, `REQUEST_SHIPPING_CANCELLATION`) and `SHIPPED → CANCELLED` after the return is inspected; TASK-034's `mark-shipped` commits stock and captures the wallet, after which cancellation no longer releases anything.
 
 ---
 
