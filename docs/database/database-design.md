@@ -1974,3 +1974,11 @@ Added by TASK-044 (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042). Migrate
 - `review_moderation_history`: `id`, `review_id`, `from_status`, `to_status`, `employee_id` (FK `employees`), `reason`, `created_at`. Index `(review_id, created_at)`. Append-only (Q174).
 - `review_reports`: `id`, `review_id`, `customer_id`, `reason`, `created_at`, `resolved_at` (set when the review is hidden). Unique `(review_id, customer_id)`; index `(review_id, resolved_at)`.
 - Triggers (`reviews_reject_change`): `reviews` and `review_reports` reject `DELETE`; `review_moderation_history` rejects `UPDATE` and `DELETE`.
+
+## v1.2 TASK-045 Amendments
+
+Added by TASK-045 (`docs/tasks/TASK-045-notification-service.md`, ADR-0043). Migrated in `prisma/migrations/20261008045000_notifications`.
+
+- `notifications` (§17, DB-6): enums `notification_recipient_type` (`CUSTOMER` | `EMPLOYEE`) and `notification_type` (`TRANSACTIONAL` | `MARKETING` | `RESTOCK`); FKs `customer_id` → `customers`, `employee_id` → `employees` (`RESTRICT`); check: exactly the recipient named by `recipient_type`. Added `source_event_id` (unique, nullable): the outbox event that produced it, so each event makes at most one notification. Indexes `(customer_id, read_at, created_at desc)` and `(employee_id, read_at, created_at desc)`. Rows are never deleted (Q58).
+- `notification_deliveries` (§17, DB-6): `notification_id` nullable (FK `RESTRICT`), `order_id` nullable (FK `orders`, `RESTRICT`), `template_key`, `locale`, `channel` (enum `notification_channel` = `EMAIL` | `WHATSAPP`), `recipient`, `attempt_number` (≥ 1), `status` (enum `notification_delivery_status` = `PENDING` | `SENT` | `FAILED` | `FALLBACK_SENT`; `sent_at` required when sent), `provider_reference`, `failure_reason`, `created_at`, `sent_at` nullable. Added `source_event_id` with unique `(source_event_id, attempt_number)`: attempts are numbered per outbox event, and a sent event is never sent again. The message text is not stored (it may hold a COD link). Indexes `(status, created_at)`, `order_id`, `notification_id`.
+- `outbox_events` is unchanged; the dispatcher uses `status`, `attempt_count`, `available_at` (lease and backoff) and `last_error` (ADR-0043 §1).

@@ -47,5 +47,6 @@
 | [ADR-0040](ADR-0040-shipments.md) | Shipments, carrier handoff and delivery | TASK-034 |
 | [ADR-0041](ADR-0041-wishlist.md) | Wishlist | TASK-042 |
 | [ADR-0042](ADR-0042-verified-reviews.md) | Verified reviews and moderation history | TASK-044 |
+| [ADR-0043](ADR-0043-notification-service.md) | Notification service: in-app centre, outbox dispatch and channel fallback | TASK-045 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

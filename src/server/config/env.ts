@@ -77,6 +77,17 @@ const envSchema = z.object({
    */
   MAIL_DIR: z.string().min(1).default(".mail"),
   /**
+   * Local WhatsApp outbox directory: outgoing WhatsApp messages are written
+   * there as .json files (ADR-0043). The only WhatsApp transport until a
+   * provider is chosen.
+   */
+  WHATSAPP_DIR: z.string().min(1).default(".whatsapp"),
+  /**
+   * Origin of the customer website, used for links in customer messages such
+   * as the COD confirmation link (ADR-0043). Default: the local server.
+   */
+  WEBSITE_URL: origin.default("http://localhost:3000"),
+  /**
    * Local file storage directory: uploaded files such as product images are
    * stored there (ADR-0021). The only storage until a provider is chosen.
    */
