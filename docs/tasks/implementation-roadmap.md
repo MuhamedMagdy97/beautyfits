@@ -502,6 +502,8 @@ Implement frequency limits, delivery retries, consent-aware fallback and complet
 
 Capture anonymous/customer Product View, Add to Cart, Checkout Start, Checkout Abandonment and Order events.
 
+**Status after TASK-050** (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044): table `analytics_events`; `POST /analytics/events` takes Product View and Checkout Started (guests by `X-Anonymous-Id`, bots and 30-minute repeat views ignored, 1000 per IP per hour); the server records Add to Cart and Order Created (once per order) after the business write, never failing it; `jobs:record-checkout-abandonments` records Checkout Abandoned (threshold awaiting a business decision, provisional 24 h). TASK-051 aggregates these with the authoritative order data; TASK-066 schedules the job.
+
 ### TASK-051 — Analytics Aggregation & Profit Metrics
 **Depends on:** TASK-050, TASK-018, TASK-030
 
