@@ -24,6 +24,7 @@ import { createScryptHasher, type PasswordHasher } from "@/server/modules/auth/p
 import { LOGIN_ACCOUNT_LIMIT } from "@/server/modules/auth/policy";
 import { revokeAccountSessions } from "@/server/modules/auth/sessions";
 import { conflict, isUniqueViolation, validationError } from "@/server/modules/catalog/errors";
+import { optOutEverywhere } from "@/server/modules/customers/marketing-consents";
 import { changeNoticeEmail, type ChangeNotice } from "@/server/modules/customers/notices";
 import type { UpdateProfileInput } from "@/server/modules/customers/schemas";
 import { OPEN_ORDER_STATUSES } from "@/server/modules/orders/orders";
@@ -527,6 +528,8 @@ export function createProfileService(deps: {
         await tx.customerAddress.deleteMany({ where: { customerId: principal.customerId } });
         // R35: the active cart goes too (its lines cascade).
         await tx.cart.deleteMany({ where: { customerId: principal.customerId, status: "ACTIVE" } });
+        // TASK-046: an anonymized customer has no channel left to market to.
+        await optOutEverywhere(tx, principal.customerId, now);
         await tx.customer.update({
           where: { id: principal.customerId },
           data: {
