@@ -554,6 +554,8 @@ System settings, critical setting approvals, employee roles, permissions, approv
 
 Connect the Next.js website in this repository to the backend without rewriting the UI unnecessarily. Note: as of TASK-001 the repository contains a Next.js starter project, not a completed BeautyFits storefront, so storefront UI will need to be built; it stays at the repository root unless a task explicitly moves it.
 
+**Status after TASK-058** (`docs/tasks/TASK-058-website-foundation.md`, ADR-0055): the storefront lives at the site root in `src/app/(store)` with header, footer, home placeholder, error boundary and a root 404; Arabic (RTL, default) and English via the `bf_lang` cookie. `/login` (with the email-code step for unverified accounts), `/register` and `/forgot-password` use the customer cookie transport. `storeApi`/`storePost` (`src/app/(store)/_lib/api.ts`) send `Accept-Language` and the guest cart token, keep a returned `guestCartToken` and refresh an expired access token once; `ShopperProvider`/`useShopper` load guest or customer once per page, merge the guest cart after sign-in and expose the bag count (`reload()` after cart changes). TASK-059 adds the screens and needs the public catalog endpoints (`GET /products`, `/categories`, `/brands`), which are not implemented yet.
+
 ### TASK-059 — Customer Shopping Experience Integration
 **Depends on:** TASK-058
 
