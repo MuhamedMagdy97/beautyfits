@@ -478,6 +478,8 @@ Implement in-app notification center, read/unread, transactional notifications, 
 
 Implement explicit opt-in, opt-out, timestamps, source, per-channel preferences and consent history/retention.
 
+**Status after TASK-046** (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051): append-only table `marketing_consents` (UPDATE/DELETE rejected by a trigger; current state = latest row per customer and channel; no row = not opted in); `GET/PATCH /me/marketing-consents` for email and WhatsApp independently (source `CUSTOMER_ACCOUNT`); deactivation opts out of every channel (`ACCOUNT_DEACTIVATED`). `currentConsents` / `recordConsentChanges` in `src/server/modules/customers/marketing-consents.ts` serve TASK-047–TASK-049 and R6 reminders. Retention period and consent after a contact change await business decisions (kept indefinitely; consent stays with the account).
+
 ### TASK-047 — Customer Segmentation
 **Depends on:** TASK-030, TASK-046, TASK-050 later for analytics data
 

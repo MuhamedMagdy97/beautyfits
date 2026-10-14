@@ -171,17 +171,18 @@ model Customer {
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  account        Account?          @relation(fields: [accountId], references: [id])
-  addresses      CustomerAddress[]
-  carts          Cart[]
-  discountUsages DiscountUsage[]
-  orderRevisions OrderRevision[]
-  wallet         Wallet?
-  orders         Order[]
-  wishlist       Wishlist?
-  reviews        Review[]
-  reviewReports  ReviewReport[]
-  notifications  Notification[]
+  account           Account?           @relation(fields: [accountId], references: [id])
+  addresses         CustomerAddress[]
+  carts             Cart[]
+  discountUsages    DiscountUsage[]
+  orderRevisions    OrderRevision[]
+  wallet            Wallet?
+  orders            Order[]
+  wishlist          Wishlist?
+  reviews           Review[]
+  reviewReports     ReviewReport[]
+  notifications     Notification[]
+  marketingConsents MarketingConsent[]
 
   @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
   @@index([phone])
@@ -2311,4 +2312,57 @@ model AnalyticsEvent {
   @@index([eventType, occurredAt])
   @@index([entityId, eventType, occurredAt])
   @@map("analytics_events")
+}
+
+// ---------------------------------------------------------------------------
+// Marketing consent (DB design §3.4, "v1.2 TASK-046 Amendments"; TASK-046, ADR-0051)
+// ---------------------------------------------------------------------------
+
+enum MarketingChannel {
+  EMAIL
+  WHATSAPP
+
+  @@map("marketing_channel")
+}
+
+enum MarketingConsentStatus {
+  OPTED_IN
+  OPTED_OUT
+
+  @@map("marketing_consent_status")
+}
+
+enum ConsentPurpose {
+  MARKETING
+
+  @@map("consent_purpose")
+}
+
+/// Where a consent change came from.
+enum MarketingConsentSource {
+  /// The customer, through PATCH /me/marketing-consents.
+  CUSTOMER_ACCOUNT
+  /// The system, when the customer deactivated the account (Q154, R34).
+  ACCOUNT_DEACTIVATED
+
+  @@map("marketing_consent_source")
+}
+
+/// Append-only consent history (Q59): the database rejects UPDATE and DELETE.
+/// A channel's current state is its row with the highest id; no row means
+/// never opted in (never pre-enabled).
+model MarketingConsent {
+  /// Increases with every insert, so it orders a customer's history exactly.
+  id         BigInt                 @id @default(autoincrement())
+  customerId String                 @map("customer_id") @db.Uuid
+  channel    MarketingChannel
+  purpose    ConsentPurpose         @default(MARKETING)
+  status     MarketingConsentStatus
+  source     MarketingConsentSource
+  occurredAt DateTime               @map("occurred_at") @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, channel, id])
+  @@map("marketing_consents")
 }
