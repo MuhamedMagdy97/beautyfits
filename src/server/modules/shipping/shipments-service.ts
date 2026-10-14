@@ -8,6 +8,7 @@ import {
   employeeActor,
   recordAudit,
   recordAudits,
+  SYSTEM_ACTOR,
   type AuditEntry,
 } from "@/server/modules/audit/audit";
 import { conflict, isUniqueViolation, validationError } from "@/server/modules/catalog/errors";
@@ -20,6 +21,7 @@ import {
   type OrdersService,
 } from "@/server/modules/orders/orders-service";
 import { permissionDenied } from "@/server/modules/rbac/authorization";
+import { openContactTaskAtThreshold } from "@/server/modules/shipping/contact-tasks-service";
 import type {
   AssignShippingInput,
   MarkShippedInput,
@@ -50,6 +52,9 @@ import { systemClock, type Clock } from "@/server/time/time";
  * - Shipment status (MANAGE_SHIPMENT) moves `SHIPPED → OUT_FOR_DELIVERY →
  *   DELIVERED`; `DELIVERED` also needs MARK_AS_DELIVERED and moves the order
  *   `SHIPPED → DELIVERED` in the same transaction.
+ * - `DELIVERY_FAILED` (TASK-035, Q128, Q129) counts a failed attempt and, at
+ *   the configured threshold, opens a customer-contact task; the order stays
+ *   `SHIPPED`. Another attempt goes back to `OUT_FOR_DELIVERY`.
  * - Locks: the order row first, then the shipment row.
  */
 
@@ -369,12 +374,14 @@ export function createShipmentsService(deps: {
             to,
           });
         }
-        await tx.shipment.update({
+        const updated = await tx.shipment.update({
           where: { id: shipmentId },
+          select: { attemptCount: true },
           data: {
             status: to,
             updatedAt: now,
             ...(to === "DELIVERED" ? { deliveredAt: now } : {}),
+            ...(to === "DELIVERY_FAILED" ? { attemptCount: { increment: 1 } } : {}),
             events: {
               create: [
                 {
@@ -394,11 +401,39 @@ export function createShipmentsService(deps: {
             entityType: AUDIT_ENTITY_TYPES.shipment,
             entityId: shipmentId,
             previous: { status: shipment.status },
-            next: { status: to },
+            next: {
+              status: to,
+              ...(to === "DELIVERY_FAILED" ? { attemptCount: updated.attemptCount } : {}),
+            },
             correlationId: ctx.correlationId,
             createdAt: now,
           },
         ];
+        if (to === "DELIVERY_FAILED") {
+          const taskId = await openContactTaskAtThreshold(tx, {
+            orderId: shipment.orderId,
+            shipmentId,
+            attemptCount: updated.attemptCount,
+            now,
+            logger: ctx.logger,
+          });
+          if (taskId) {
+            audits.push({
+              actor: SYSTEM_ACTOR,
+              action: "CONTACT_TASK_CREATED",
+              entityType: AUDIT_ENTITY_TYPES.contactTask,
+              entityId: taskId,
+              next: {
+                orderId: shipment.orderId,
+                shipmentId,
+                reason: "DELIVERY_FAILED_THRESHOLD",
+                attemptCount: updated.attemptCount,
+              },
+              correlationId: ctx.correlationId,
+              createdAt: now,
+            });
+          }
+        }
         if (to === "DELIVERED") {
           const from = await changeOrderStatus(tx, {
             orderId: shipment.orderId,

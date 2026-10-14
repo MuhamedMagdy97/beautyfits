@@ -105,9 +105,9 @@ export const markShippedSchema = z.object({ trackingNumber: trackingNumber.optio
 /** `POST /admin/shipments/{shipmentId}/tracking`. */
 export const updateTrackingSchema = z.object({ trackingNumber });
 
-/** `POST /admin/shipments/{shipmentId}/status`: the manual MVP updates of TASK-034. */
+/** `POST /admin/shipments/{shipmentId}/status`: manual MVP updates (TASK-034, TASK-035). */
 export const shipmentStatusSchema = z.object({
-  status: z.enum(["OUT_FOR_DELIVERY", "DELIVERED"]),
+  status: z.enum(["OUT_FOR_DELIVERY", "DELIVERED", "DELIVERY_FAILED"]),
   location: z.string().trim().min(1).max(200).optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
 });
@@ -116,3 +116,30 @@ export type AssignShippingInput = z.output<typeof assignShippingSchema>;
 export type MarkShippedInput = z.output<typeof markShippedSchema>;
 export type UpdateTrackingInput = z.output<typeof updateTrackingSchema>;
 export type ShipmentStatusInput = z.output<typeof shipmentStatusSchema>;
+
+// Customer-contact tasks (TASK-035, API §16, Q129, ADR-0047)
+
+const contactTaskStatus = z.enum(["OPEN", "IN_PROGRESS", "RESOLVED", "CANCELLED"]);
+
+/** `GET /admin/contact-tasks`. */
+export const listContactTasksQuerySchema = z.object({
+  ...pageQuery,
+  status: contactTaskStatus.optional(),
+  orderId: z.uuid().optional(),
+  assignedEmployeeId: z.uuid().optional(),
+});
+
+/** `PATCH /admin/contact-tasks/{taskId}`: assign, record the outcome, resolve. */
+export const updateContactTaskSchema = z
+  .object({
+    status: z.enum(["IN_PROGRESS", "RESOLVED", "CANCELLED"]),
+    /** Null unassigns. */
+    assignedEmployeeId: z.uuid().nullable(),
+    /** Null clears. */
+    outcomeNotes: z.string().trim().min(1).max(2000).nullable(),
+  })
+  .partial()
+  .refine(atLeastOne, atLeastOneMessage);
+
+export type ListContactTasksQuery = z.output<typeof listContactTasksQuerySchema>;
+export type UpdateContactTaskInput = z.output<typeof updateContactTaskSchema>;

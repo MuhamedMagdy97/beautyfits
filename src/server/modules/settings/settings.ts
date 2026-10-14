@@ -44,7 +44,15 @@ export const SETTING_KEYS = {
   codReminderIntervalHours: "cod.reminder_interval_hours",
   codReminderMaxCount: "cod.reminder_max_count",
   codConfirmationChannel: "cod.confirmation_channel",
+  shippingDeliveryFailureContactThreshold: "shipping.delivery_failure_contact_threshold",
 } as const;
+
+/**
+ * Failed delivery attempts after which a customer-contact task is created
+ * (Q19, Q129 "configurable threshold"). The value is not decided yet: 2 is
+ * a provisional default (TASK-035 open items, ADR-0047).
+ */
+export const DEFAULT_DELIVERY_FAILURE_CONTACT_THRESHOLD = 2;
 
 /** Default image limit per product (Q177 "configurable"; ADR-0021). */
 export const DEFAULT_MAX_IMAGES_PER_PRODUCT = 20;
@@ -143,6 +151,13 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     isValid: (value) => COD_CONFIRMATION_CHANNELS.includes(value as CodConfirmationChannel),
     source: "Business Spec Q18, Q24, R10, R39 (WhatsApp or phone)",
   },
+  {
+    key: SETTING_KEYS.shippingDeliveryFailureContactThreshold,
+    dataType: "INTEGER",
+    defaultValue: DEFAULT_DELIVERY_FAILURE_CONTACT_THRESHOLD,
+    isValid: isPositiveInteger,
+    source: "Business Spec Q19, Q129 (configurable); provisional 2 pending decision (ADR-0047)",
+  },
 ];
 
 const DEFINITIONS_BY_KEY = new Map(SETTING_DEFINITIONS.map((d) => [d.key, d]));
@@ -219,6 +234,14 @@ export async function readFreeShippingThreshold(
   log: Logger = defaultLogger,
 ): Promise<bigint> {
   return BigInt(await readIntegerSetting(db, SETTING_KEYS.shippingFreeShippingThreshold, log));
+}
+
+/** Failed delivery attempts that create a customer-contact task (Q19, Q129). */
+export async function readDeliveryFailureContactThreshold(
+  db: Db,
+  log: Logger = defaultLogger,
+): Promise<number> {
+  return readIntegerSetting(db, SETTING_KEYS.shippingDeliveryFailureContactThreshold, log);
 }
 
 /**

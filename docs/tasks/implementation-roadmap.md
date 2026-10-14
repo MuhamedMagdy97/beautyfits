@@ -405,6 +405,8 @@ Implement shipment records, tracking number, carrier assignment, shipment status
 
 Track delivery attempts/failures and create customer-contact tasks after configured threshold.
 
+**Status after TASK-035** (`docs/tasks/TASK-035-delivery-failures.md`, ADR-0047, Business Spec Q19, Q128, Q129): shipment `status` accepts `DELIVERY_FAILED` from `OUT_FOR_DELIVERY` (and back to `OUT_FOR_DELIVERY` for another attempt); each failure adds to `shipments.attempt_count` and writes a `DELIVERY_FAILED` event; the order stays `SHIPPED`. At the setting `shipping.delivery_failure_contact_threshold` (provisional default 2, awaiting a business decision) a `customer_contact_tasks` row opens (one unfinished per shipment); `GET /admin/contact-tasks` and `PATCH /admin/contact-tasks/{id}` (`CONTACT_TASK_MANAGE`) list, assign, record the outcome and close them. TASK-036 adds `DELIVERY_FAILED → RETURN_TO_SENDER`.
+
 ### TASK-036 — Shipping Cancellation & Return-to-Sender
 **Depends on:** TASK-033, TASK-034
 

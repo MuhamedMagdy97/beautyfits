@@ -89,6 +89,7 @@ describe("default settings", () => {
     expect(byKey.get(SETTING_KEYS.codReminderMaxCount)?.isValid(0)).toBe(true);
     expect(byKey.get(SETTING_KEYS.codConfirmationChannel)?.defaultValue).toBe("WHATSAPP");
     expect(byKey.get(SETTING_KEYS.codConfirmationChannel)?.isValid("SMS")).toBe(false);
+    expect(byKey.get(SETTING_KEYS.shippingDeliveryFailureContactThreshold)?.defaultValue).toBe(2);
     for (const definition of SETTING_DEFINITIONS) {
       expect(definition.isValid(definition.defaultValue)).toBe(true);
       for (const bad of [-5, 1.5, "60", null]) {

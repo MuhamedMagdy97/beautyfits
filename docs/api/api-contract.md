@@ -1749,6 +1749,30 @@ Added by TASK-034 (`docs/tasks/TASK-034-shipment-core.md`, ADR-0040). Business r
 | Shipment step not allowed (e.g. `SHIPPED → DELIVERED`) | `409 CONFLICT`, `details = { reason: "SHIPMENT_STATE_INVALID", status, to }` |
 | `DELIVERED` without `MARK_AS_DELIVERED` | `403 PERMISSION_DENIED` |
 
+## TASK-035 Amendments
+
+Added by TASK-035 (`docs/tasks/TASK-035-delivery-failures.md`, ADR-0047). Business rules: Q19, Q127, Q128, Q129, R2. Implements `DELIVERY_FAILED` on shipment `status` and the contact-task endpoints of §16.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /admin/shipments/{shipmentId}/status` | `MANAGE_SHIPMENT` | `{ status: "OUT_FOR_DELIVERY" \| "DELIVERY_FAILED" \| "DELIVERED", location?, notes? }` | `200` `shipment` |
+| `GET /admin/contact-tasks` | `CONTACT_TASK_MANAGE` | `?page&pageSize&status&orderId&assignedEmployeeId` | `200` list of `contactTask`, oldest first, with `meta.pagination` |
+| `PATCH /admin/contact-tasks/{taskId}` | `CONTACT_TASK_MANAGE` | at least one of `{ status?: "IN_PROGRESS" \| "RESOLVED" \| "CANCELLED", assignedEmployeeId?: uuid \| null, outcomeNotes?: string \| null }` | `200` `contactTask` |
+
+- Shipment steps add `OUT_FOR_DELIVERY → DELIVERY_FAILED` (a failed attempt) and `DELIVERY_FAILED → OUT_FOR_DELIVERY` (another attempt). The order stays `SHIPPED`. `DELIVERY_FAILED` adds 1 to `shipment.attemptCount` (new field: failed attempts) and writes a `DELIVERY_FAILED` event (new event `type`, also shown in customer tracking without notes).
+- When the failed attempts reach the setting `shipping.delivery_failure_contact_threshold` (provisional default 2) and the shipment has no `OPEN`/`IN_PROGRESS` task, a task with `reason = DELIVERY_FAILED_THRESHOLD` is created in the same transaction.
+- `contactTask`: `{ id, orderId, orderNumber, shipmentId, attemptCount, reason, status, assignedEmployee: { id, displayName } | null, outcomeNotes, createdAt, updatedAt, resolvedAt, resolvedBy: { id, displayName } | null }`. `reason` = `DELIVERY_FAILED_THRESHOLD` \| `OTHER`; `status` = `OPEN` \| `IN_PROGRESS` \| `RESOLVED` \| `CANCELLED`. `outcomeNotes`: 1–2000 characters.
+- `RESOLVED` / `CANCELLED` set `resolvedAt` and `resolvedBy` and are final.
+- Audit actions added: `CONTACT_TASK_CREATED` (System actor), `CONTACT_TASK_UPDATED` (entity `CUSTOMER_CONTACT_TASK`); `SHIPMENT_STATUS_CHANGED` for a failure carries `attemptCount`.
+
+| Situation | Response |
+|---|---|
+| `DELIVERY_FAILED` not from `OUT_FOR_DELIVERY` | `409 CONFLICT`, `details = { reason: "SHIPMENT_STATE_INVALID", status, to }` |
+| Unknown task | `404 NOT_FOUND` |
+| Empty body, `status: "OPEN"`, bad notes | `400 VALIDATION_ERROR` |
+| Unknown or inactive assignee | `400 VALIDATION_ERROR`, issue code `not_found` / `inactive` (path `assignedEmployeeId`) |
+| Task already `RESOLVED` / `CANCELLED` | `409 CONFLICT`, `details = { reason: "CONTACT_TASK_CLOSED", status }` |
+
 ## TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules: Q4, Q47, Q48, Q51. Implements the wishlist endpoints of §19; the restock subscription endpoints come with TASK-043.

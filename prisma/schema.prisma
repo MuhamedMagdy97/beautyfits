@@ -366,6 +366,8 @@ model Employee {
   codPhoneConfirmations Order[]                 @relation("OrderCodConfirmationRecordedBy")
   reviewModerations     ReviewModerationEvent[]
   notifications         Notification[]
+  contactTasksAssigned  CustomerContactTask[]   @relation("ContactTaskAssignedTo")
+  contactTasksResolved  CustomerContactTask[]   @relation("ContactTaskResolvedBy")
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -1717,6 +1719,8 @@ enum ShipmentEventType {
   TRACKING_UPDATED
   OUT_FOR_DELIVERY
   DELIVERED
+  /// A failed delivery attempt (TASK-035).
+  DELIVERY_FAILED
 
   @@map("shipment_event_type")
 }
@@ -1733,17 +1737,65 @@ model Shipment {
   /// Carrier handoff (mark-shipped).
   pickedUpAt        DateTime       @map("picked_up_at") @db.Timestamptz(3)
   deliveredAt       DateTime?      @map("delivered_at") @db.Timestamptz(3)
+  /// Failed delivery attempts (TASK-035, Q129).
+  attemptCount      Int            @default(0) @map("attempt_count")
   createdAt         DateTime       @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime       @map("updated_at") @db.Timestamptz(3)
 
-  order           Order           @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  shippingCompany ShippingCompany @relation(fields: [shippingCompanyId], references: [id], onDelete: Restrict)
+  order           Order                 @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  shippingCompany ShippingCompany       @relation(fields: [shippingCompanyId], references: [id], onDelete: Restrict)
   events          ShipmentEvent[]
+  contactTasks    CustomerContactTask[]
 
   @@unique([shippingCompanyId, trackingNumber])
   @@index([orderId])
   @@index([trackingNumber])
   @@map("shipments")
+}
+
+enum ContactTaskReason {
+  DELIVERY_FAILED_THRESHOLD
+  OTHER
+
+  @@map("contact_task_reason")
+}
+
+enum ContactTaskStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CANCELLED
+
+  @@map("contact_task_status")
+}
+
+/// Staff follow-up with a customer (DB design "Shipping follow-up", Q19,
+/// Q129; TASK-035). Created when a shipment's failed attempts reach the
+/// configured threshold; never deleted. At most one open/in-progress
+/// threshold task per shipment (partial unique index in the migration).
+model CustomerContactTask {
+  id                   String            @id @default(uuid(7)) @db.Uuid
+  orderId              String            @map("order_id") @db.Uuid
+  shipmentId           String?           @map("shipment_id") @db.Uuid
+  reason               ContactTaskReason
+  status               ContactTaskStatus @default(OPEN)
+  assignedEmployeeId   String?           @map("assigned_employee_id") @db.Uuid
+  outcomeNotes         String?           @map("outcome_notes")
+  createdAt            DateTime          @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime          @map("updated_at") @db.Timestamptz(3)
+  /// Set exactly when RESOLVED or CANCELLED.
+  resolvedAt           DateTime?         @map("resolved_at") @db.Timestamptz(3)
+  resolvedByEmployeeId String?           @map("resolved_by_employee_id") @db.Uuid
+
+  order      Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  shipment   Shipment? @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  assignedTo Employee? @relation("ContactTaskAssignedTo", fields: [assignedEmployeeId], references: [id], onDelete: Restrict)
+  resolvedBy Employee? @relation("ContactTaskResolvedBy", fields: [resolvedByEmployeeId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([orderId])
+  @@index([shipmentId])
+  @@map("customer_contact_tasks")
 }
 
 /// Append-only history of a shipment (DB design §9).
@@ -1958,6 +2010,7 @@ model Order {
   walletHolds               WalletReservation[]
   revisions                 OrderRevision[]
   shipments                 Shipment[]
+  contactTasks              CustomerContactTask[]
   reviews                   Review[]
   notificationDeliveries    NotificationDelivery[]
 
