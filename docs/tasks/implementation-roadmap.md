@@ -525,6 +525,8 @@ Implement layout, authentication, permission-aware navigation, session handling 
 
 Products, variants, categories, brands, media, inventory balances, movements and low-stock alerts.
 
+**Status after TASK-053** (`docs/tasks/TASK-053-catalog-dashboard.md`, ADR-0053): real routes `/staff/products` (list, create; brands and categories as tabs), `/staff/products/[id]` (details, status changes, variants, prices, opening costs, images) and `/staff/inventory` (all / low stock, `/staff/inventory/[variantId]` with movements and adjustment) use the existing TASK-014..020 API only; actions follow the session permissions (the API decides). Reusable screen pieces are in `src/app/staff/_components/catalog-ui.tsx`; money is entered in pounds and sent as integer piastres (`_lib/money.ts`).
+
 ### TASK-054 — Orders, Customers & Returns Dashboard
 **Depends on:** TASK-030 → TASK-041
 
