@@ -1450,6 +1450,28 @@ Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Busine
 | Area name already used in the governorate | `409 CONFLICT`, `details.reason = NAME_TAKEN` |
 | Deactivation while an order, return or wallet balance is open | `409 CONFLICT`, `details.reason = ACCOUNT_HAS_OPEN_ITEMS` |
 
+## TASK-010 Amendments
+
+Added by TASK-010 (`docs/tasks/TASK-010-guest-order-claiming.md`, ADR-0046). Business rules: Q43, Q44, R31. Completes §12. Both endpoints need an `ACTIVE` customer session (cookie requests pass the `Origin` check).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /guest/orders/claim` | Customer | — | `202` `{ codeSent, cooldownSeconds: 60 }`; the code goes to the `guest_email` of the claimable orders, which is the account email |
+| `POST /guest/orders/claim/verify` | Customer | `{ code }` | `200` `{ linkedOrders: [{ id, orderNumber }] }`, oldest first |
+
+- Claimable: a guest order not yet linked whose phone **and** email both equal the account's (R31). The backend decides; the client sends no order ids. Orders with another or no email are linked only by support and are never mentioned in a response.
+- Verify links every order claimable at that moment in one transaction; each gets an `ORDER_CLAIMED` audit entry (actor `CUSTOMER`, entity `ORDER`). Order snapshots are not changed. A linked order is then the customer's own (`/me/orders`, cancellation, reviews).
+- Codes follow the TASK-008 rules (6 digits, 5 minutes, 5 attempts, 60 s cooldown, 5 per hour per email, 20 sends per IP per hour). `codeSent: false` means the email could not be sent; request again after the cooldown.
+
+### Errors
+| Case | Response |
+|---|---|
+| No customer session | `401 UNAUTHENTICATED` |
+| Nothing to claim | `404 NOT_FOUND` (no code is sent) |
+| Code limits reached | `429 AUTH_RATE_LIMITED`, `details.retryAfterSeconds` |
+| Wrong or used code, or the account email changed since the code was sent | `401 AUTH_OTP_INVALID`, `details.attemptsRemaining` when known |
+| Expired code | `401 AUTH_OTP_EXPIRED` |
+
 ## TASK-025 Amendments
 
 Added by TASK-025 (`docs/tasks/TASK-025-cart.md`, ADR-0031). Business rules: Q37, R33; User Flows §6.1. Cart values are informational; checkout (TASK-029) revalidates everything.
@@ -1799,6 +1821,44 @@ Added by TASK-036 (`docs/tasks/TASK-036-shipping-cancellation.md`, ADR-0048). Bu
 | Line not of this order / more units than the line | `400 VALIDATION_ERROR`, issue code `not_found` / `exceeds_quantity` (path `damaged.N.…`) |
 | Missing permission | `403 PERMISSION_DENIED` |
 
+## TASK-037 Amendments
+
+Added by TASK-037 (`docs/tasks/TASK-037-return-requests.md`, ADR-0049). Business rules: Q14, Q17, Q34, Q90–Q92, Q99, Q100, R21, R34. Implements the customer part of §17, `GET /admin/returns[/{returnId}]`, and customer uploads for return evidence (§28).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /orders/{orderId}/returns` | Customer | `createReturn` | `201` `return`, `status = PENDING_APPROVAL` |
+| `GET /me/returns` | Customer | `?page&pageSize` | `200` `[return]` + `meta.pagination`, newest first |
+| `GET /returns/{returnId}` | Customer (own) | — | `200` `return` |
+| `POST /returns/{returnId}/evidence` | Customer (own) | `{ mediaAssetIds: [uuid] }` (1–10) | `200` `return` |
+| `POST /returns/{returnId}/resubmit` | Customer (own) | `createReturn` | `201` the new `return`, `resubmittedFromReturnId` = the rejected one |
+| `POST /returns/{returnId}/cancel` | Customer (own) | — | `200` `return`, `status = CANCELLED` |
+| `GET /admin/returns` | `RETURNS_VIEW` | `?page&pageSize&status&orderId&customerId` | `200` `[adminReturn]` + `meta.pagination`, newest first |
+| `GET /admin/returns/{returnId}` | `RETURNS_VIEW` | — | `200` `adminReturn` |
+
+- `createReturn`: `{ claimType: "DAMAGED" | "WRONG_ITEM" | "OTHER", reason, items: [{ orderItemId, quantity }], evidenceMediaAssetIds?: [uuid] }`. `reason`: trimmed, 1–2000 characters, the customer's own words. `items`: 1–100 distinct lines of the order, `quantity` ≥ 1. `evidenceMediaAssetIds`: up to 10 distinct ids; at least one for `DAMAGED` and `WRONG_ITEM` (Q100). `claimType` is the customer's claim; the assessed reason/responsibility comes after inspection (Q99).
+- Eligibility: the order belongs to the signed-in customer, is `DELIVERED`, and the request arrives before the end of the 14th calendar day after `deliveredAt` in Africa/Cairo (R21). Each line can be requested up to its ordered quantity minus the units in the order's other returns that are not `REJECTED` or `CANCELLED` (Q34). The order status does not change (Q90).
+- `return`: `{ id, returnNumber ("RT-000001"), orderId, orderNumber, status, claimType, reason, resubmittedFromReturnId, items: [{ id, orderItemId, productId, variantId, sku, productName, variantName, orderedQuantity, requestedQuantity }], evidence: [{ mediaAssetId, url, createdAt }], cancelledAt, createdAt, updatedAt }` (names are the order-time `{ ar, en }` snapshots). `adminReturn` adds `customerId`.
+- `status` values (DB Design §12): `PENDING_APPROVAL`, `APPROVED`, `PICKUP_SCHEDULED`, `RECEIVED`, `INSPECTING`, `PARTIALLY_COMPLETED`, `COMPLETED`, `REJECTED`, `CANCELLED`. This task sets the first and `CANCELLED`; TASK-038+ the rest.
+- Evidence and cancellation only while `PENDING_APPROVAL`; resubmit only from `REJECTED` (the rejected return is unchanged, Q92) and with every check of a new request.
+- Evidence uploads: a customer calls `POST /files/upload-init` with `purpose: "RETURN_EVIDENCE"` and a customer session, sends the bytes as for other uploads, and calls `POST /files/complete` with the same session. Same file rules as other images (JPEG/PNG/WebP, ≤ 5 MB, 500–6000 px). Customers may upload only `RETURN_EVIDENCE`; staff sessions may not upload it (`403 FORBIDDEN`). Customer uploads: 30 starts per customer per hour (`429 RATE_LIMITED`). A photo can be attached once, by the customer who uploaded it. `GET /files/{id}/content` serves evidence to staff with `RETURNS_VIEW`.
+- R34: `POST /me/deactivate` `details.openItems` may also hold `OPEN_RETURN` (a return not `COMPLETED`, `REJECTED` or `CANCELLED`).
+- Audit actions added (entity `RETURN`, actor: the customer): `RETURN_REQUESTED`, `RETURN_EVIDENCE_ADDED`, `RETURN_CANCELLED`.
+
+| Situation | Response |
+|---|---|
+| Unknown order, another customer's order or a guest order; unknown or another customer's return | `404 NOT_FOUND` |
+| Order not `DELIVERED` | `409 ORDER_STATE_INVALID`, `details = { status, required: "DELIVERED" }` |
+| Window over | `422 RETURN_WINDOW_EXPIRED`, `details = { deliveredAt, returnWindowEndsAt }` |
+| A line not in the order | `400 VALIDATION_ERROR` (`order_item_not_found`) |
+| More units than can still be returned | `409 CONFLICT`, `details = { reason: "RETURN_QUANTITY_EXCEEDED", orderItemId, requestedQuantity, returnableQuantity }` |
+| Missing photo for `DAMAGED` / `WRONG_ITEM` | `400 VALIDATION_ERROR` (`evidence_required`) |
+| Photo not the customer's `RETURN_EVIDENCE` upload | `400 VALIDATION_ERROR` (`media_asset_not_found`) |
+| Photo not checked yet / already attached | `409 CONFLICT`, `details.reason = MEDIA_NOT_READY` / `MEDIA_ALREADY_ATTACHED` |
+| More than 10 photos on a return | `400 VALIDATION_ERROR` (`too_many_files`) |
+| Evidence/cancel when not `PENDING_APPROVAL`; resubmit when not `REJECTED` | `409 RETURN_STATE_INVALID`, `details = { status, required }` |
+| Missing `RETURNS_VIEW` | `403 PERMISSION_DENIED` |
+
 ## TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules: Q4, Q47, Q48, Q51. Implements the wishlist endpoints of §19; the restock subscription endpoints come with TASK-043.
@@ -1821,6 +1881,28 @@ Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules:
 | Unknown item, or another customer's | `404 NOT_FOUND` |
 | 100 items already | `409 CONFLICT`, `details = { reason: "WISHLIST_LIMIT_REACHED", limit: 100 }` |
 | Move-to-cart refused by the cart (no stock / unavailable / 50-line limit) | `422 OUT_OF_STOCK` / `404 NOT_FOUND` / `409 CONFLICT`, as `POST /cart/items`; nothing changes |
+
+## TASK-043 Amendments
+
+Added by TASK-043 (`docs/tasks/TASK-043-restock-reminders.md`, ADR-0050). Business rules: Q47, Q51, Q52, Q62, R6, R12. Implements the restock rows of §19 and the "Wishlist reminders" amendment.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /variants/{variantId}/restock-subscription` | Customer | — | `200` `{ subscription }` (the active one, or `null`) |
+| `POST /variants/{variantId}/restock-subscription` | Customer | `{ channels: ("WHATSAPP" \| "EMAIL")[] }`, 1–2, no repeats | `200` `{ subscription }`; an active subscription keeps its id and takes the new channels |
+| `DELETE /variants/{variantId}/restock-subscription` | Customer | — | `200` `{ subscription: null }` (idempotent) |
+
+- `subscription = { id, variantId, channels, status: "ACTIVE", subscribedAt }`. The `GET` row is an addition to §19 so the product page can show the state.
+- `npm run jobs:notify-restocks` closes each active subscription whose variant is on sale again (published, active, priced, available stock) and queues one `RESTOCK_AVAILABLE` event (§31); `jobs:dispatch-notifications` sends it: in-app (`type = RESTOCK`, `deepLink = { type: "PRODUCT", id }`) plus WhatsApp then email, only on the channels of the subscription. Another restock needs a new subscription (Q52).
+- `npm run jobs:send-wishlist-reminders` queues `WISHLIST_REMINDER` events (R6: every 3 days, at most 3 per item); sent on WhatsApp then email only for channels with marketing consent, no in-app copy. Consent comes from the marketing consent ledger (`/me/marketing-consents`, TASK-046).
+- Delivery log rows of these messages have `orderId = null` and `templateKey` `RESTOCK_AVAILABLE` / `WISHLIST_REMINDER`.
+
+| Situation | Response |
+|---|---|
+| No customer session | `401 UNAUTHENTICATED` |
+| Unknown or malformed variant, product not published, variant archived | `404 NOT_FOUND` |
+| Variant purchasable and in stock now | `409 CONFLICT`, `details = { reason: "VARIANT_IN_STOCK" }` |
+| Bad `channels` | `400 VALIDATION_ERROR` |
 
 ## TASK-044 Amendments
 
@@ -1900,3 +1982,47 @@ Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Busines
 | Unknown `eventType`, bad `productId`, or a guest without a valid `X-Anonymous-Id` | `400 VALIDATION_ERROR` |
 | Invalid customer credential | `401 UNAUTHENTICATED` |
 | Too many events | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
+
+## TASK-046 Amendments
+
+Added by TASK-046 (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051). Business rules: Q59, Q60, R34, R38.4. Implements "Marketing consent" (`/me/marketing-consents`).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /me/marketing-consents` | Customer | — | `200` `{ email: { optedIn, changedAt }, whatsapp: { optedIn, changedAt } }` |
+| `PATCH /me/marketing-consents` | Customer | `{ email?: boolean, whatsapp?: boolean }` (at least one) | `200` the same body after the change |
+
+- `true` opts in, `false` opts out; channels are independent (Q60). An omitted channel is unchanged.
+- A new account is opted out of both (`optedIn: false`, `changedAt: null`): consent is never pre-enabled or inferred (Q59).
+- `changedAt` is when the current state was recorded. Setting a channel to its current state changes nothing (no new history entry, same `changedAt`).
+- Every change is kept in an append-only history (source `CUSTOMER_ACCOUNT`); deactivation opts out of every channel (source `ACCOUNT_DEACTIVATED`).
+- Transactional notifications are not affected (Q53). Guests have no marketing consent (R38.4).
+
+| Situation | Response |
+|---|---|
+| Empty body, unknown-only fields or a non-boolean value | `400 VALIDATION_ERROR` |
+| No session / wrong session type | `401 UNAUTHENTICATED` / `403 FORBIDDEN` |
+
+## TASK-051 Amendments
+
+Added by TASK-051 (`docs/tasks/TASK-051-analytics-aggregation.md`, ADR-0052). Business rules: Q103, Q149, Q150, R20. Implements the §27 admin reports except `/admin/analytics/inventory` (low stock stays `GET /admin/inventory/low-stock`).
+
+All take `?range=TODAY|YESTERDAY|7D|30D|90D|CUSTOM` (default `30D`) and, for `CUSTOM`, `from` and `to` (`YYYY-MM-DD`, inclusive, at most 366 days). Days are Africa/Cairo calendar days (R20); `7D`/`30D`/`90D` include today. Every response has `period: { range, from, to, timeZone }`. Amounts are integer piastres.
+
+| Endpoint | Permission | Success |
+|---|---|---|
+| `GET /admin/analytics/overview` | `ANALYTICS_VIEW` | `200` `{ period, orders: { count, byStatus }, revenue, shippingFees, averageOrderValue, customers: { new, ordering, guestOrders }, visitors, productViews: { visitors, events }, daily: [{ date, orders, revenue }] }`; with `VIEW_PROFIT` also `cogs`, `estimatedGrossProfit`, `revenueWithoutCost`, `linesWithoutCost` (top level and per day) |
+| `GET /admin/analytics/funnel` | `ANALYTICS_VIEW` | `200` `{ period, visitors, productViews, addToCart, checkoutStarted, checkoutAbandoned, orderCreated, ordersDelivered }`; each step is `{ visitors, events }` |
+| `GET /admin/analytics/products` | `ANALYTICS_VIEW` | `200` `{ period, items: [{ productId, name: { ar, en }, views, addToCart, unitsSold, revenue }] }` + `meta.pagination` (`page`, `pageSize` ≤ 100); best revenue first; with `VIEW_PROFIT` items add `cogs`, `estimatedGrossProfit`, `revenueWithoutCost`, `linesWithoutCost` |
+| `GET /admin/analytics/profit` | `VIEW_PROFIT` | `200` `{ period, orders, revenue, cogs, estimatedGrossProfit, revenueWithoutCost, linesWithoutCost, daily: [{ date, orders, revenue, cogs, estimatedGrossProfit, revenueWithoutCost, linesWithoutCost }] }` |
+
+- Sales come from orders, never from analytics events. `orders.count`, revenue, AOV, costs and product sales cover revenue orders only: provisionally `NEW`, `CONFIRMED`, `PREPARING`, `READY_FOR_SHIPMENT`, `SHIPPED`, `DELIVERED`, by creation date (pending business decision, TASK-051). `orders.byStatus` counts every order created in the period.
+- `revenue` = sum of order line totals (after discounts, tax-inclusive); shipping fees are separate. `averageOrderValue` = revenue ÷ revenue orders, HALF-UP.
+- `cogs` = `unit_cost_at_sale × quantity` (Q103). `estimatedGrossProfit` = revenue − COGS for lines that have a cost (Q150); lines without one are `revenueWithoutCost` / `linesWithoutCost`. Returns are not deducted yet.
+- Funnel steps count visitors (customer or anonymous id) and events in the period, each step independently. `customers.new` = customer accounts created in the period; `ordering` = distinct customers with revenue orders.
+
+| Situation | Response |
+|---|---|
+| Unknown `range`, `CUSTOM` without `from`/`to`, `to` before `from`, more than 366 days, bad paging | `400 VALIDATION_ERROR` |
+| No session / wrong session type | `401 UNAUTHENTICATED` / `403 FORBIDDEN` |
+| Missing `ANALYTICS_VIEW` (or `VIEW_PROFIT` for `/profit`) | `403 PERMISSION_DENIED` |

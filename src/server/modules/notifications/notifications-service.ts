@@ -1,4 +1,6 @@
 import type {
+  Locale,
+  NotificationChannel,
   NotificationDeliveryStatus,
   NotificationType,
   OutboxEvent,
@@ -12,12 +14,19 @@ import { getEmailSender, type EmailSender } from "@/server/email/email";
 import { AppError } from "@/server/errors/app-error";
 import type { Pagination } from "@/server/http/response";
 import { logger as rootLogger, type Logger } from "@/server/logging/logger";
+import { localName } from "@/server/modules/locations/locations-service";
+import {
+  marketingConsentChannels,
+  type MarketingConsentLookup,
+} from "@/server/modules/notifications/marketing-consent";
 import {
   NOTIFICATION_TEMPLATES,
   TEMPLATE_KEYS,
   codConfirmationLink,
   eligibleChannels,
   isTemplateKey,
+  productLink,
+  type TemplateVars,
 } from "@/server/modules/notifications/templates";
 import type {
   ListDeliveriesQuery,
@@ -145,6 +154,35 @@ export async function createNotification(
   return row.id;
 }
 
+const RECIPIENT_CUSTOMER = {
+  id: true,
+  phone: true,
+  preferredLocale: true,
+  anonymizedAt: true,
+  account: { select: { email: true, emailVerifiedAt: true } },
+} as const;
+
+const RECIPIENT_VARIANT = {
+  variantNameAr: true,
+  variantNameEn: true,
+  product: { select: { id: true, nameAr: true, nameEn: true, slug: true } },
+} as const;
+
+type RecipientCustomer = Prisma.CustomerGetPayload<{ select: typeof RECIPIENT_CUSTOMER }>;
+type RecipientVariant = Prisma.ProductVariantGetPayload<{ select: typeof RECIPIENT_VARIANT }>;
+
+/** Who receives an event's message: authorized addresses only (ADR-0043 §3). */
+interface Recipient {
+  customerId: string | null;
+  orderId: string | null;
+  locale: Locale;
+  phone: string | null;
+  email: string | null;
+  vars: TemplateVars;
+  notificationType: NotificationType;
+  deepLink: { type: string; id: string };
+}
+
 /** Why an event cannot be delivered now; the job retries it later. */
 class DeliveryFailed extends Error {}
 
@@ -155,8 +193,11 @@ export function createNotificationsService(deps: {
   whatsapp?: WhatsAppSender;
   websiteUrl?: () => string;
   logger?: Logger;
+  /** TASK-046 seam (wishlist reminders, R6). */
+  marketingConsent?: MarketingConsentLookup;
 }) {
   const { db, clock } = deps;
+  const marketingConsent = deps.marketingConsent ?? marketingConsentChannels;
   const email = () => deps.email ?? getEmailSender();
   const whatsapp = () => deps.whatsapp ?? getWhatsAppSender();
   const websiteUrl = deps.websiteUrl ?? (() => getEnv().WEBSITE_URL);
@@ -240,32 +281,108 @@ export function createNotificationsService(deps: {
 
   // ---- Dispatch (outbox → messages, after commit) ----------------------------
 
-  /** One message for one order event. Returns normally when nothing is left to do. */
+  /** A customer's authorized addresses, limited to the allowed channels. */
+  function customerRecipient(
+    customer: RecipientCustomer,
+    variant: RecipientVariant,
+    notificationType: NotificationType,
+    allowed: readonly NotificationChannel[],
+  ): Recipient | null {
+    if (customer.anonymizedAt) {
+      return null; // Q154: a deactivated profile is wiped.
+    }
+    const locale = customer.preferredLocale;
+    const { product } = variant;
+    const variantName = locale === "ar" ? variant.variantNameAr : variant.variantNameEn;
+    const account = customer.account;
+    return {
+      customerId: customer.id,
+      orderId: null,
+      locale,
+      phone: allowed.includes("WHATSAPP") ? customer.phone : null,
+      email: allowed.includes("EMAIL") && account?.emailVerifiedAt ? account.email : null,
+      vars: {
+        productName: localName(product, locale) + (variantName ? ` (${variantName})` : ""),
+        link: productLink(websiteUrl(), product.slug),
+      },
+      notificationType,
+      deepLink: { type: "PRODUCT", id: product.id },
+    };
+  }
+
+  /** Who gets the event's message, and where; null when nobody (any more). */
+  async function recipientOf(event: OutboxEvent): Promise<Recipient | null> {
+    if (event.eventType === "RESTOCK_AVAILABLE") {
+      // TASK-043, Q52/Q62: the channels the customer chose on the subscription.
+      const subscription = await db.restockSubscription.findUnique({
+        where: { id: event.aggregateId },
+        select: {
+          emailEnabled: true,
+          whatsappEnabled: true,
+          customer: { select: RECIPIENT_CUSTOMER },
+          variant: { select: RECIPIENT_VARIANT },
+        },
+      });
+      if (!subscription) return null;
+      const allowed: NotificationChannel[] = [
+        ...(subscription.whatsappEnabled ? (["WHATSAPP"] as const) : []),
+        ...(subscription.emailEnabled ? (["EMAIL"] as const) : []),
+      ];
+      return customerRecipient(subscription.customer, subscription.variant, "RESTOCK", allowed);
+    }
+    if (event.eventType === "WISHLIST_REMINDER") {
+      // TASK-043, R6: only channels with marketing consent, checked again at send time.
+      const item = await db.wishlistItem.findUnique({
+        where: { id: event.aggregateId },
+        select: {
+          wishlist: { select: { customer: { select: RECIPIENT_CUSTOMER } } },
+          variant: { select: RECIPIENT_VARIANT },
+        },
+      });
+      if (!item) return null; // Removed from the wishlist since.
+      const customer = item.wishlist.customer;
+      const allowed = await marketingConsent(db, customer.id);
+      return customerRecipient(customer, item.variant, "MARKETING", allowed);
+    }
+    const order = await orderContacts(db, event.aggregateId);
+    if (!order) return null; // Q154: a deactivated profile is wiped.
+    return {
+      customerId: order.customerId,
+      orderId: order.orderId,
+      locale: order.locale,
+      phone: order.phone,
+      email: order.email,
+      vars: { orderNumber: order.orderNumber },
+      notificationType: "TRANSACTIONAL",
+      deepLink: { type: "ORDER", id: order.orderId },
+    };
+  }
+
+  /** One message for one event. Returns normally when nothing is left to do. */
   async function deliver(event: OutboxEvent): Promise<void> {
     const key = event.eventType;
     if (!isTemplateKey(key)) return;
     const template = NOTIFICATION_TEMPLATES[key];
-    const order = await orderContacts(db, event.aggregateId);
-    if (!order) {
-      return; // Nobody to tell (Q154: a deactivated profile is wiped).
+    const target = await recipientOf(event);
+    if (!target) {
+      return; // Nobody to tell.
     }
-    const locale = order.locale;
-    const vars = { orderNumber: order.orderNumber };
+    const { locale, vars } = target;
 
     // In-app first: one per event (unique source_event_id), customers only.
     let notificationId: string | null = null;
-    if (template.inApp && order.customerId) {
+    if (template.inApp && target.customerId) {
       const message = template.render(locale, vars);
       await db.notification.createMany({
         data: [
           {
             recipientType: "CUSTOMER",
-            customerId: order.customerId,
-            type: "TRANSACTIONAL",
+            customerId: target.customerId,
+            type: target.notificationType,
             title: message.title,
             body: message.text,
-            deepLinkType: "ORDER",
-            deepLinkId: order.orderId,
+            deepLinkType: target.deepLink.type,
+            deepLinkId: target.deepLink.id,
             sourceEventId: event.id,
             createdAt: clock.now(),
           },
@@ -285,17 +402,17 @@ export function createNotificationsService(deps: {
     }
 
     // Authorized channels only (Q61): a customer's verified email; the guest's own contacts.
-    const channels = eligibleChannels(template, order);
+    const channels = eligibleChannels(template, target);
     if (channels.length === 0) {
       log.warn("notification has no eligible channel", { eventId: event.id, templateKey: key });
       return;
     }
 
-    let link: string | undefined;
-    if (template.codLink) {
+    let link = vars.link;
+    if (template.codLink && target.orderId) {
       try {
-        const { token } = await cod.issueConfirmationToken(order.orderId);
-        link = codConfirmationLink(websiteUrl(), order.orderId, token);
+        const { token } = await cod.issueConfirmationToken(target.orderId);
+        link = codConfirmationLink(websiteUrl(), target.orderId, token);
       } catch (error) {
         if (error instanceof AppError && error.code === "ORDER_STATE_INVALID") {
           return; // Confirmed, cancelled or past its deadline: nothing to ask.
@@ -313,7 +430,7 @@ export function createNotificationsService(deps: {
         data: {
           notificationId,
           sourceEventId: event.id,
-          orderId: order.orderId,
+          orderId: target.orderId,
           templateKey: key,
           locale,
           channel,
