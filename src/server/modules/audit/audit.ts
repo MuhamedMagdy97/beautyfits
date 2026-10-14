@@ -126,6 +126,8 @@ export const AUDIT_ACTIONS = [
   "REVIEW_REPORTED",
   "REVIEW_HIDDEN",
   "REVIEW_RESTORED",
+  // Settings (TASK-057)
+  "SETTING_CHANGED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -154,6 +156,7 @@ export const AUDIT_ENTITY_TYPES = {
   order: "ORDER",
   shipment: "SHIPMENT",
   review: "REVIEW",
+  setting: "SETTING",
 } as const;
 
 export interface AuditActor {

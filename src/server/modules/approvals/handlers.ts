@@ -2,6 +2,7 @@ import type { ApprovalHandlers } from "@/server/modules/approvals/approvals";
 import { overDeliveryApprovalHandler } from "@/server/modules/purchasing/goods-receipts";
 import { purchaseOrderApprovalHandler } from "@/server/modules/purchasing/purchase-orders";
 import { supplierReturnApprovalHandler } from "@/server/modules/purchasing/supplier-returns";
+import { criticalSettingApprovalHandler } from "@/server/modules/settings/settings-service";
 
 /**
  * What happens when each type of approval request is approved or rejected
@@ -21,4 +22,5 @@ export const APPROVAL_HANDLERS: ApprovalHandlers = {
   PURCHASE_ORDER: purchaseOrderApprovalHandler,
   PURCHASE_OVER_DELIVERY: overDeliveryApprovalHandler,
   SUPPLIER_RETURN: supplierReturnApprovalHandler,
+  CRITICAL_SETTING: criticalSettingApprovalHandler,
 };
