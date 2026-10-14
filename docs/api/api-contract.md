@@ -1450,6 +1450,28 @@ Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Busine
 | Area name already used in the governorate | `409 CONFLICT`, `details.reason = NAME_TAKEN` |
 | Deactivation while an order, return or wallet balance is open | `409 CONFLICT`, `details.reason = ACCOUNT_HAS_OPEN_ITEMS` |
 
+## TASK-010 Amendments
+
+Added by TASK-010 (`docs/tasks/TASK-010-guest-order-claiming.md`, ADR-0046). Business rules: Q43, Q44, R31. Completes §12. Both endpoints need an `ACTIVE` customer session (cookie requests pass the `Origin` check).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /guest/orders/claim` | Customer | — | `202` `{ codeSent, cooldownSeconds: 60 }`; the code goes to the `guest_email` of the claimable orders, which is the account email |
+| `POST /guest/orders/claim/verify` | Customer | `{ code }` | `200` `{ linkedOrders: [{ id, orderNumber }] }`, oldest first |
+
+- Claimable: a guest order not yet linked whose phone **and** email both equal the account's (R31). The backend decides; the client sends no order ids. Orders with another or no email are linked only by support and are never mentioned in a response.
+- Verify links every order claimable at that moment in one transaction; each gets an `ORDER_CLAIMED` audit entry (actor `CUSTOMER`, entity `ORDER`). Order snapshots are not changed. A linked order is then the customer's own (`/me/orders`, cancellation, reviews).
+- Codes follow the TASK-008 rules (6 digits, 5 minutes, 5 attempts, 60 s cooldown, 5 per hour per email, 20 sends per IP per hour). `codeSent: false` means the email could not be sent; request again after the cooldown.
+
+### Errors
+| Case | Response |
+|---|---|
+| No customer session | `401 UNAUTHENTICATED` |
+| Nothing to claim | `404 NOT_FOUND` (no code is sent) |
+| Code limits reached | `429 AUTH_RATE_LIMITED`, `details.retryAfterSeconds` |
+| Wrong or used code, or the account email changed since the code was sent | `401 AUTH_OTP_INVALID`, `details.attemptsRemaining` when known |
+| Expired code | `401 AUTH_OTP_EXPIRED` |
+
 ## TASK-025 Amendments
 
 Added by TASK-025 (`docs/tasks/TASK-025-cart.md`, ADR-0031). Business rules: Q37, R33; User Flows §6.1. Cart values are informational; checkout (TASK-029) revalidates everything.

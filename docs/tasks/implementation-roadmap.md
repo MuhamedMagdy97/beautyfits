@@ -218,6 +218,8 @@ Implement profile, multiple addresses, default address, email/phone changes with
 
 Implement secure guest-order claim flow using OTP; do not rely on phone match alone.
 
+**Status after TASK-010** (`docs/tasks/TASK-010-guest-order-claiming.md`, ADR-0046): `POST /guest/orders/claim` emails a code to the guest orders' email and `POST /guest/orders/claim/verify` links every guest order whose phone and email both match the account (R31), audited as `ORDER_CLAIMED`. No migration. Support-assisted linking of orders with another or missing email waits for a business decision (task Open Items).
+
 ### TASK-011 — Employee Authentication & MFA
 **Depends on:** TASK-006
 
