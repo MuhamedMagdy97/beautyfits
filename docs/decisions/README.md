@@ -50,5 +50,6 @@
 | [ADR-0043](ADR-0043-notification-service.md) | Notification service: in-app centre, outbox dispatch and channel fallback | TASK-045 |
 | [ADR-0044](ADR-0044-analytics-events.md) | Analytics event collection | TASK-050 |
 | [ADR-0045](ADR-0045-dashboard-shell.md) | Dashboard shell: API client, session handling, navigation | TASK-052 |
+| [ADR-0050](ADR-0050-restock-and-wishlist-reminders.md) | Restock Notify Me and wishlist purchase reminders | TASK-043 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

@@ -1963,6 +1963,14 @@ Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Migrated in `pr
 - `wishlists` and `wishlist_items` as in §15. `wishlists.customer_id` unique, FK `customers` (`RESTRICT`); the wishlist is created on the first add. `wishlist_items.wishlist_id` FK (`CASCADE`), `product_variant_id` FK `product_variants` (`RESTRICT`), index on `product_variant_id`, unique `(wishlist_id, product_variant_id)`.
 - Items are deleted when the customer removes them or moves them to the cart; nothing else references them. The R6 reminder state columns ("Wishlist reminder state") are added by TASK-043.
 
+## v1.2 TASK-043 Amendments
+
+Added by TASK-043 (`docs/tasks/TASK-043-restock-reminders.md`, ADR-0050). Migrated in `prisma/migrations/20261014043000_restock_and_wishlist_reminders`.
+
+- `restock_subscriptions` as in §15, plus `cancelled_at`. `status` is enum `restock_subscription_status`; FKs `customer_id` → `customers`, `product_variant_id` → `product_variants` (`RESTRICT`). Check: `email_enabled OR whatsapp_enabled`. Partial unique `(customer_id, product_variant_id) WHERE status = 'ACTIVE'`: one active subscription per customer and variant; fulfilled and cancelled rows are kept (history). Index `(status, product_variant_id)` for the restock job.
+- `wishlist_items` gets the R6 state ("Wishlist reminder state"): `last_reminded_at`, `reminder_count` (default 0, check `>= 0`), `reminders_stopped_reason` (enum `wishlist_reminder_stop_reason` = `PURCHASED` | `UNAVAILABLE` | `NO_MARKETING_CONSENT` | `MAX_REMINDERS`). Removal deletes the item, so there is no `REMOVED` value.
+- Restock messages and reminders are outbox events (`RESTOCK_AVAILABLE` on the subscription, `WISHLIST_REMINDER` on the item) delivered through `notifications` / `notification_deliveries` (TASK-045) with `order_id` null.
+
 ## v1.2 TASK-044 Amendments
 
 Added by TASK-044 (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042). Migrated in `prisma/migrations/*_reviews`.
