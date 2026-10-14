@@ -561,6 +561,8 @@ Wallet views/controlled adjustments, campaign management, consent views, notific
 
 System settings, critical setting approvals, employee roles, permissions, approval queue and audit log viewer.
 
+**Status after TASK-057** (`docs/tasks/TASK-057-settings-dashboard.md`, ADR-0054): `GET /admin/settings`, `PATCH /admin/settings/{key}` and `GET /admin/settings/history` exist with the `setting_history` table. Critical settings (so far the free-shipping threshold and the COD confirmation timeout, Q180) open a `CRITICAL_SETTING` approval request that another Owner/Admin approves; every applied change is kept in history and audited (`SETTING_CHANGED`). The dashboard has real `/staff/settings`, `/staff/roles`, `/staff/approvals` and `/staff/audit-logs` screens (Arabic and English). The returns tasks add the return period and R7 percentage as critical settings; `/staff/employees` is still a placeholder. Open decisions: ADR-0054 §5.
+
 ---
 
 # Phase 12 — Website Integration

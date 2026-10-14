@@ -1550,7 +1550,7 @@ Added by TASK-004 (`docs/tasks/TASK-004-seed-bootstrap.md`, ADR-0017). Migrated 
 ### `settings` (§20, migrated)
 - `key` (primary key), `value_json`, `data_type` = `INTEGER` | `BOOLEAN` | `STRING` | `JSON`, `updated_by_employee_id` nullable (null for values written by the bootstrap), `updated_at`.
 - First keys (R29): `staff_session.max_lifetime_minutes` = 720, `staff_session.idle_timeout_minutes` = 60. The bootstrap inserts missing keys and never overwrites a value; readers use the default when a row is missing or invalid.
-- `setting_history` (§20) is not migrated yet: it comes with the settings endpoints (TASK-057), when values can first change.
+- `setting_history` (§20) is migrated by TASK-057 (see "v1.2 TASK-057 Amendments").
 
 ### Bootstrap data
 - The first Owner: an `EMPLOYEE` account (`ACTIVE`, email verified) and an `OWNER` employee with `created_by_employee_id` null, created by `npm run db:seed` only while no Owner exists.
@@ -2048,3 +2048,11 @@ Added by TASK-046 (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051).
 ## v1.2 TASK-051 Notes
 
 TASK-051 (`docs/tasks/TASK-051-analytics-aggregation.md`, ADR-0052) adds no tables, columns or migrations. Reports are queried on read from `orders`, `order_items` (`line_total`, `unit_cost_at_sale`), `customers` and `analytics_events` with the existing indexes. Rollup tables may be added later if reporting queries need them.
+
+## v1.2 TASK-057 Amendments
+
+Added by TASK-057 (`docs/tasks/TASK-057-settings-dashboard.md`, ADR-0054). Migrated in `prisma/migrations/20261014057000_setting_history`.
+
+- `setting_history` (§20): `id`, `setting_key` (text; not a foreign key, so history survives a key that is later retired), `old_value_json` (nullable; the value in effect before the change, the default when no row was stored), `new_value_json`, `changed_by_employee_id` (FK `employees`, `RESTRICT`; who asked for the change), `approved_by_employee_id` (nullable FK `employees`; the Owner/Admin who approved a critical change), `created_at`. Indexes `(setting_key, created_at DESC)` and `(created_at DESC)`. One row per applied change, written in the same transaction as the `settings` row and the `SETTING_CHANGED` audit entry; no endpoint changes or deletes a row.
+- `settings.updated_by_employee_id` is now set by changes made through `PATCH /admin/settings/{key}` (the requester, also for approved critical changes).
+- Critical settings (§20 "Critical settings require Owner/Admin approval") are marked in `src/server/modules/settings/settings.ts`; pending changes live in `approval_requests` (`CRITICAL_SETTING`, entity `SETTING`, entity id = the key).

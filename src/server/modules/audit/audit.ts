@@ -138,6 +138,8 @@ export const AUDIT_ACTIONS = [
   "RETURN_REQUESTED",
   "RETURN_EVIDENCE_ADDED",
   "RETURN_CANCELLED",
+  // Settings (TASK-057)
+  "SETTING_CHANGED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -168,6 +170,7 @@ export const AUDIT_ENTITY_TYPES = {
   contactTask: "CUSTOMER_CONTACT_TASK",
   review: "REVIEW",
   return: "RETURN",
+  setting: "SETTING",
 } as const;
 
 export interface AuditActor {

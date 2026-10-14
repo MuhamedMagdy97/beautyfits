@@ -352,6 +352,8 @@ model Employee {
   invitationsRevoked    EmployeeInvitation[]    @relation("InvitationRevokedBy")
   invitation            EmployeeInvitation?     @relation("InvitationAcceptedAs")
   settingsUpdated       Setting[]               @relation("SettingUpdatedBy")
+  settingChanges        SettingHistory[]        @relation("SettingChangedBy")
+  settingApprovals      SettingHistory[]        @relation("SettingApprovedBy")
   approvalsRequested    ApprovalRequest[]       @relation("ApprovalRequestedBy")
   approvalsResolved     ApprovalRequest[]       @relation("ApprovalResolvedBy")
   mediaUploaded         MediaAsset[]            @relation("MediaAssetCreatedBy")
@@ -517,6 +519,27 @@ model Setting {
   updatedBy Employee? @relation("SettingUpdatedBy", fields: [updatedByEmployeeId], references: [id])
 
   @@map("settings")
+}
+
+/// One applied change of a setting (Q181, DB design §20; TASK-057, ADR-0054).
+/// No endpoint changes or deletes a row.
+model SettingHistory {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  settingKey           String   @map("setting_key")
+  /// The value in effect before the change (the default when none was stored).
+  oldValueJson         Json?    @map("old_value_json")
+  newValueJson         Json     @map("new_value_json")
+  changedByEmployeeId  String   @map("changed_by_employee_id") @db.Uuid
+  /// The Owner/Admin who approved a critical setting change; null otherwise.
+  approvedByEmployeeId String?  @map("approved_by_employee_id") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  changedBy  Employee  @relation("SettingChangedBy", fields: [changedByEmployeeId], references: [id])
+  approvedBy Employee? @relation("SettingApprovedBy", fields: [approvedByEmployeeId], references: [id])
+
+  @@index([settingKey, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("setting_history")
 }
 
 // ---------------------------------------------------------------------------

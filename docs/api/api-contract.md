@@ -2026,3 +2026,26 @@ All take `?range=TODAY|YESTERDAY|7D|30D|90D|CUSTOM` (default `30D`) and, for `CU
 | Unknown `range`, `CUSTOM` without `from`/`to`, `to` before `from`, more than 366 days, bad paging | `400 VALIDATION_ERROR` |
 | No session / wrong session type | `401 UNAUTHENTICATED` / `403 FORBIDDEN` |
 | Missing `ANALYTICS_VIEW` (or `VIEW_PROFIT` for `/profit`) | `403 PERMISSION_DENIED` |
+
+## TASK-057 Amendments
+
+Added by TASK-057 (`docs/tasks/TASK-057-settings-dashboard.md`, ADR-0054). Business rules: Q179–Q181, R37.2. Implements the settings endpoints of §26. Employee session (Bearer, or the employee cookie with the `Origin` check).
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `GET /admin/settings` | `SETTINGS_VIEW` | — | `200` `[setting]` |
+| `PATCH /admin/settings/{key}` | `SETTINGS_MANAGE` (Owner/Admin only) | `{ value, reason? }` (`value`: number, string or boolean; `reason` max 1000) | `200` `{ outcome, setting, approvalRequestId }` |
+| `GET /admin/settings/history` | `SETTINGS_VIEW` | query `page`, `pageSize` (max 100), `key` | `200` `[settingChange]` newest first + `meta.pagination` |
+
+- `setting`: `{ key, dataType, value, defaultValue, critical, unit, options, source, updatedBy: { id, displayName } | null, updatedAt | null, pendingApproval: { id, value, requestedBy: { id, displayName }, requestedAt } | null }`. `value` is the value in effect (the default when none is stored). `unit` = `MINUTES` \| `HOURS` \| `DAYS` \| `PIASTRES` \| `BASIS_POINTS` \| `COUNT` \| null; `options` lists the allowed values of a string setting.
+- `outcome`: `APPLIED` (non-critical: stored now), `PENDING_APPROVAL` (critical, Q180: a `CRITICAL_SETTING` approval request was opened, `approvalRequestId` set; another Owner/Admin approves it through `/admin/approval-requests/{id}/approve`), `UNCHANGED` (same value as now; nothing recorded).
+- `settingChange`: `{ id, key, oldValue, newValue, changedBy: { id, displayName }, approvedBy: { id, displayName } | null, createdAt }` (Q181).
+- Every applied change also writes the audit action `SETTING_CHANGED` (entity `SETTING`, entity id = key). Approval request `metadata` for a critical setting: `{ key, previousValue, newValue }`.
+
+| Case | Response |
+|---|---|
+| Value fails the setting's rule (type, range, allowed values) | `400 VALIDATION_ERROR`, issue `setting_value_invalid` |
+| Unknown key | `404 NOT_FOUND` |
+| A change of this critical setting is already waiting | `409 CONFLICT`, `details.reason = APPROVAL_PENDING` (+ `approvalRequestId`) |
+| Approving when the value in effect changed since the request | `409 CONFLICT`, `details.reason = SETTING_CHANGED_SINCE`; the request stays `PENDING` |
+| Manager/Employee calling `PATCH` | `403 PERMISSION_DENIED` |

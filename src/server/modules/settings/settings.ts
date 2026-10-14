@@ -15,8 +15,9 @@ import { MS_PER_MINUTE } from "@/server/time/time";
  * value. Readers fall back to the default when a row is missing or invalid,
  * so a fresh database behaves exactly as the documented defaults.
  *
- * Changing a value (with history and approval for critical settings, Q180,
- * Q181) comes with the settings screen (TASK-057).
+ * Values change through `PATCH /admin/settings/{key}` (settings-service.ts,
+ * TASK-057, ADR-0054): critical settings (Q180) only after Owner/Admin
+ * approval; every applied change is kept in `setting_history` (Q181).
  */
 
 interface SettingDefinition {
@@ -27,7 +28,18 @@ interface SettingDefinition {
   isValid(value: unknown): boolean;
   /** Where the default comes from. */
   source: string;
+  /**
+   * Changing it needs another Owner/Admin's approval (Q180). Only settings the
+   * documents name as critical are marked (ADR-0054 §2).
+   */
+  critical: boolean;
+  /** What the number means, for the dashboard. */
+  unit?: SettingUnit;
+  /** The allowed values of a STRING setting. */
+  options?: readonly string[];
 }
+
+export type SettingUnit = "MINUTES" | "HOURS" | "DAYS" | "PIASTRES" | "BASIS_POINTS" | "COUNT";
 
 function isPositiveInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
@@ -86,6 +98,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "INTEGER",
     defaultValue: DEFAULT_STAFF_SESSION_SETTINGS.maxLifetimeMs / MS_PER_MINUTE,
     isValid: isPositiveInteger,
+    critical: false,
+    unit: "MINUTES",
     source: "Business Spec R29 (12 hours)",
   },
   {
@@ -93,6 +107,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "INTEGER",
     defaultValue: DEFAULT_STAFF_SESSION_SETTINGS.idleTimeoutMs / MS_PER_MINUTE,
     isValid: isPositiveInteger,
+    critical: false,
+    unit: "MINUTES",
     source: "Business Spec R29 (60 minutes)",
   },
   {
@@ -100,6 +116,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "INTEGER",
     defaultValue: DEFAULT_MAX_IMAGES_PER_PRODUCT,
     isValid: isPositiveInteger,
+    critical: false,
+    unit: "COUNT",
     source: "Business Spec Q177 (configurable); default ADR-0021",
   },
   {
@@ -107,6 +125,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "INTEGER",
     defaultValue: DEFAULT_MIN_MARGIN_BASIS_POINTS,
     isValid: isMarginBasisPoints,
+    critical: false,
+    unit: "BASIS_POINTS",
     source: "Business Spec Q102, Q111; 10% decided by the product owner (ADR-0023)",
   },
   {
@@ -114,6 +134,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "INTEGER",
     defaultValue: DEFAULT_GUEST_CART_EXPIRY_DAYS,
     isValid: isPositiveInteger,
+    critical: false,
+    unit: "DAYS",
     source: "Business Spec R35 (30 days)",
   },
   {
@@ -121,6 +143,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "INTEGER",
     defaultValue: DEFAULT_FREE_SHIPPING_THRESHOLD,
     isValid: isPositiveInteger,
+    critical: true, // Q180 example; R37.2
+    unit: "PIASTRES",
     source: "Business Spec Q123, R37 (2500 EGP, decided by the product owner)",
   },
   {
@@ -128,6 +152,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "INTEGER",
     defaultValue: MAX_COD_CONFIRMATION_TIMEOUT_HOURS,
     isValid: (value) => isPositiveInteger(value) && value <= MAX_COD_CONFIRMATION_TIMEOUT_HOURS,
+    critical: true, // Q180 example "COD timeout"
+    unit: "HOURS",
     source: "Business Spec Q25, R21 (at most 72 hours), R39 (default 72)",
   },
   {
@@ -135,6 +161,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "INTEGER",
     defaultValue: DEFAULT_COD_REMINDER_INTERVAL_HOURS,
     isValid: isPositiveInteger,
+    critical: false,
+    unit: "HOURS",
     source: "Business Spec Q54, R39 (every 24 hours)",
   },
   {
@@ -142,6 +170,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "INTEGER",
     defaultValue: DEFAULT_COD_REMINDER_MAX_COUNT,
     isValid: (value) => value === 0 || isPositiveInteger(value),
+    critical: false,
+    unit: "COUNT",
     source: "Business Spec Q54, R39 (at most 2 reminders; 0 sends none)",
   },
   {
@@ -149,6 +179,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "STRING",
     defaultValue: "WHATSAPP",
     isValid: (value) => COD_CONFIRMATION_CHANNELS.includes(value as CodConfirmationChannel),
+    critical: false,
+    options: COD_CONFIRMATION_CHANNELS,
     source: "Business Spec Q18, Q24, R10, R39 (WhatsApp or phone)",
   },
   {
@@ -156,11 +188,13 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "INTEGER",
     defaultValue: DEFAULT_DELIVERY_FAILURE_CONTACT_THRESHOLD,
     isValid: isPositiveInteger,
+    critical: false,
+    unit: "COUNT",
     source: "Business Spec Q19, Q129 (configurable); provisional 2 pending decision (ADR-0047)",
   },
 ];
 
-const DEFINITIONS_BY_KEY = new Map(SETTING_DEFINITIONS.map((d) => [d.key, d]));
+export const DEFINITIONS_BY_KEY = new Map(SETTING_DEFINITIONS.map((d) => [d.key, d]));
 
 /**
  * The stored value of an integer setting, or its default when the row is

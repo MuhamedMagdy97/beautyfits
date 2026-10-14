@@ -58,6 +58,7 @@
 | [ADR-0051](ADR-0051-marketing-consent-ledger.md) | Marketing consent ledger: append-only per-channel history | TASK-046 |
 | [ADR-0052](ADR-0052-analytics-aggregation.md) | Analytics aggregation and profit metrics | TASK-051 |
 | [ADR-0053](ADR-0053-catalog-dashboard.md) | Catalog & inventory dashboard screens | TASK-053 |
+| [ADR-0054](ADR-0054-settings-changes-and-admin-screens.md) | Settings changes, critical-setting approval, administration screens | TASK-057 |
 | [ADR-0055](ADR-0055-website-foundation.md) | Website foundation: storefront shell, customer API client, session and guest cart | TASK-058 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.
