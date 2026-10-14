@@ -52,6 +52,7 @@
 | [ADR-0045](ADR-0045-dashboard-shell.md) | Dashboard shell: API client, session handling, navigation | TASK-052 |
 | [ADR-0046](ADR-0046-guest-order-claim.md) | Guest order claim | TASK-010 |
 | [ADR-0047](ADR-0047-delivery-failures.md) | Delivery failures, attempts and customer-contact tasks | TASK-035 |
+| [ADR-0048](ADR-0048-shipping-cancellation.md) | Shipping cancellation, return to sender and cancellation after return | TASK-036 |
 | [ADR-0049](ADR-0049-return-requests.md) | Customer return requests: window, quantities, evidence uploads | TASK-037 |
 | [ADR-0050](ADR-0050-restock-and-wishlist-reminders.md) | Restock Notify Me and wishlist purchase reminders | TASK-043 |
 | [ADR-0051](ADR-0051-marketing-consent-ledger.md) | Marketing consent ledger: append-only per-channel history | TASK-046 |

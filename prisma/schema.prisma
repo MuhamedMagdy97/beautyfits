@@ -926,6 +926,9 @@ enum InventoryMovementType {
   PURCHASE_RECEIPT
   /// Damaged units sent back to the supplier (TASK-024, Q105): Damaged out.
   SUPPLIER_RETURN
+  /// A shipped order's parcel back from the carrier and inspected (TASK-036,
+  /// Q130): intact units into Available, shipping-damaged ones into Damaged.
+  SHIPMENT_RETURN
 
   @@map("inventory_movement_type")
 }
@@ -1774,6 +1777,14 @@ enum ShipmentEventType {
   DELIVERED
   /// A failed delivery attempt (TASK-035).
   DELIVERY_FAILED
+  /// Shipping cancellation request after pickup (TASK-036, R3).
+  SHIPPING_CANCELLATION_REQUESTED
+  /// The carrier is bringing the parcel back (TASK-036).
+  RETURN_TO_SENDER
+  /// Returned to BeautyFits (TASK-036).
+  RETURNED
+  /// Returned parcel inspected for shipping damage; the order is cancelled (Q130).
+  RETURN_INSPECTED
 
   @@map("shipment_event_type")
 }
@@ -1781,19 +1792,25 @@ enum ShipmentEventType {
 /// An order's parcel with a contracted company (Q84, Q126). Order 1─N
 /// shipments (split shipments later); never deleted.
 model Shipment {
-  id                String         @id @default(uuid(7)) @db.Uuid
-  orderId           String         @map("order_id") @db.Uuid
-  shippingCompanyId String         @map("shipping_company_id") @db.Uuid
+  id                      String         @id @default(uuid(7)) @db.Uuid
+  orderId                 String         @map("order_id") @db.Uuid
+  shippingCompanyId       String         @map("shipping_company_id") @db.Uuid
   /// Unique per company; may be added after handoff.
-  trackingNumber    String?        @map("tracking_number")
-  status            ShipmentStatus @default(SHIPPED)
+  trackingNumber          String?        @map("tracking_number")
+  status                  ShipmentStatus @default(SHIPPED)
   /// Carrier handoff (mark-shipped).
-  pickedUpAt        DateTime       @map("picked_up_at") @db.Timestamptz(3)
-  deliveredAt       DateTime?      @map("delivered_at") @db.Timestamptz(3)
+  pickedUpAt              DateTime       @map("picked_up_at") @db.Timestamptz(3)
+  deliveredAt             DateTime?      @map("delivered_at") @db.Timestamptz(3)
   /// Failed delivery attempts (TASK-035, Q129).
-  attemptCount      Int            @default(0) @map("attempt_count")
-  createdAt         DateTime       @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime       @map("updated_at") @db.Timestamptz(3)
+  attemptCount            Int            @default(0) @map("attempt_count")
+  /// Shipping cancellation requested (TASK-036, R3); the order stays SHIPPED.
+  cancellationRequestedAt DateTime?      @map("cancellation_requested_at") @db.Timestamptz(3)
+  /// Back at BeautyFits (TASK-036).
+  returnedAt              DateTime?      @map("returned_at") @db.Timestamptz(3)
+  /// Returned parcel inspected (Q130); the order was cancelled.
+  inspectedAt             DateTime?      @map("inspected_at") @db.Timestamptz(3)
+  createdAt               DateTime       @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime       @map("updated_at") @db.Timestamptz(3)
 
   order           Order                 @relation(fields: [orderId], references: [id], onDelete: Restrict)
   shippingCompany ShippingCompany       @relation(fields: [shippingCompanyId], references: [id], onDelete: Restrict)
@@ -1879,6 +1896,9 @@ enum WalletTransactionType {
   ORDER_WALLET_USE
   /// A return refunded to the wallet (Q26, Q97, R7; TASK-040).
   RETURN_REFUND
+  /// Captured wallet credit given back when a shipped order is cancelled
+  /// after its parcel came back (TASK-036, Audit Correction 5).
+  ORDER_CANCELLATION_REFUND
 
   @@map("wallet_transaction_type")
 }

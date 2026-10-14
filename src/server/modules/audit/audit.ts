@@ -125,6 +125,9 @@ export const AUDIT_ACTIONS = [
   // Delivery failures and contact tasks (TASK-035)
   "CONTACT_TASK_CREATED",
   "CONTACT_TASK_UPDATED",
+  // Shipping cancellation and return to sender (TASK-036)
+  "SHIPPING_CANCELLATION_REQUESTED",
+  "SHIPMENT_RETURN_INSPECTED",
   // Reviews (TASK-044)
   "REVIEW_CREATED",
   "REVIEW_UPDATED",

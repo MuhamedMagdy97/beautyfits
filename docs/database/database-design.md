@@ -1973,6 +1973,15 @@ Added by TASK-035 (`docs/tasks/TASK-035-delivery-failures.md`, ADR-0047). Migrat
 - `customer_contact_tasks` ("Shipping follow-up"): fields as documented plus `updated_at`; `shipment_id` nullable (required for `DELIVERY_FAILED_THRESHOLD`, check). Enums `contact_task_reason`, `contact_task_status`. FKs `RESTRICT` to `orders`, `shipments`, `employees` (assignee, resolver). Check: `resolved_at` set exactly when `RESOLVED`/`CANCELLED`. Partial unique index `(shipment_id)` where `reason = DELIVERY_FAILED_THRESHOLD` and `status IN (OPEN, IN_PROGRESS)`. Indexes `(status, created_at)`, `order_id`, `shipment_id`. Trigger `customer_contact_tasks_no_delete`.
 - Setting `shipping.delivery_failure_contact_threshold` (INTEGER > 0, provisional default 2 pending a business decision).
 
+## v1.2 TASK-036 Amendments
+
+Added by TASK-036 (`docs/tasks/TASK-036-shipping-cancellation.md`, ADR-0048). Migrated in `prisma/migrations/20261014036000_shipping_cancellation`.
+
+- `shipments` (§9): `returned_at` (documented), plus `cancellation_requested_at` (the shipping cancellation request, R3; also a `SHIPPING_CANCELLATION_REQUESTED` event) and `inspected_at` (returned parcel inspected, Q130). Checks: `returned_at` set exactly when `RETURNED`; `inspected_at` only after `returned_at`.
+- `shipment_event_type` gains `SHIPPING_CANCELLATION_REQUESTED`, `RETURN_TO_SENDER`, `RETURNED`, `RETURN_INSPECTED`.
+- `inventory_movement_type` gains `SHIPMENT_RETURN` (intact units into Available, shipping-damaged into Damaged; reference type `SHIPMENT`, no unit cost). Separate from the customer-return `CUSTOMER_RETURN_RESTOCK` (Q130 "separate from Customer Return").
+- `wallet_transaction_type` gains `ORDER_CANCELLATION_REFUND` (CREDIT; reference `ORDER`): the wallet credit captured at shipping, given back when the order is cancelled after its parcel returned.
+
 ## v1.2 TASK-037 Amendments
 
 Added by TASK-037 (`docs/tasks/TASK-037-return-requests.md`, ADR-0049). Migrated in `prisma/migrations/20261014037000_return_requests`.

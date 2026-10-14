@@ -1737,7 +1737,7 @@ Added by TASK-033 (`docs/tasks/TASK-033-cancellation-expiration.md`, ADR-0039). 
 | Unknown order or another customer's | `404 NOT_FOUND` |
 | Staff without `CANCEL_ORDER` | `403 PERMISSION_DENIED` |
 | Missing/blank staff reason, reason over 500 characters | `400 VALIDATION_ERROR` |
-| Order `SHIPPED` (after carrier pickup) | `422 ORDER_CANCELLATION_NOT_ALLOWED`, `details = { status: "SHIPPED", reason: "AFTER_CARRIER_PICKUP" }`. Interim for the customer endpoint until TASK-036 records the shipping cancellation request instead (§15). |
+| Order `SHIPPED` (after carrier pickup) | Admin `cancel`: `422 ORDER_CANCELLATION_NOT_ALLOWED`, `details = { status: "SHIPPED", reason: "AFTER_CARRIER_PICKUP" }`. Customer `cancel`: records a shipping cancellation request instead (TASK-036 Amendments). |
 | Order `DELIVERED`, `CANCELLED` or `EXPIRED` | `422 ORDER_CANCELLATION_NOT_ALLOWED`, `details.status` |
 
 ## TASK-034 Amendments
@@ -1794,6 +1794,32 @@ Added by TASK-035 (`docs/tasks/TASK-035-delivery-failures.md`, ADR-0047). Busine
 | Empty body, `status: "OPEN"`, bad notes | `400 VALIDATION_ERROR` |
 | Unknown or inactive assignee | `400 VALIDATION_ERROR`, issue code `not_found` / `inactive` (path `assignedEmployeeId`) |
 | Task already `RESOLVED` / `CANCELLED` | `409 CONFLICT`, `details = { reason: "CONTACT_TASK_CLOSED", status }` |
+
+## TASK-036 Amendments
+
+Added by TASK-036 (`docs/tasks/TASK-036-shipping-cancellation.md`, ADR-0048). Business rules: Q10, Q33, Q88, Q89, Q127, Q130, R2, R3, R11, Audit Correction 5. Implements the customer `cancel` of a `SHIPPED` order and `request-shipping-cancellation` (§15), `RETURN_TO_SENDER` / `RETURNED` on shipment `status` (§16), and the inspection that cancels the order (new endpoint).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /orders/{orderId}/cancel` on a `SHIPPED` order | Customer (own order) | `{ reason? }` | `200` `customerOrder`, still `SHIPPED`; the shipment shows `cancellationRequestedAt` and a `SHIPPING_CANCELLATION_REQUESTED` event |
+| `POST /admin/orders/{orderId}/request-shipping-cancellation` | `REQUEST_SHIPPING_CANCELLATION` | optional `{ reason? }` (1–500) | `200` `adminOrder`, still `SHIPPED` |
+| `POST /admin/shipments/{shipmentId}/status` | `MANAGE_SHIPMENT` | `status` also `RETURN_TO_SENDER` \| `RETURNED` | `200` `shipment` |
+| `POST /admin/shipments/{shipmentId}/inspect-return` | `INSPECT_RETURN` (provisional) | optional `{ damaged?: [{ orderItemId, quantity }], notes? }` | `200` `shipment` (`inspectedAt` set); the order is `CANCELLED` |
+
+- A request is accepted once per shipment while it is `SHIPPED`, `OUT_FOR_DELIVERY` or `DELIVERY_FAILED`; it writes the event (reason as staff-only notes), audit `SHIPPING_CANCELLATION_REQUESTED` (entity `SHIPMENT`, actor customer or employee) and outbox event `SHIPPING_CANCELLATION_REQUESTED` (`{ orderId, shipmentId, requestedBy, correlationId }`).
+- Shipment steps add `SHIPPED | OUT_FOR_DELIVERY | DELIVERY_FAILED → RETURN_TO_SENDER` and `RETURN_TO_SENDER → RETURNED` (sets `returnedAt`). From `SHIPPED` / `OUT_FOR_DELIVERY` this needs a cancellation request; after `DELIVERY_FAILED` it does not. New event types `RETURN_TO_SENDER`, `RETURNED`, `RETURN_INSPECTED`, `SHIPPING_CANCELLATION_REQUESTED`.
+- `inspect-return` (a `RETURNED`, not inspected shipment): `damaged` lists units damaged in shipping per order line (each line once, `quantity` 1…line quantity); the rest are intact. One transaction: `SHIPMENT_RETURN` inventory movements (intact → Available, damaged → Damaged), `RETURN_INSPECTED` event, order `SHIPPED → CANCELLED` (`cancelledAt`), discount use released, captured wallet credit refunded (`ORDER_CANCELLATION_REFUND` credit), audit `SHIPMENT_RETURN_INSPECTED` and `ORDER_CANCELLED`, outbox `ORDER_CANCELLED` (`cancelledBy: "EMPLOYEE"`, `shipmentId`).
+- `shipment` gains `cancellationRequestedAt`, `returnedAt`, `inspectedAt`; the customer shipment gains `cancellationRequestedAt`, `returnedAt`.
+
+| Situation | Response |
+|---|---|
+| Request when the order is not `SHIPPED` (admin endpoint) | `409 ORDER_STATE_INVALID`, `details.status` |
+| Request when the parcel is no longer on its way (delivered, returning, returned) or no shipment | `409 CONFLICT`, `details = { reason: "SHIPMENT_STATE_INVALID", status }` |
+| Second request | `409 CONFLICT`, `details.reason = SHIPPING_CANCELLATION_ALREADY_REQUESTED` |
+| `RETURN_TO_SENDER` from `SHIPPED`/`OUT_FOR_DELIVERY` without a request | `409 CONFLICT`, `details = { reason: "SHIPPING_CANCELLATION_REQUIRED", status, to }` |
+| Inspection before `RETURNED` or a second time | `409 CONFLICT`, `details = { reason: "SHIPMENT_STATE_INVALID", status, inspected }` |
+| Line not of this order / more units than the line | `400 VALIDATION_ERROR`, issue code `not_found` / `exceeds_quantity` (path `damaged.N.…`) |
+| Missing permission | `403 PERMISSION_DENIED` |
 
 ## TASK-037 Amendments
 
