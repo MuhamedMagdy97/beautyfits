@@ -10,7 +10,9 @@ import { pathId } from "@/server/modules/rbac/http";
 /**
  * POST /api/v1/orders/{orderId}/cancel — the customer cancels an own order
  * before carrier pickup (R11); stock, discount use and wallet hold are given
- * back. Guests have no online cancellation (R16).
+ * back. After pickup (`SHIPPED`) it records a shipping cancellation request
+ * on the shipment instead; the order stays Shipped (R3, TASK-036). Guests
+ * have no online cancellation (R16).
  */
 export const POST = withApi<RouteContext<"/api/v1/orders/[orderId]/cancel">>(
   async (request, api, context) => {

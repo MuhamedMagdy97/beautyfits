@@ -39,6 +39,7 @@ import {
   type AdminShipmentView,
   type CustomerShipmentView,
 } from "@/server/modules/shipping/shipments";
+import { recordShippingCancellationRequest } from "@/server/modules/shipping/shipping-cancellation";
 import { toJsonNumber } from "@/server/money/money";
 import { systemClock, type Clock } from "@/server/time/time";
 
@@ -543,8 +544,10 @@ export function createOrdersService(deps: { db: PrismaClient; clock: Clock }) {
    * Direct cancellation before carrier pickup (Q10, Q33, Q86, Q87, R11): one
    * transaction moves the order to `CANCELLED`, gives back its stock,
    * discount use and wallet hold, and writes history, audit and the
-   * `ORDER_CANCELLED` event. A `SHIPPED` order needs a shipping cancellation
-   * request on its shipment instead (R3, TASK-036).
+   * `ORDER_CANCELLED` event. For a `SHIPPED` order the customer's cancel
+   * records a shipping cancellation request on its shipment instead and the
+   * order stays `SHIPPED` (R3, R11, TASK-036); staff use
+   * `request-shipping-cancellation`.
    */
   async function cancel(
     orderId: string,
@@ -553,9 +556,19 @@ export function createOrdersService(deps: { db: PrismaClient; clock: Clock }) {
     ctx: Ctx,
   ): Promise<void> {
     const now = clock.now();
-    await runInTransaction(
+    const requested = await runInTransaction(
       async (tx) => {
         const status = await lockOrder(tx, orderId);
+        if (status === "SHIPPED" && actor.type === "CUSTOMER") {
+          await recordShippingCancellationRequest(tx, {
+            orderId,
+            actor,
+            reason,
+            now,
+            correlationId: ctx.correlationId,
+          });
+          return true;
+        }
         if (!CANCELLABLE_ORDER_STATUSES.includes(status)) {
           throw new AppError(
             "ORDER_CANCELLATION_NOT_ALLOWED",
@@ -598,11 +611,15 @@ export function createOrdersService(deps: { db: PrismaClient; clock: Clock }) {
             createdAt: now,
           },
         });
+        return false;
       },
       {},
       db,
     );
-    ctx.logger.info("order cancelled", { orderId, by: actor.type });
+    ctx.logger.info(requested ? "shipping cancellation requested" : "order cancelled", {
+      orderId,
+      by: actor.type,
+    });
   }
 
   /** `POST /orders/{orderId}/cancel`: own orders only; another's is 404. */

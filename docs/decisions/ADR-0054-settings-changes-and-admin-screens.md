@@ -38,7 +38,7 @@ Real routes under `/staff` replace the TASK-052 placeholders: `/staff/settings`,
 
 ## 5. Open business decisions
 
-1. **[BUSINESS DECISION REQUIRED] Which other settings are critical.** Staff session lengths, image limit, minimum margin, guest cart expiry, COD reminder interval/count and COD channel are treated as non-critical (still Owner/Admin only, history and audit). ADR-0023 left the minimum margin to this task; the documents do not decide it.
+1. **[BUSINESS DECISION REQUIRED] Which other settings are critical.** Staff session lengths, image limit, minimum margin, guest cart expiry, COD reminder interval/count, COD channel and the delivery-failure contact threshold (TASK-035) are treated as non-critical (still Owner/Admin only, history and audit). ADR-0023 left the minimum margin to this task; the documents do not decide it.
 2. **[BUSINESS DECISION REQUIRED] A store with a single Owner and no Admin cannot change a critical setting**, because nobody approves their own request (ADR-0018 §4 item 1). ADR-0018 allows a feature to let the Owner's own change skip approval; this task does not, because Q180 would then never apply (only Owner/Admin may change settings).
 3. **[BUSINESS DECISION REQUIRED] Limits of the staff session settings** (ADR-0017 §5 item 3): still any whole number of minutes above zero.
 

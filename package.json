@@ -27,6 +27,8 @@
     "jobs:expire-cod-orders": "tsx scripts/expire-cod-orders.ts",
     "jobs:send-cod-reminders": "tsx scripts/send-cod-reminders.ts",
     "jobs:dispatch-notifications": "tsx scripts/dispatch-notifications.ts",
+    "jobs:notify-restocks": "tsx scripts/notify-restocks.ts",
+    "jobs:send-wishlist-reminders": "tsx scripts/send-wishlist-reminders.ts",
     "jobs:record-checkout-abandonments": "tsx scripts/record-checkout-abandonments.ts"
   },
   "dependencies": {

@@ -57,6 +57,7 @@ const en = {
     "cod.reminder_interval_hours": "COD reminder interval",
     "cod.reminder_max_count": "COD reminders at most",
     "cod.confirmation_channel": "COD confirmation channel",
+    "shipping.delivery_failure_contact_threshold": "Failed deliveries before a contact task",
   } as Record<string, string>,
   units: {
     MINUTES: "minutes",
@@ -158,6 +159,7 @@ const ar: AdminDictionary = {
     "cod.reminder_interval_hours": "الفاصل بين تذكيرات التأكيد",
     "cod.reminder_max_count": "أقصى عدد لتذكيرات التأكيد",
     "cod.confirmation_channel": "قناة تأكيد الدفع عند الاستلام",
+    "shipping.delivery_failure_contact_threshold": "عدد محاولات التوصيل الفاشلة قبل مهمة التواصل",
   },
   units: {
     MINUTES: "دقيقة",

@@ -218,6 +218,8 @@ Implement profile, multiple addresses, default address, email/phone changes with
 
 Implement secure guest-order claim flow using OTP; do not rely on phone match alone.
 
+**Status after TASK-010** (`docs/tasks/TASK-010-guest-order-claiming.md`, ADR-0046): `POST /guest/orders/claim` emails a code to the guest orders' email and `POST /guest/orders/claim/verify` links every guest order whose phone and email both match the account (R31), audited as `ORDER_CLAIMED`. No migration. Support-assisted linking of orders with another or missing email waits for a business decision (task Open Items).
+
 ### TASK-011 — Employee Authentication & MFA
 **Depends on:** TASK-006
 
@@ -405,10 +407,14 @@ Implement shipment records, tracking number, carrier assignment, shipment status
 
 Track delivery attempts/failures and create customer-contact tasks after configured threshold.
 
+**Status after TASK-035** (`docs/tasks/TASK-035-delivery-failures.md`, ADR-0047, Business Spec Q19, Q128, Q129): shipment `status` accepts `DELIVERY_FAILED` from `OUT_FOR_DELIVERY` (and back to `OUT_FOR_DELIVERY` for another attempt); each failure adds to `shipments.attempt_count` and writes a `DELIVERY_FAILED` event; the order stays `SHIPPED`. At the setting `shipping.delivery_failure_contact_threshold` (provisional default 2, awaiting a business decision) a `customer_contact_tasks` row opens (one unfinished per shipment); `GET /admin/contact-tasks` and `PATCH /admin/contact-tasks/{id}` (`CONTACT_TASK_MANAGE`) list, assign, record the outcome and close them. TASK-036 adds `DELIVERY_FAILED → RETURN_TO_SENDER`.
+
 ### TASK-036 — Shipping Cancellation & Return-to-Sender
 **Depends on:** TASK-033, TASK-034
 
 Implement Shipping Cancellation Requested → Return to Sender/Returned → Cancelled flow and associated inventory/wallet effects.
+
+**Status after TASK-036** (`docs/tasks/TASK-036-shipping-cancellation.md`, ADR-0048, Business Spec Q88, Q89, Q130, R3, R11): the customer `cancel` of a `SHIPPED` order and `request-shipping-cancellation` (`REQUEST_SHIPPING_CANCELLATION`) record the request on the shipment (`cancellation_requested_at`, event, audit, outbox); the order stays `SHIPPED`. Shipment `status` adds `→ RETURN_TO_SENDER` (needs the request unless delivery failed) and `→ RETURNED`. `POST /admin/shipments/{id}/inspect-return` (`INSPECT_RETURN`, provisional) inspects the returned parcel for shipping damage and, in one transaction, puts intact units back in stock and damaged ones in Damaged (`SHIPMENT_RETURN` movements), moves the order `SHIPPED → CANCELLED`, releases the discount use and refunds the captured wallet credit (`ORDER_CANCELLATION_REFUND`). Customer returns after delivery stay TASK-037 → TASK-040.
 
 ---
 
@@ -418,6 +424,8 @@ Implement Shipping Cancellation Requested → Return to Sender/Returned → Canc
 **Depends on:** TASK-030, TASK-034
 
 Implement 14-day eligibility, free-text reason, evidence rules and Pending Approval state.
+
+**Status after TASK-037** (`docs/tasks/TASK-037-return-requests.md`, ADR-0049): `returns` (`RT-` numbers, enum `return_status` with all DB-design values), `return_items` and append-only `return_evidence`. Customers request a return of some or all units of their own `DELIVERED` order until the end of the 14th Cairo calendar day after `delivered_at` (`POST /orders/{orderId}/returns`; `claimType` `DAMAGED` / `WRONG_ITEM` need a photo), add photos and withdraw while `PENDING_APPROVAL`, list and view their returns, and resubmit after a rejection (new linked return, Q92). Customers upload photos through `/files/*` with purpose `RETURN_EVIDENCE`. `GET /admin/returns[/{id}]` (`RETURNS_VIEW`). Units in live (not rejected/cancelled) returns cannot be requested twice; open returns block deactivation. TASK-038 adds approve/reject/pickup transitions and the status history.
 
 ### TASK-038 — Return Approval & Carrier Pickup
 **Depends on:** TASK-037
@@ -455,6 +463,8 @@ Account-only wishlist, unavailable/Coming Soon behavior and move-to-cart support
 
 Implement explicit restock subscriptions, one notification per restock event, and wishlist purchase reminders with cadence, maximum, stopping conditions and consent checks per Business Spec R6.
 
+**Status after TASK-043** (`docs/tasks/TASK-043-restock-reminders.md`, ADR-0050): `restock_subscriptions` and `GET/POST/DELETE /variants/{variantId}/restock-subscription` (channels WhatsApp and/or email, only while the variant cannot be bought). `jobs:notify-restocks` closes the subscriptions of variants back on sale and queues one `RESTOCK_AVAILABLE` message each; `jobs:send-wishlist-reminders` keeps the R6 state on `wishlist_items` (every 3 days, at most 3; stops on purchase, unavailability, consent withdrawal, maximum) and queues `WISHLIST_REMINDER` messages; both go out through `jobs:dispatch-notifications`. Marketing consent is read from the TASK-046 ledger through `marketingConsentChannels` in `src/server/modules/notifications/marketing-consent.ts`. TASK-066 schedules the jobs.
+
 ### TASK-044 — Verified Reviews
 **Depends on:** TASK-030, TASK-014
 
@@ -477,6 +487,8 @@ Implement in-app notification center, read/unread, transactional notifications, 
 **Depends on:** TASK-009, TASK-045
 
 Implement explicit opt-in, opt-out, timestamps, source, per-channel preferences and consent history/retention.
+
+**Status after TASK-046** (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051): append-only table `marketing_consents` (UPDATE/DELETE rejected by a trigger; current state = latest row per customer and channel; no row = not opted in); `GET/PATCH /me/marketing-consents` for email and WhatsApp independently (source `CUSTOMER_ACCOUNT`); deactivation opts out of every channel (`ACCOUNT_DEACTIVATED`). `currentConsents` / `recordConsentChanges` in `src/server/modules/customers/marketing-consents.ts` serve TASK-047–TASK-049 and R6 reminders. Retention period and consent after a contact change await business decisions (kept indefinitely; consent stays with the account).
 
 ### TASK-047 — Customer Segmentation
 **Depends on:** TASK-030, TASK-046, TASK-050 later for analytics data
@@ -509,6 +521,8 @@ Capture anonymous/customer Product View, Add to Cart, Checkout Start, Checkout A
 
 Implement dashboards for revenue, orders, customers, views, conversion funnel, COGS, estimated gross profit, AOV and product performance.
 
+**Status after TASK-051** (`docs/tasks/TASK-051-analytics-aggregation.md`, ADR-0052): `GET /admin/analytics/overview`, `/funnel`, `/products` (`ANALYTICS_VIEW`) and `/profit` (`VIEW_PROFIT`) query orders and `analytics_events` on read (no new tables) for Today/Yesterday/7D/30D/90D/Custom in Africa/Cairo days. Revenue = order line totals of provisional revenue statuses (pending a business decision); COGS = `unit_cost_at_sale × quantity`; cost fields only with `VIEW_PROFIT`. `/admin/analytics/inventory` not built (low stock is `/admin/inventory/low-stock`). The dashboard screens read these endpoints in a later dashboard task.
+
 ---
 
 # Phase 11 — Admin Dashboard
@@ -524,6 +538,8 @@ Implement layout, authentication, permission-aware navigation, session handling 
 **Depends on:** TASK-014 → TASK-020
 
 Products, variants, categories, brands, media, inventory balances, movements and low-stock alerts.
+
+**Status after TASK-053** (`docs/tasks/TASK-053-catalog-dashboard.md`, ADR-0053): real routes `/staff/products` (list, create; brands and categories as tabs), `/staff/products/[id]` (details, status changes, variants, prices, opening costs, images) and `/staff/inventory` (all / low stock, `/staff/inventory/[variantId]` with movements and adjustment) use the existing TASK-014..020 API only; actions follow the session permissions (the API decides). Reusable screen pieces are in `src/app/staff/_components/catalog-ui.tsx`; money is entered in pounds and sent as integer piastres (`_lib/money.ts`).
 
 ### TASK-054 — Orders, Customers & Returns Dashboard
 **Depends on:** TASK-030 → TASK-041
@@ -555,6 +571,8 @@ System settings, critical setting approvals, employee roles, permissions, approv
 **Depends on:** TASK-029, TASK-030 and required catalog/auth APIs
 
 Connect the Next.js website in this repository to the backend without rewriting the UI unnecessarily. Note: as of TASK-001 the repository contains a Next.js starter project, not a completed BeautyFits storefront, so storefront UI will need to be built; it stays at the repository root unless a task explicitly moves it.
+
+**Status after TASK-058** (`docs/tasks/TASK-058-website-foundation.md`, ADR-0055): the storefront lives at the site root in `src/app/(store)` with header, footer, home placeholder, error boundary and a root 404; Arabic (RTL, default) and English via the `bf_lang` cookie. `/login` (with the email-code step for unverified accounts), `/register` and `/forgot-password` use the customer cookie transport. `storeApi`/`storePost` (`src/app/(store)/_lib/api.ts`) send `Accept-Language` and the guest cart token, keep a returned `guestCartToken` and refresh an expired access token once; `ShopperProvider`/`useShopper` load guest or customer once per page, merge the guest cart after sign-in and expose the bag count (`reload()` after cart changes). TASK-059 adds the screens and needs the public catalog endpoints (`GET /products`, `/categories`, `/brands`), which are not implemented yet.
 
 ### TASK-059 — Customer Shopping Experience Integration
 **Depends on:** TASK-058

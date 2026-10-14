@@ -106,6 +106,8 @@ export const AUDIT_ACTIONS = [
   "ORDER_CONFIRMED",
   "ORDER_PREPARING_STARTED",
   "ORDER_READY_FOR_SHIPMENT",
+  // Guest order claim (TASK-010)
+  "ORDER_CLAIMED",
   // COD confirmation and expiry (TASK-031)
   "ORDER_COD_CONFIRMED",
   "ORDER_EXPIRED",
@@ -120,12 +122,22 @@ export const AUDIT_ACTIONS = [
   "ORDER_DELIVERED",
   "SHIPMENT_TRACKING_UPDATED",
   "SHIPMENT_STATUS_CHANGED",
+  // Delivery failures and contact tasks (TASK-035)
+  "CONTACT_TASK_CREATED",
+  "CONTACT_TASK_UPDATED",
+  // Shipping cancellation and return to sender (TASK-036)
+  "SHIPPING_CANCELLATION_REQUESTED",
+  "SHIPMENT_RETURN_INSPECTED",
   // Reviews (TASK-044)
   "REVIEW_CREATED",
   "REVIEW_UPDATED",
   "REVIEW_REPORTED",
   "REVIEW_HIDDEN",
   "REVIEW_RESTORED",
+  // Customer returns (TASK-037)
+  "RETURN_REQUESTED",
+  "RETURN_EVIDENCE_ADDED",
+  "RETURN_CANCELLED",
   // Settings (TASK-057)
   "SETTING_CHANGED",
 ] as const;
@@ -155,7 +167,9 @@ export const AUDIT_ENTITY_TYPES = {
   shippingRule: "SHIPPING_RULE",
   order: "ORDER",
   shipment: "SHIPMENT",
+  contactTask: "CUSTOMER_CONTACT_TASK",
   review: "REVIEW",
+  return: "RETURN",
   setting: "SETTING",
 } as const;
 

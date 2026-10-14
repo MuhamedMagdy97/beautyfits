@@ -57,9 +57,14 @@ export const OTP_VERIFY_IP_LIMIT: RateLimitPolicy = {
   blockMs: 15 * MS_PER_MINUTE,
 };
 
-/** Purposes whose codes are sent so far (the guest order claim follows in TASK-010). */
+/** Purposes whose codes are sent by email (all of them in v1, R30/R31). */
 export type OtpEmailPurpose =
-  "EMAIL_VERIFICATION" | "PASSWORD_RESET" | "EMPLOYEE_LOGIN" | "EMAIL_CHANGE" | "PHONE_CHANGE";
+  | "EMAIL_VERIFICATION"
+  | "PASSWORD_RESET"
+  | "EMPLOYEE_LOGIN"
+  | "EMAIL_CHANGE"
+  | "PHONE_CHANGE"
+  | "GUEST_ORDER_CLAIM";
 
 /**
  * Language of a code email: the customer's preferred language (R14), or both
@@ -268,6 +273,22 @@ const TEMPLATES: Record<
         `رمز تغيير رقم الهاتف لحسابك في BeautyFits هو ${code}.\n\n` +
         `ينتهي الرمز خلال ${MINUTES} دقائق. لا تشاركه مع أي شخص.\n\n` +
         "إذا لم تطلب تغيير رقم هاتفك، غيّر كلمة المرور الآن.\n",
+    }),
+  },
+  GUEST_ORDER_CLAIM: {
+    en: (code) => ({
+      subject: "Link your earlier BeautyFits orders",
+      text:
+        `Your code to link your earlier guest orders to your BeautyFits account is ${code}.\n\n` +
+        `It expires in ${MINUTES} minutes. Do not share it with anyone.\n\n` +
+        "If you did not ask to link your orders, change your password now.\n",
+    }),
+    ar: (code) => ({
+      subject: "ربط طلباتك السابقة في BeautyFits",
+      text:
+        `رمز ربط طلباتك السابقة كزائر بحسابك في BeautyFits هو ${code}.\n\n` +
+        `ينتهي الرمز خلال ${MINUTES} دقائق. لا تشاركه مع أي شخص.\n\n` +
+        "إذا لم تطلب ربط طلباتك، غيّر كلمة المرور الآن.\n",
     }),
   },
 };

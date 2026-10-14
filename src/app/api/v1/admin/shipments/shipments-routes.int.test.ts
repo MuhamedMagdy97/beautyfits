@@ -1,5 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { PATCH as updateTask } from "@/app/api/v1/admin/contact-tasks/[taskId]/route";
+import { GET as listTasks } from "@/app/api/v1/admin/contact-tasks/route";
 import { POST as assignShipping } from "@/app/api/v1/admin/orders/[orderId]/assign-shipping/route";
+import { POST as adminCancel } from "@/app/api/v1/admin/orders/[orderId]/cancel/route";
+import { POST as requestCancellation } from "@/app/api/v1/admin/orders/[orderId]/request-shipping-cancellation/route";
+import { POST as inspectReturn } from "@/app/api/v1/admin/shipments/[shipmentId]/inspect-return/route";
+import { POST as customerCancel } from "@/app/api/v1/orders/[orderId]/cancel/route";
 import { POST as confirm } from "@/app/api/v1/admin/orders/[orderId]/confirm/route";
 import { POST as markReady } from "@/app/api/v1/admin/orders/[orderId]/mark-ready-for-shipment/route";
 import { POST as markShipped } from "@/app/api/v1/admin/orders/[orderId]/mark-shipped/route";
@@ -35,16 +41,21 @@ function call(
     key?: string;
     body?: unknown;
     params?: Record<string, string>;
+    query?: Record<string, string>;
     method?: string;
   } = {},
 ): Promise<Response> {
   const headers = new Headers({ "accept-language": "en" });
+  const url = new URL(`${BASE}/x`);
+  for (const [name, value] of Object.entries(options.query ?? {})) {
+    url.searchParams.set(name, value);
+  }
   if (options.token) headers.set("authorization", `Bearer ${options.token}`);
   if (options.guest) headers.set("x-guest-cart-token", options.guest);
   if (options.key) headers.set("idempotency-key", `checkout-${options.key}`);
   if (options.body !== undefined) headers.set("content-type", "application/json");
   return (handler as Handler)(
-    new Request(`${BASE}/x`, {
+    new Request(url, {
       method: options.method ?? "POST",
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -372,6 +383,8 @@ describe("carrier handoff and delivery", () => {
         trackingNumber: "AWB-1001",
         shippedAt: expect.any(String),
         deliveredAt: delivered.deliveredAt,
+        cancellationRequestedAt: null,
+        returnedAt: null,
         events: [
           { type: "SHIPPED", at: expect.any(String) },
           { type: "OUT_FOR_DELIVERY", at: expect.any(String) },
@@ -531,5 +544,426 @@ describe("tracking numbers", () => {
         })
       ).status,
     ).toBe(403);
+  });
+});
+
+/** A customer order handed to an active carrier; returns the order, customer and shipment. */
+async function shippedOrder(walletCredit = 0, walletAmount = 0) {
+  const variantId = await product();
+  const sara = await customer(walletCredit);
+  const order = await placeOrder(variantId, sara.token, walletAmount);
+  counter += 1;
+  const carrier = await company(`CARRIER${counter}`);
+  await data(
+    await call(assignShipping, {
+      token: ops.token,
+      params: { orderId: order.id },
+      body: { shippingCompanyId: carrier.id },
+    }),
+  );
+  await readyForShipment(order.id, ops.token);
+  const shipped = await data(
+    await call(markShipped, { token: ops.token, params: { orderId: order.id } }),
+  );
+  return { order, sara, variantId, shipmentId: shipped.shipments[0].id as string };
+}
+
+async function move(shipmentId: string, status: string, extra: Record<string, string> = {}) {
+  return call(shipmentStatus, {
+    token: ops.token,
+    params: { shipmentId },
+    body: { status, ...extra },
+  });
+}
+
+describe("delivery failures and contact tasks (TASK-035, Q19, Q128, Q129)", () => {
+  it("counts failed attempts, keeps the order shipped and opens one task at the threshold", async () => {
+    const { order, sara, shipmentId } = await shippedOrder();
+    const agent = await staff(["CONTACT_TASK_MANAGE"]);
+
+    // A failure needs an attempt first (User Flows §10).
+    expect(await errorOf(await move(shipmentId, "DELIVERY_FAILED"), 409)).toMatchObject({
+      details: { reason: "SHIPMENT_STATE_INVALID", status: "SHIPPED", to: "DELIVERY_FAILED" },
+    });
+
+    await data(await move(shipmentId, "OUT_FOR_DELIVERY"));
+    const first = await data(
+      await move(shipmentId, "DELIVERY_FAILED", { notes: "No answer", location: "Maadi" }),
+    );
+    expect(first).toMatchObject({ status: "DELIVERY_FAILED", attemptCount: 1 });
+    // One failure is not a cancellation (Q128); below the default threshold of 2, no task.
+    expect((await db.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe("SHIPPED");
+    expect(await db.customerContactTask.count()).toBe(0);
+    expect(await data(await call(listTasks, { method: "GET", token: agent.token }))).toEqual([]);
+
+    // Another attempt, another failure: the threshold opens a task (Q129).
+    await data(await move(shipmentId, "OUT_FOR_DELIVERY"));
+    const second = await data(await move(shipmentId, "DELIVERY_FAILED"));
+    expect(second.attemptCount).toBe(2);
+    const tasks = await data(await call(listTasks, { method: "GET", token: agent.token }));
+    expect(tasks).toMatchObject([
+      {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        shipmentId,
+        attemptCount: 2,
+        reason: "DELIVERY_FAILED_THRESHOLD",
+        status: "OPEN",
+        assignedEmployee: null,
+        resolvedAt: null,
+      },
+    ]);
+    const taskId = tasks[0].id as string;
+
+    // A further failure while the task is open does not open a second one.
+    await data(await move(shipmentId, "OUT_FOR_DELIVERY"));
+    expect((await data(await move(shipmentId, "DELIVERY_FAILED"))).attemptCount).toBe(3);
+    expect(await db.customerContactTask.count()).toBe(1);
+
+    // Staff assign, record the outcome and resolve.
+    const assigned = await data(
+      await call(updateTask, {
+        method: "PATCH",
+        token: agent.token,
+        params: { taskId },
+        body: { assignedEmployeeId: agent.employeeId, status: "IN_PROGRESS" },
+      }),
+    );
+    expect(assigned).toMatchObject({
+      status: "IN_PROGRESS",
+      assignedEmployee: { id: agent.employeeId },
+    });
+    const resolved = await data(
+      await call(updateTask, {
+        method: "PATCH",
+        token: agent.token,
+        params: { taskId },
+        body: { status: "RESOLVED", outcomeNotes: "Customer at home after 6 pm" },
+      }),
+    );
+    expect(resolved).toMatchObject({
+      status: "RESOLVED",
+      outcomeNotes: "Customer at home after 6 pm",
+      resolvedAt: expect.any(String),
+      resolvedBy: { id: agent.employeeId },
+    });
+    const closed = await call(updateTask, {
+      method: "PATCH",
+      token: agent.token,
+      params: { taskId },
+      body: { outcomeNotes: "late" },
+    });
+    expect(await errorOf(closed, 409)).toMatchObject({
+      details: { reason: "CONTACT_TASK_CLOSED", status: "RESOLVED" },
+    });
+
+    // Once the task is closed, the next failure opens a new one.
+    await data(await move(shipmentId, "OUT_FOR_DELIVERY"));
+    await data(await move(shipmentId, "DELIVERY_FAILED"));
+    expect(
+      await data(
+        await call(listTasks, { method: "GET", token: agent.token, query: { status: "OPEN" } }),
+      ),
+    ).toMatchObject([{ attemptCount: 4, status: "OPEN" }]);
+
+    // A later attempt can still deliver.
+    await data(await move(shipmentId, "OUT_FOR_DELIVERY"));
+    expect((await data(await move(shipmentId, "DELIVERED"))).attemptCount).toBe(4);
+
+    // Customers see the failed attempts in tracking, without notes (Q127).
+    const mine = await data(
+      await call(myOrder, { method: "GET", token: sara.token, params: { orderId: order.id } }),
+    );
+    expect(mine.shipments[0].events.map((e: { type: string }) => e.type)).toEqual([
+      "SHIPPED",
+      "OUT_FOR_DELIVERY",
+      "DELIVERY_FAILED",
+      "OUT_FOR_DELIVERY",
+      "DELIVERY_FAILED",
+      "OUT_FOR_DELIVERY",
+      "DELIVERY_FAILED",
+      "OUT_FOR_DELIVERY",
+      "DELIVERY_FAILED",
+      "OUT_FOR_DELIVERY",
+      "DELIVERED",
+    ]);
+    expect(mine.shipments[0].events[2]).toEqual({
+      type: "DELIVERY_FAILED",
+      at: expect.any(String),
+    });
+
+    const audits = await db.auditLog.findMany({
+      where: { action: { in: ["CONTACT_TASK_CREATED", "CONTACT_TASK_UPDATED"] } },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    expect(audits.map((a) => [a.action, a.actorType])).toEqual([
+      ["CONTACT_TASK_CREATED", "SYSTEM"],
+      ["CONTACT_TASK_UPDATED", "EMPLOYEE"],
+      ["CONTACT_TASK_UPDATED", "EMPLOYEE"],
+      ["CONTACT_TASK_CREATED", "SYSTEM"],
+    ]);
+    expect(
+      await db.auditLog.findFirst({
+        where: { entityId: shipmentId, action: "SHIPMENT_STATUS_CHANGED" },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        skip: 1,
+      }),
+    ).toMatchObject({ newDataJson: { status: "DELIVERY_FAILED", attemptCount: 1 } });
+
+    // Tasks are never deleted.
+    await expect(db.customerContactTask.delete({ where: { id: taskId } })).rejects.toThrow(
+      /never deleted/,
+    );
+  });
+
+  it("uses the configured threshold and checks task updates", async () => {
+    await db.setting.create({
+      data: {
+        key: "shipping.delivery_failure_contact_threshold",
+        valueJson: 1,
+        dataType: "INTEGER",
+      },
+    });
+    const { shipmentId } = await shippedOrder();
+    await data(await move(shipmentId, "OUT_FOR_DELIVERY"));
+    await data(await move(shipmentId, "DELIVERY_FAILED"));
+    const task = await db.customerContactTask.findFirstOrThrow({ where: { shipmentId } });
+
+    const agent = await staff(["CONTACT_TASK_MANAGE"]);
+    const patch = (body: unknown, token = agent.token, taskId = task.id) =>
+      call(updateTask, { method: "PATCH", token, params: { taskId }, body });
+
+    expect((await errorOf(await patch({}), 400)).code).toBe("VALIDATION_ERROR");
+    expect((await errorOf(await patch({ status: "OPEN" }), 400)).code).toBe("VALIDATION_ERROR");
+    expect(
+      (await errorOf(await patch({ assignedEmployeeId: UNKNOWN_ID }), 400)).details.issues[0],
+    ).toMatchObject({ path: "assignedEmployeeId", code: "not_found" });
+    expect(
+      (await errorOf(await patch({ status: "CANCELLED" }, agent.token, UNKNOWN_ID), 404)).code,
+    ).toBe("NOT_FOUND");
+    const viewer = await staff(["ORDERS_VIEW"]);
+    expect((await patch({ status: "CANCELLED" }, viewer.token)).status).toBe(403);
+    expect((await call(listTasks, { method: "GET", token: viewer.token })).status).toBe(403);
+
+    const cancelled = await data(await patch({ status: "CANCELLED" }));
+    expect(cancelled).toMatchObject({ status: "CANCELLED", resolvedBy: { id: agent.employeeId } });
+  });
+});
+
+describe("shipping cancellation and return to sender (TASK-036, Q89, Q130, R3, R11)", () => {
+  it("records the customer's request, brings the parcel back and cancels after inspection", async () => {
+    const { order, sara, variantId, shipmentId } = await shippedOrder(10000, 5000);
+    const params = { orderId: order.id };
+    const warehouse = await staff(["INSPECT_RETURN"]);
+
+    // After pickup the customer's cancel is a request on the shipment; the order stays Shipped.
+    const requested = await data(
+      await call(customerCancel, {
+        token: sara.token,
+        params,
+        body: { reason: "Changed my mind" },
+      }),
+    );
+    expect(requested).toMatchObject({
+      status: "SHIPPED",
+      shipments: [
+        {
+          status: "SHIPPED",
+          cancellationRequestedAt: expect.any(String),
+          returnedAt: null,
+          events: [{ type: "SHIPPED" }, { type: "SHIPPING_CANCELLATION_REQUESTED" }],
+        },
+      ],
+    });
+    expect(requested.shipments[0].events[1]).not.toHaveProperty("notes");
+    expect(
+      await errorOf(await call(customerCancel, { token: sara.token, params }), 409),
+    ).toMatchObject({ details: { reason: "SHIPPING_CANCELLATION_ALREADY_REQUESTED" } });
+    expect(
+      await errorOf(
+        await call(requestCancellation, { token: ops.token, params, body: { reason: "x" } }),
+        403,
+      ),
+    ).toMatchObject({ code: "PERMISSION_DENIED" });
+    // Staff still cannot cancel a shipped order directly (R11).
+    const lead = await staff(["CANCEL_ORDER", "REQUEST_SHIPPING_CANCELLATION"]);
+    expect(
+      await errorOf(
+        await call(adminCancel, { token: lead.token, params, body: { reason: "No" } }),
+        422,
+      ),
+    ).toMatchObject({ details: { status: "SHIPPED", reason: "AFTER_CARRIER_PICKUP" } });
+    expect(
+      await errorOf(await call(requestCancellation, { token: lead.token, params }), 409),
+    ).toMatchObject({ details: { reason: "SHIPPING_CANCELLATION_ALREADY_REQUESTED" } });
+
+    // The request allows the carrier to bring it back before any failed attempt.
+    await data(await move(shipmentId, "OUT_FOR_DELIVERY"));
+    await data(await move(shipmentId, "RETURN_TO_SENDER"));
+    expect(await errorOf(await move(shipmentId, "DELIVERED"), 409)).toMatchObject({
+      details: { reason: "SHIPMENT_STATE_INVALID" },
+    });
+    // Not inspectable before it is back.
+    expect(
+      (
+        await errorOf(
+          await call(inspectReturn, { token: warehouse.token, params: { shipmentId } }),
+          409,
+        )
+      ).details,
+    ).toMatchObject({ reason: "SHIPMENT_STATE_INVALID", status: "RETURN_TO_SENDER" });
+    const back = await data(await move(shipmentId, "RETURNED"));
+    expect(back).toMatchObject({
+      status: "RETURNED",
+      returnedAt: expect.any(String),
+      inspectedAt: null,
+    });
+    expect((await db.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe("SHIPPED");
+
+    // Inspection: one unit damaged in shipping, the other back on the shelf (Q130).
+    const item = await db.orderItem.findFirstOrThrow({ where: { orderId: order.id } });
+    expect((await call(inspectReturn, { token: ops.token, params: { shipmentId } })).status).toBe(
+      403,
+    );
+    const tooMany = await call(inspectReturn, {
+      token: warehouse.token,
+      params: { shipmentId },
+      body: { damaged: [{ orderItemId: item.id, quantity: 3 }] },
+    });
+    expect((await errorOf(tooMany, 400)).details.issues[0]).toMatchObject({
+      code: "exceeds_quantity",
+    });
+    const unknown = await call(inspectReturn, {
+      token: warehouse.token,
+      params: { shipmentId },
+      body: { damaged: [{ orderItemId: UNKNOWN_ID, quantity: 1 }] },
+    });
+    expect((await errorOf(unknown, 400)).details.issues[0].code).toBe("not_found");
+
+    const inspected = await data(
+      await call(inspectReturn, {
+        token: warehouse.token,
+        params: { shipmentId },
+        body: { damaged: [{ orderItemId: item.id, quantity: 1 }], notes: "Crushed box" },
+      }),
+    );
+    expect(inspected).toMatchObject({ status: "RETURNED", inspectedAt: expect.any(String) });
+    expect(inspected.events.at(-1)).toMatchObject({
+      type: "RETURN_INSPECTED",
+      notes: "Crushed box",
+    });
+
+    const cancelled = await db.order.findUniqueOrThrow({ where: { id: order.id } });
+    expect(cancelled.status).toBe("CANCELLED");
+    expect(cancelled.cancelledAt).not.toBeNull();
+    const balance = await db.inventoryBalance.findUniqueOrThrow({
+      where: { productVariantId: variantId },
+    });
+    expect([balance.availableQuantity, balance.reservedQuantity, balance.damagedQuantity]).toEqual([
+      9, 0, 1,
+    ]);
+    expect(
+      await db.inventoryMovement.findMany({
+        where: { referenceId: shipmentId },
+        select: { movementType: true, availableDelta: true, damagedDelta: true },
+      }),
+    ).toEqual([{ movementType: "SHIPMENT_RETURN", availableDelta: 1, damagedDelta: 1 }]);
+    // The captured wallet credit comes back (Audit Correction 5).
+    const wallet = await db.wallet.findUniqueOrThrow({ where: { customerId: sara.customerId } });
+    expect(wallet.balance).toBe(BigInt(10000));
+    expect(
+      await db.walletTransaction.findMany({
+        where: { referenceId: order.id, transactionType: "ORDER_CANCELLATION_REFUND" },
+        select: { direction: true, amount: true },
+      }),
+    ).toEqual([{ direction: "CREDIT", amount: BigInt(5000) }]);
+    expect(
+      await db.outboxEvent.count({
+        where: {
+          aggregateId: order.id,
+          eventType: { in: ["SHIPPING_CANCELLATION_REQUESTED", "ORDER_CANCELLED"] },
+        },
+      }),
+    ).toBe(2);
+    expect(
+      (
+        await db.auditLog.findMany({
+          where: {
+            action: {
+              in: [
+                "SHIPPING_CANCELLATION_REQUESTED",
+                "SHIPMENT_RETURN_INSPECTED",
+                "ORDER_CANCELLED",
+              ],
+            },
+          },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        })
+      ).map((a) => [a.action, a.actorType]),
+    ).toEqual([
+      ["SHIPPING_CANCELLATION_REQUESTED", "CUSTOMER"],
+      ["SHIPMENT_RETURN_INSPECTED", "EMPLOYEE"],
+      ["ORDER_CANCELLED", "EMPLOYEE"],
+    ]);
+
+    // Inspected once; the cancelled order cannot be requested again.
+    expect(
+      (
+        await errorOf(
+          await call(inspectReturn, { token: warehouse.token, params: { shipmentId } }),
+          409,
+        )
+      ).details,
+    ).toMatchObject({ inspected: true });
+    expect(
+      (await errorOf(await call(requestCancellation, { token: lead.token, params }), 409)).code,
+    ).toBe("ORDER_STATE_INVALID");
+  });
+
+  it("returns a parcel after failed delivery without a request, but not before", async () => {
+    const { order, variantId, shipmentId } = await shippedOrder();
+    const warehouse = await staff(["INSPECT_RETURN"]);
+
+    expect(await errorOf(await move(shipmentId, "RETURN_TO_SENDER"), 409)).toMatchObject({
+      details: { reason: "SHIPPING_CANCELLATION_REQUIRED", status: "SHIPPED" },
+    });
+    await data(await move(shipmentId, "OUT_FOR_DELIVERY"));
+    await data(await move(shipmentId, "DELIVERY_FAILED"));
+    await data(await move(shipmentId, "RETURN_TO_SENDER"));
+    await data(await move(shipmentId, "RETURNED"));
+
+    // No body: nothing damaged, every unit back in stock.
+    await data(await call(inspectReturn, { token: warehouse.token, params: { shipmentId } }));
+    expect((await db.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe(
+      "CANCELLED",
+    );
+    const balance = await db.inventoryBalance.findUniqueOrThrow({
+      where: { productVariantId: variantId },
+    });
+    expect([balance.availableQuantity, balance.damagedQuantity]).toEqual([10, 0]);
+    expect(await db.walletTransaction.count({ where: { referenceId: order.id } })).toBe(0);
+  });
+
+  it("refuses a request before shipping or after delivery", async () => {
+    const lead = await staff(["REQUEST_SHIPPING_CANCELLATION"]);
+    const variantId = await product();
+    const sara = await customer();
+    const fresh = await placeOrder(variantId, sara.token);
+    expect(
+      await errorOf(
+        await call(requestCancellation, { token: lead.token, params: { orderId: fresh.id } }),
+        409,
+      ),
+    ).toMatchObject({ code: "ORDER_STATE_INVALID", details: { status: "PENDING_CONFIRMATION" } });
+
+    const { order, sara: owner, shipmentId } = await shippedOrder();
+    await data(await move(shipmentId, "OUT_FOR_DELIVERY"));
+    await data(await move(shipmentId, "DELIVERED"));
+    expect(
+      await errorOf(
+        await call(customerCancel, { token: owner.token, params: { orderId: order.id } }),
+        422,
+      ),
+    ).toMatchObject({ code: "ORDER_CANCELLATION_NOT_ALLOWED", details: { status: "DELIVERED" } });
   });
 });
