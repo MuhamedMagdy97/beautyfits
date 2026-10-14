@@ -171,18 +171,19 @@ model Customer {
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  account           Account?           @relation(fields: [accountId], references: [id])
-  addresses         CustomerAddress[]
-  carts             Cart[]
-  discountUsages    DiscountUsage[]
-  orderRevisions    OrderRevision[]
-  wallet            Wallet?
-  orders            Order[]
-  wishlist          Wishlist?
-  reviews           Review[]
-  reviewReports     ReviewReport[]
-  notifications     Notification[]
-  marketingConsents MarketingConsent[]
+  account              Account?              @relation(fields: [accountId], references: [id])
+  addresses            CustomerAddress[]
+  carts                Cart[]
+  discountUsages       DiscountUsage[]
+  orderRevisions       OrderRevision[]
+  wallet               Wallet?
+  orders               Order[]
+  wishlist             Wishlist?
+  restockSubscriptions RestockSubscription[]
+  reviews              Review[]
+  reviewReports        ReviewReport[]
+  notifications        Notification[]
+  marketingConsents    MarketingConsent[]
 
   @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
   @@index([phone])
@@ -707,6 +708,7 @@ model ProductVariant {
   cartItems             CartItem[]
   orderItems            OrderItem[]
   wishlistItems         WishlistItem[]
+  restockSubscriptions  RestockSubscription[]
 
   @@unique([productId], map: "product_variants_one_default_key", where: raw("is_default"))
   @@index([productId, createdAt])
@@ -1498,10 +1500,14 @@ model Wishlist {
 }
 
 model WishlistItem {
-  id               String   @id @default(uuid(7)) @db.Uuid
-  wishlistId       String   @map("wishlist_id") @db.Uuid
-  productVariantId String   @map("product_variant_id") @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id                     String                      @id @default(uuid(7)) @db.Uuid
+  wishlistId             String                      @map("wishlist_id") @db.Uuid
+  productVariantId       String                      @map("product_variant_id") @db.Uuid
+  createdAt              DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Purchase reminder state (Business Spec R6, TASK-043).
+  lastRemindedAt         DateTime?                   @map("last_reminded_at") @db.Timestamptz(3)
+  reminderCount          Int                         @default(0) @map("reminder_count")
+  remindersStoppedReason WishlistReminderStopReason? @map("reminders_stopped_reason")
 
   wishlist Wishlist       @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
   variant  ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
@@ -1509,6 +1515,43 @@ model WishlistItem {
   @@unique([wishlistId, productVariantId])
   @@index([productVariantId])
   @@map("wishlist_items")
+}
+
+enum WishlistReminderStopReason {
+  PURCHASED
+  UNAVAILABLE
+  NO_MARKETING_CONSENT
+  MAX_REMINDERS
+
+  @@map("wishlist_reminder_stop_reason")
+}
+
+enum RestockSubscriptionStatus {
+  ACTIVE
+  FULFILLED
+  CANCELLED
+
+  @@map("restock_subscription_status")
+}
+
+/// Explicit Notify Me subscription per variant (Q51, Q52, R12, TASK-043).
+model RestockSubscription {
+  id               String                    @id @default(uuid(7)) @db.Uuid
+  customerId       String                    @map("customer_id") @db.Uuid
+  productVariantId String                    @map("product_variant_id") @db.Uuid
+  emailEnabled     Boolean                   @map("email_enabled")
+  whatsappEnabled  Boolean                   @map("whatsapp_enabled")
+  status           RestockSubscriptionStatus @default(ACTIVE)
+  subscribedAt     DateTime                  @map("subscribed_at") @db.Timestamptz(3)
+  fulfilledAt      DateTime?                 @map("fulfilled_at") @db.Timestamptz(3)
+  cancelledAt      DateTime?                 @map("cancelled_at") @db.Timestamptz(3)
+
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  variant  ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@unique([customerId, productVariantId], map: "restock_subscriptions_one_active_key", where: raw("status = 'ACTIVE'"))
+  @@index([status, productVariantId])
+  @@map("restock_subscriptions")
 }
 
 // ---------------------------------------------------------------------------

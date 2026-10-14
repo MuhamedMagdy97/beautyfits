@@ -50,6 +50,7 @@
 | [ADR-0043](ADR-0043-notification-service.md) | Notification service: in-app centre, outbox dispatch and channel fallback | TASK-045 |
 | [ADR-0044](ADR-0044-analytics-events.md) | Analytics event collection | TASK-050 |
 | [ADR-0045](ADR-0045-dashboard-shell.md) | Dashboard shell: API client, session handling, navigation | TASK-052 |
+| [ADR-0050](ADR-0050-restock-and-wishlist-reminders.md) | Restock Notify Me and wishlist purchase reminders | TASK-043 |
 | [ADR-0051](ADR-0051-marketing-consent-ledger.md) | Marketing consent ledger: append-only per-channel history | TASK-046 |
 | [ADR-0055](ADR-0055-website-foundation.md) | Website foundation: storefront shell, customer API client, session and guest cart | TASK-058 |
 
