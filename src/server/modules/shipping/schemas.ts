@@ -107,7 +107,13 @@ export const updateTrackingSchema = z.object({ trackingNumber });
 
 /** `POST /admin/shipments/{shipmentId}/status`: manual MVP updates (TASK-034, TASK-035). */
 export const shipmentStatusSchema = z.object({
-  status: z.enum(["OUT_FOR_DELIVERY", "DELIVERED", "DELIVERY_FAILED"]),
+  status: z.enum([
+    "OUT_FOR_DELIVERY",
+    "DELIVERED",
+    "DELIVERY_FAILED",
+    "RETURN_TO_SENDER",
+    "RETURNED",
+  ]),
   location: z.string().trim().min(1).max(200).optional(),
   notes: z.string().trim().min(1).max(1000).optional(),
 });
@@ -116,6 +122,31 @@ export type AssignShippingInput = z.output<typeof assignShippingSchema>;
 export type MarkShippedInput = z.output<typeof markShippedSchema>;
 export type UpdateTrackingInput = z.output<typeof updateTrackingSchema>;
 export type ShipmentStatusInput = z.output<typeof shipmentStatusSchema>;
+
+// Shipping cancellation and return to sender (TASK-036, R3, Q89, Q130, ADR-0048)
+
+/** `POST /admin/orders/{orderId}/request-shipping-cancellation`: why, optionally. */
+export const requestShippingCancellationSchema = z.object({
+  reason: z.string().trim().min(1).max(500).optional(),
+});
+
+/**
+ * `POST /admin/shipments/{shipmentId}/inspect-return`: the units found
+ * damaged in shipping, per order line; every other unit goes back to stock.
+ */
+export const inspectReturnSchema = z.object({
+  damaged: z
+    .array(z.object({ orderItemId: z.uuid(), quantity: z.int().min(1).max(1_000_000) }))
+    .max(200)
+    .refine((lines) => new Set(lines.map((l) => l.orderItemId)).size === lines.length, {
+      message: "List each order line once.",
+    })
+    .default([]),
+  notes: z.string().trim().min(1).max(1000).optional(),
+});
+
+export type RequestShippingCancellationInput = z.output<typeof requestShippingCancellationSchema>;
+export type InspectReturnInput = z.output<typeof inspectReturnSchema>;
 
 // Customer-contact tasks (TASK-035, API §16, Q129, ADR-0047)
 

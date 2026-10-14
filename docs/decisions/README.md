@@ -51,5 +51,6 @@
 | [ADR-0044](ADR-0044-analytics-events.md) | Analytics event collection | TASK-050 |
 | [ADR-0045](ADR-0045-dashboard-shell.md) | Dashboard shell: API client, session handling, navigation | TASK-052 |
 | [ADR-0047](ADR-0047-delivery-failures.md) | Delivery failures, attempts and customer-contact tasks | TASK-035 |
+| [ADR-0048](ADR-0048-shipping-cancellation.md) | Shipping cancellation, return to sender and cancellation after return | TASK-036 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

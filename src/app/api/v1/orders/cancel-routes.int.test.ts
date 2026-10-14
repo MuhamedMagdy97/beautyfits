@@ -320,10 +320,13 @@ describe("POST /orders/{orderId}/cancel", () => {
     const sara = await customer();
     const shipped = await placeOrder(sara.token);
     await moveTo(shipped.id, [...TO_READY, "SHIPPED"]);
-    const error = await errorOf(await cancelMine(shipped.id, sara.token), 422);
+    // After pickup the customer's cancel becomes a shipping cancellation request
+    // (TASK-036, covered in shipments-routes.int.test.ts); this order has no
+    // shipment row, so there is no parcel to stop.
+    const error = await errorOf(await cancelMine(shipped.id, sara.token), 409);
     expect(error).toMatchObject({
-      code: "ORDER_CANCELLATION_NOT_ALLOWED",
-      details: { status: "SHIPPED", reason: "AFTER_CARRIER_PICKUP" },
+      code: "CONFLICT",
+      details: { reason: "SHIPMENT_STATE_INVALID", status: null },
     });
     expect((await db.order.findUniqueOrThrow({ where: { id: shipped.id } })).status).toBe(
       "SHIPPED",

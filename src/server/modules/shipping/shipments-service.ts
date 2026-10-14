@@ -13,7 +13,7 @@ import {
 } from "@/server/modules/audit/audit";
 import { conflict, isUniqueViolation, validationError } from "@/server/modules/catalog/errors";
 import { commitForOrder } from "@/server/modules/inventory/reservations";
-import { changeOrderStatus, lockOrder } from "@/server/modules/orders/orders";
+import { changeOrderStatus, lockOrder, releaseOrderHolds } from "@/server/modules/orders/orders";
 import {
   getOrdersService,
   type AdminOrderView,
@@ -24,17 +24,21 @@ import { permissionDenied } from "@/server/modules/rbac/authorization";
 import { openContactTaskAtThreshold } from "@/server/modules/shipping/contact-tasks-service";
 import type {
   AssignShippingInput,
+  InspectReturnInput,
   MarkShippedInput,
+  RequestShippingCancellationInput,
   ShipmentStatusInput,
   UpdateTrackingInput,
 } from "@/server/modules/shipping/schemas";
 import {
   canMoveShipment,
+  needsCancellationRequest,
   SHIPMENT_INCLUDE,
   toAdminShipment,
   type AdminShipmentView,
 } from "@/server/modules/shipping/shipments";
-import { captureWalletReservation } from "@/server/modules/wallet/wallet-service";
+import { recordShippingCancellationRequest } from "@/server/modules/shipping/shipping-cancellation";
+import { captureWalletReservation, creditWallet } from "@/server/modules/wallet/wallet-service";
 import { toJsonNumber } from "@/server/money/money";
 import { systemClock, type Clock } from "@/server/time/time";
 
@@ -295,8 +299,11 @@ export function createShipmentsService(deps: {
         status: ShipmentStatus;
         trackingNumber: string | null;
         shippingCompanyId: string;
+        cancellationRequestedAt: Date | null;
+        inspectedAt: Date | null;
       }[]
-    >`SELECT status, tracking_number AS "trackingNumber", shipping_company_id AS "shippingCompanyId"
+    >`SELECT status, tracking_number AS "trackingNumber", shipping_company_id AS "shippingCompanyId",
+        cancellation_requested_at AS "cancellationRequestedAt", inspected_at AS "inspectedAt"
       FROM shipments WHERE id = ${shipmentId}::uuid FOR UPDATE`;
     return { orderId: found.orderId, ...rows[0] };
   }
@@ -374,6 +381,13 @@ export function createShipmentsService(deps: {
             to,
           });
         }
+        if (needsCancellationRequest(shipment.status, to) && !shipment.cancellationRequestedAt) {
+          throw conflict("Request a shipping cancellation first.", {
+            reason: "SHIPPING_CANCELLATION_REQUIRED",
+            status: shipment.status,
+            to,
+          });
+        }
         const updated = await tx.shipment.update({
           where: { id: shipmentId },
           select: { attemptCount: true },
@@ -381,6 +395,7 @@ export function createShipmentsService(deps: {
             status: to,
             updatedAt: now,
             ...(to === "DELIVERED" ? { deliveredAt: now } : {}),
+            ...(to === "RETURNED" ? { returnedAt: now } : {}),
             ...(to === "DELIVERY_FAILED" ? { attemptCount: { increment: 1 } } : {}),
             events: {
               create: [
@@ -467,7 +482,203 @@ export function createShipmentsService(deps: {
     return loadShipment(shipmentId);
   }
 
-  return { assignShipping, markShipped, updateTracking, changeShipmentStatus };
+  /**
+   * `POST /admin/orders/{orderId}/request-shipping-cancellation`
+   * (REQUEST_SHIPPING_CANCELLATION, Q88, R3): the order stays `SHIPPED`.
+   */
+  async function requestShippingCancellation(
+    actor: OrderActor,
+    orderId: string,
+    input: RequestShippingCancellationInput,
+    ctx: Ctx,
+  ): Promise<AdminOrderView> {
+    const now = clock.now();
+    const shipmentId = await runInTransaction(
+      async (tx) => {
+        const status = await lockOrder(tx, orderId);
+        if (status !== "SHIPPED") {
+          throw new AppError(
+            "ORDER_STATE_INVALID",
+            "A shipping cancellation can only be requested for a shipped order.",
+            { details: { status } },
+          );
+        }
+        return recordShippingCancellationRequest(tx, {
+          orderId,
+          actor: employeeActor(actor.employeeId),
+          reason: input.reason ?? null,
+          now,
+          correlationId: ctx.correlationId,
+        });
+      },
+      {},
+      db,
+    );
+    ctx.logger.info("shipping cancellation requested", { orderId, shipmentId });
+    return orders().getOrder(orderId, actor.permissions);
+  }
+
+  /**
+   * `POST /admin/shipments/{shipmentId}/inspect-return` (Q130, R3, User Flows
+   * §8.4, §10): the returned parcel is inspected for shipping damage and the
+   * order moves `SHIPPED → CANCELLED`, in one transaction. Intact units go
+   * back to Available and damaged ones to Damaged (`SHIPMENT_RETURN`
+   * movements); the discount use is released and captured wallet credit is
+   * refunded to the wallet (`ORDER_CANCELLATION_REFUND`, Audit Correction 5).
+   */
+  async function inspectReturn(
+    actor: OrderActor,
+    shipmentId: string,
+    input: InspectReturnInput,
+    ctx: Ctx,
+  ): Promise<AdminShipmentView> {
+    const now = clock.now();
+    const who = employeeActor(actor.employeeId);
+    await runInTransaction(
+      async (tx) => {
+        const shipment = await lockShipment(tx, shipmentId);
+        const orderId = shipment.orderId;
+        if (shipment.status !== "RETURNED" || shipment.inspectedAt) {
+          throw conflict("Only a returned, not yet inspected parcel can be inspected.", {
+            reason: "SHIPMENT_STATE_INVALID",
+            status: shipment.status,
+            inspected: shipment.inspectedAt !== null,
+          });
+        }
+        const order = await tx.order.findUniqueOrThrow({
+          where: { id: orderId },
+          select: {
+            customerId: true,
+            walletAmountCaptured: true,
+            items: { select: { id: true, productVariantId: true, quantity: true } },
+          },
+        });
+        const damagedById = new Map(input.damaged.map((d) => [d.orderItemId, d.quantity]));
+        input.damaged.forEach((line, index) => {
+          const item = order.items.find((i) => i.id === line.orderItemId);
+          if (!item) {
+            throw validationError(
+              `damaged.${index}.orderItemId`,
+              "not_found",
+              "Not a line of this order.",
+            );
+          }
+          if (line.quantity > item.quantity) {
+            throw validationError(
+              `damaged.${index}.quantity`,
+              "exceeds_quantity",
+              "More units than the line has.",
+            );
+          }
+        });
+        // Per variant, in variant id order (the balance lock order, ADR-0025).
+        const perVariant = new Map<string, { available: number; damaged: number }>();
+        for (const item of order.items) {
+          const variantId = item.productVariantId.toLowerCase();
+          const damaged = damagedById.get(item.id) ?? 0;
+          const total = perVariant.get(variantId) ?? { available: 0, damaged: 0 };
+          total.available += item.quantity - damaged;
+          total.damaged += damaged;
+          perVariant.set(variantId, total);
+        }
+        for (const [variantId, q] of [...perVariant].sort(([a], [b]) => (a < b ? -1 : 1))) {
+          await tx.inventoryMovement.create({
+            data: {
+              productVariantId: variantId,
+              movementType: "SHIPMENT_RETURN",
+              availableDelta: q.available,
+              damagedDelta: q.damaged,
+              referenceType: "SHIPMENT",
+              referenceId: shipmentId,
+              reason: "Returned parcel inspected",
+              createdByType: who.type,
+              createdById: actor.employeeId,
+              createdAt: now,
+            },
+          });
+        }
+        await tx.shipment.update({
+          where: { id: shipmentId },
+          data: {
+            inspectedAt: now,
+            updatedAt: now,
+            events: {
+              create: [{ eventType: "RETURN_INSPECTED", eventAt: now, notes: input.notes ?? null }],
+            },
+          },
+        });
+        const reason = shipment.cancellationRequestedAt
+          ? "Shipping cancellation: parcel returned"
+          : "Parcel returned after failed delivery";
+        await changeOrderStatus(tx, {
+          orderId,
+          to: "CANCELLED",
+          actor: who,
+          now,
+          reason,
+          data: { cancelledAt: now },
+        });
+        await releaseOrderHolds(tx, { orderId, actor: who, now, reason: "ORDER_CANCELLED" });
+        const refund = order.walletAmountCaptured;
+        if (refund > BigInt(0) && order.customerId) {
+          await creditWallet(tx, {
+            customerId: order.customerId,
+            transactionType: "ORDER_CANCELLATION_REFUND",
+            amount: refund,
+            referenceType: "ORDER",
+            referenceId: orderId,
+            now,
+          });
+        }
+        const damagedLines = input.damaged.map((d) => ({
+          orderItemId: d.orderItemId,
+          quantity: d.quantity,
+        }));
+        await recordAudits(tx, [
+          {
+            actor: who,
+            action: "SHIPMENT_RETURN_INSPECTED",
+            entityType: AUDIT_ENTITY_TYPES.shipment,
+            entityId: shipmentId,
+            next: { damaged: damagedLines, notes: input.notes ?? null },
+            correlationId: ctx.correlationId,
+            createdAt: now,
+          },
+          {
+            actor: who,
+            action: "ORDER_CANCELLED",
+            entityType: AUDIT_ENTITY_TYPES.order,
+            entityId: orderId,
+            previous: { status: "SHIPPED" },
+            next: { status: "CANCELLED", shipmentId, walletRefunded: toJsonNumber(refund) },
+            reason,
+            correlationId: ctx.correlationId,
+            createdAt: now,
+          },
+        ]);
+        await outbox(
+          tx,
+          "ORDER_CANCELLED",
+          orderId,
+          { cancelledBy: who.type, shipmentId, correlationId: ctx.correlationId },
+          now,
+        );
+      },
+      {},
+      db,
+    );
+    ctx.logger.info("returned parcel inspected, order cancelled", { shipmentId });
+    return loadShipment(shipmentId);
+  }
+
+  return {
+    assignShipping,
+    markShipped,
+    updateTracking,
+    changeShipmentStatus,
+    requestShippingCancellation,
+    inspectReturn,
+  };
 }
 
 export type ShipmentsService = ReturnType<typeof createShipmentsService>;

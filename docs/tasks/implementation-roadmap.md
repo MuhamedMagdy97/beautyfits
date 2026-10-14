@@ -412,6 +412,8 @@ Track delivery attempts/failures and create customer-contact tasks after configu
 
 Implement Shipping Cancellation Requested → Return to Sender/Returned → Cancelled flow and associated inventory/wallet effects.
 
+**Status after TASK-036** (`docs/tasks/TASK-036-shipping-cancellation.md`, ADR-0048, Business Spec Q88, Q89, Q130, R3, R11): the customer `cancel` of a `SHIPPED` order and `request-shipping-cancellation` (`REQUEST_SHIPPING_CANCELLATION`) record the request on the shipment (`cancellation_requested_at`, event, audit, outbox); the order stays `SHIPPED`. Shipment `status` adds `→ RETURN_TO_SENDER` (needs the request unless delivery failed) and `→ RETURNED`. `POST /admin/shipments/{id}/inspect-return` (`INSPECT_RETURN`, provisional) inspects the returned parcel for shipping damage and, in one transaction, puts intact units back in stock and damaged ones in Damaged (`SHIPMENT_RETURN` movements), moves the order `SHIPPED → CANCELLED`, releases the discount use and refunds the captured wallet credit (`ORDER_CANCELLATION_REFUND`). Customer returns after delivery stay TASK-037 → TASK-040.
+
 ---
 
 # Phase 7 — Returns & Wallet
