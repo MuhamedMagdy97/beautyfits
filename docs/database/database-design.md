@@ -1828,6 +1828,14 @@ Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Migrat
 ### `otp_challenges`
 - Adds `pending_value` (nullable): the new phone of a `PHONE_CHANGE` code, which is sent to the account email (R30). `EMAIL_CHANGE` codes use `destination` (the new email).
 
+## v1.2 TASK-010 Amendments
+
+Added by TASK-010 (`docs/tasks/TASK-010-guest-order-claiming.md`, ADR-0046). **No migration**: the existing structure is used.
+
+- `otp_challenges` with purpose `GUEST_ORDER_CLAIM` now exist: `account_id` is the claiming customer's account (never null in v1, since only a signed-in customer claims), `destination` the `guest_email` of the claimable orders (equal to the account email, R31).
+- `orders.customer_id` goes from null to the customer for every guest order whose `guest_phone` and `guest_email` both equal the account's (the only change `orders_immutable` allows, TASK-030). `guest_email`, `guest_phone` and all snapshots are kept unchanged. The `guest_phone` index serves the lookup.
+- Audit action `ORDER_CLAIMED` (entity `ORDER`).
+
 ## v1.2 TASK-025 Amendments
 
 Added by TASK-025 (`docs/tasks/TASK-025-cart.md`, ADR-0031). Migrated in `prisma/migrations/*_cart`.
@@ -1972,6 +1980,14 @@ Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Migrated in `pr
 - `wishlists` and `wishlist_items` as in §15. `wishlists.customer_id` unique, FK `customers` (`RESTRICT`); the wishlist is created on the first add. `wishlist_items.wishlist_id` FK (`CASCADE`), `product_variant_id` FK `product_variants` (`RESTRICT`), index on `product_variant_id`, unique `(wishlist_id, product_variant_id)`.
 - Items are deleted when the customer removes them or moves them to the cart; nothing else references them. The R6 reminder state columns ("Wishlist reminder state") are added by TASK-043.
 
+## v1.2 TASK-043 Amendments
+
+Added by TASK-043 (`docs/tasks/TASK-043-restock-reminders.md`, ADR-0050). Migrated in `prisma/migrations/20261014043000_restock_and_wishlist_reminders`.
+
+- `restock_subscriptions` as in §15, plus `cancelled_at`. `status` is enum `restock_subscription_status`; FKs `customer_id` → `customers`, `product_variant_id` → `product_variants` (`RESTRICT`). Check: `email_enabled OR whatsapp_enabled`. Partial unique `(customer_id, product_variant_id) WHERE status = 'ACTIVE'`: one active subscription per customer and variant; fulfilled and cancelled rows are kept (history). Index `(status, product_variant_id)` for the restock job.
+- `wishlist_items` gets the R6 state ("Wishlist reminder state"): `last_reminded_at`, `reminder_count` (default 0, check `>= 0`), `reminders_stopped_reason` (enum `wishlist_reminder_stop_reason` = `PURCHASED` | `UNAVAILABLE` | `NO_MARKETING_CONSENT` | `MAX_REMINDERS`). Removal deletes the item, so there is no `REMOVED` value.
+- Restock messages and reminders are outbox events (`RESTOCK_AVAILABLE` on the subscription, `WISHLIST_REMINDER` on the item) delivered through `notifications` / `notification_deliveries` (TASK-045) with `order_id` null.
+
 ## v1.2 TASK-044 Amendments
 
 Added by TASK-044 (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042). Migrated in `prisma/migrations/*_reviews`.
@@ -2001,3 +2017,16 @@ Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Migrate
 - `session_id` is not created: there is no browsing-session concept yet (added when a task needs it).
 - No foreign keys: carts are deleted on deactivation (R34) and analytics must never block or be blocked by domain rows. No IP address, user agent or contact data is stored.
 - Indexes: `(event_type, occurred_at)` (§22) and `(entity_id, event_type, occurred_at)` for the refresh, open-start and abandonment checks.
+
+## v1.2 TASK-046 Amendments
+
+Added by TASK-046 (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051). Migrated in `prisma/migrations/20261014046000_marketing_consents`.
+
+- `marketing_consents` (§3.4, "Marketing consent"): `id` is `BIGSERIAL` (not a UUID): it increases with each insert and orders a customer's history exactly. `customer_id` FK → `customers` (`RESTRICT`). `channel` enum `marketing_channel` = `EMAIL` | `WHATSAPP`; `purpose` enum `consent_purpose` = `MARKETING` (default); `status` enum `marketing_consent_status` = `OPTED_IN` | `OPTED_OUT`; `source` enum `marketing_consent_source` = `CUSTOMER_ACCOUNT` | `ACCOUNT_DEACTIVATED`; `occurred_at`.
+- Append-only: trigger `marketing_consents_append_only` rejects UPDATE and DELETE. Current state per channel = the row with the highest `id`; no row = not opted in (Q59). Writers lock the customer row; a write that changes nothing adds no row.
+- Deactivation (R34) appends `OPTED_OUT` / `ACCOUNT_DEACTIVATED` for each opted-in channel; history is kept.
+- Index `(customer_id, channel, id)`.
+
+## v1.2 TASK-051 Notes
+
+TASK-051 (`docs/tasks/TASK-051-analytics-aggregation.md`, ADR-0052) adds no tables, columns or migrations. Reports are queried on read from `orders`, `order_items` (`line_total`, `unit_cost_at_sale`), `customers` and `analytics_events` with the existing indexes. Rollup tables may be added later if reporting queries need them.

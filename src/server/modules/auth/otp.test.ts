@@ -37,7 +37,12 @@ describe("one-time codes", () => {
 
 describe("code emails (R14)", () => {
   it("exist in Arabic and English and carry the code", () => {
-    for (const purpose of ["EMAIL_VERIFICATION", "PASSWORD_RESET", "EMPLOYEE_LOGIN"] as const) {
+    for (const purpose of [
+      "EMAIL_VERIFICATION",
+      "PASSWORD_RESET",
+      "EMPLOYEE_LOGIN",
+      "GUEST_ORDER_CLAIM",
+    ] as const) {
       const en = otpEmail(purpose, "en", "sara@example.com", "024680");
       const ar = otpEmail(purpose, "ar", "sara@example.com", "024680");
       expect(en.to).toBe("sara@example.com");
