@@ -1784,7 +1784,7 @@ Added by TASK-043 (`docs/tasks/TASK-043-restock-reminders.md`, ADR-0050). Busine
 
 - `subscription = { id, variantId, channels, status: "ACTIVE", subscribedAt }`. The `GET` row is an addition to §19 so the product page can show the state.
 - `npm run jobs:notify-restocks` closes each active subscription whose variant is on sale again (published, active, priced, available stock) and queues one `RESTOCK_AVAILABLE` event (§31); `jobs:dispatch-notifications` sends it: in-app (`type = RESTOCK`, `deepLink = { type: "PRODUCT", id }`) plus WhatsApp then email, only on the channels of the subscription. Another restock needs a new subscription (Q52).
-- `npm run jobs:send-wishlist-reminders` queues `WISHLIST_REMINDER` events (R6: every 3 days, at most 3 per item); sent on WhatsApp then email only for channels with marketing consent, no in-app copy. Until TASK-046 provides the consent ledger nobody has consent, so none are sent.
+- `npm run jobs:send-wishlist-reminders` queues `WISHLIST_REMINDER` events (R6: every 3 days, at most 3 per item); sent on WhatsApp then email only for channels with marketing consent, no in-app copy. Consent comes from the marketing consent ledger (`/me/marketing-consents`, TASK-046).
 - Delivery log rows of these messages have `orderId = null` and `templateKey` `RESTOCK_AVAILABLE` / `WISHLIST_REMINDER`.
 
 | Situation | Response |

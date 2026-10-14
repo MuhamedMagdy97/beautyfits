@@ -6,7 +6,7 @@ Customers can explicitly ask to be told when an out-of-stock variant is back (No
 
 ## Dependencies
 
-TASK-042 (wishlist, ADR-0041), TASK-045 (notification service, ADR-0043). TASK-046 (marketing consent ledger) is not built yet: consent goes through a seam (see Open Items).
+TASK-042 (wishlist, ADR-0041), TASK-045 (notification service, ADR-0043). TASK-046 (marketing consent ledger, ADR-0051): reminders read consent from its ledger.
 
 ## Source of Truth
 
@@ -23,7 +23,7 @@ TASK-042 (wishlist, ADR-0041), TASK-045 (notification service, ADR-0043). TASK-0
 - Job `npm run jobs:notify-restocks`: fulfil subscriptions of variants back on sale, queue `RESTOCK_AVAILABLE`.
 - Job `npm run jobs:send-wishlist-reminders`: R6 reminders, queue `WISHLIST_REMINDER`.
 - Notification dispatcher: templates (ar/en) and recipients for both events; restock on the subscription's channels, reminders on consented channels only.
-- Marketing consent seam `marketingConsentChannels`.
+- Marketing consent lookup `marketingConsentChannels`, reading the TASK-046 ledger.
 
 ## Non-Goals
 
@@ -83,7 +83,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Marketing consent dependency: TASK-046 is not built. Reminders call `marketingConsentChannels` (`src/server/modules/notifications/marketing-consent.ts`), which returns no consent, so **no wishlist reminder is sent until TASK-046 replaces it** with the ledger lookup.
+- Resolved: marketing consent. TASK-046 merged first; `marketingConsentChannels` (`src/server/modules/notifications/marketing-consent.ts`) now returns the channels whose latest `marketing_consents` row is an opt-in.
 - [BUSINESS DECISION REQUIRED] When the first reminder is due: implemented as 3 days after the item was added, then every 3 days (R6 gives the interval, not the start).
 - [BUSINESS DECISION REQUIRED] What "purchased" means: implemented as an order by the customer containing the variant, created after the item was added, not `CANCELLED` or `EXPIRED`.
 - [BUSINESS DECISION REQUIRED] Out-of-stock wishlist items: implemented as no reminder and not counted (Notify Me is the offer); R6 only names unavailable/archived as a stop.

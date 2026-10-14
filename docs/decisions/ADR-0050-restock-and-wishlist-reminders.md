@@ -22,9 +22,9 @@ Restock is its own preference, separate from marketing (Q62), so it needs no mar
 
 The dispatcher checks consent again when sending and uses only consented channels (email fallback only with email marketing consent, v1.1 §9). No in-app copy: in-app is not a consented marketing channel.
 
-## 4. Marketing consent is a seam until TASK-046
+## 4. Marketing consent comes from the TASK-046 ledger
 
-`marketingConsentChannels(db, customerId)` in `src/server/modules/notifications/marketing-consent.ts` returns the channels with valid marketing consent. The consent ledger (TASK-046) is not built yet, so it returns none: consent is explicit and never pre-enabled (Q59), so no reminder is sent before the ledger exists. TASK-046 replaces the body with a ledger lookup; the services also take it as a dependency so tests can supply consent.
+`marketingConsentChannels(db, customerId)` in `src/server/modules/notifications/marketing-consent.ts` returns the channels with valid marketing consent. It reads the consent ledger (TASK-046, ADR-0051): a channel counts only while its latest row is an opt-in, and no row means no consent (Q59). The services also take it as a dependency so tests can supply consent.
 
 ## Consequences
 

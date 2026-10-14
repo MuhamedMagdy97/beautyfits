@@ -8,6 +8,7 @@ import type { NotificationChannel } from "@/generated/prisma/client";
 import { getDb } from "@/server/db/client";
 import type { EmailMessage } from "@/server/email/email";
 import { createSession } from "@/server/modules/auth/sessions";
+import { recordConsentChanges } from "@/server/modules/customers/marketing-consents";
 import { createNotificationsService } from "@/server/modules/notifications/notifications-service";
 import { createRestockService } from "@/server/modules/restock/restock-service";
 import {
@@ -131,7 +132,7 @@ function post(token: string, variantId: string, channels: unknown) {
   return call(subscribe, variantId, { method: "POST", token, body: { channels } });
 }
 
-/** Records messages; `consent` stands in for the TASK-046 ledger. */
+/** Records messages; `consent` stands in for the marketing consent ledger (TASK-046). */
 function harness(start = new Date()) {
   let now = start;
   const clock = { now: () => now };
@@ -296,10 +297,21 @@ describe("wishlist purchase reminders (R6)", () => {
     return db.wishlistItem.findUniqueOrThrow({ where: { id } });
   }
 
-  it("sends nothing without marketing consent (TASK-046 seam default)", async () => {
+  it("sends nothing without marketing consent", async () => {
     const { itemId, h } = await setup();
     expect(await h.reminders.sendDue()).toEqual({ sent: 0, stopped: 0 });
     expect(await item(itemId)).toMatchObject({ reminderCount: 0, remindersStoppedReason: null });
+  });
+
+  it("reads consent from the marketing consent ledger by default (TASK-046)", async () => {
+    const { c, itemId } = await setup();
+    const clock = { now: () => new Date(Date.now() + REMINDER_INTERVAL_MS + 1000) };
+    const reminders = createWishlistRemindersService({ db, clock });
+    expect(await reminders.sendDue()).toEqual({ sent: 0, stopped: 0 });
+
+    await recordConsentChanges(db, c.id, { EMAIL: true }, "CUSTOMER_ACCOUNT", new Date());
+    expect(await reminders.sendDue()).toEqual({ sent: 1, stopped: 0 });
+    expect(await item(itemId)).toMatchObject({ reminderCount: 1 });
   });
 
   it("reminds every 3 days, at most 3 times, on consented channels only", async () => {
