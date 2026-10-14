@@ -1828,6 +1828,14 @@ Added by TASK-009 (`docs/tasks/TASK-009-profile-addresses.md`, ADR-0030). Migrat
 ### `otp_challenges`
 - Adds `pending_value` (nullable): the new phone of a `PHONE_CHANGE` code, which is sent to the account email (R30). `EMAIL_CHANGE` codes use `destination` (the new email).
 
+## v1.2 TASK-010 Amendments
+
+Added by TASK-010 (`docs/tasks/TASK-010-guest-order-claiming.md`, ADR-0046). **No migration**: the existing structure is used.
+
+- `otp_challenges` with purpose `GUEST_ORDER_CLAIM` now exist: `account_id` is the claiming customer's account (never null in v1, since only a signed-in customer claims), `destination` the `guest_email` of the claimable orders (equal to the account email, R31).
+- `orders.customer_id` goes from null to the customer for every guest order whose `guest_phone` and `guest_email` both equal the account's (the only change `orders_immutable` allows, TASK-030). `guest_email`, `guest_phone` and all snapshots are kept unchanged. The `guest_phone` index serves the lookup.
+- Audit action `ORDER_CLAIMED` (entity `ORDER`).
+
 ## v1.2 TASK-025 Amendments
 
 Added by TASK-025 (`docs/tasks/TASK-025-cart.md`, ADR-0031). Migrated in `prisma/migrations/*_cart`.

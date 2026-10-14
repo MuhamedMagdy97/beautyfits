@@ -49,7 +49,12 @@ import { systemClock, type Clock } from "@/server/time/time";
  *   the code is requested and again when it is used.
  */
 
-type ChangePurpose = "EMAIL_CHANGE" | "PHONE_CHANGE";
+type ChangePurpose = "EMAIL_CHANGE" | "PHONE_CHANGE" | "GUEST_ORDER_CLAIM";
+
+export interface ClaimedOrder {
+  id: string;
+  orderNumber: string;
+}
 
 export interface CodeSent {
   /** False when the email could not be sent; the client offers to resend after the cooldown. */
@@ -417,6 +422,88 @@ export function createProfileService(deps: {
   }
 
   /**
+   * Guest orders the customer may claim (Q43, Q44, R31): not yet linked, and
+   * both the phone and the email given at checkout are the account's. A phone
+   * match alone never qualifies; other guest orders go through support.
+   */
+  function claimableOrders(principal: CustomerPrincipal, email: string) {
+    return {
+      customerId: null,
+      guestPhone: principal.view.customer.phone,
+      guestEmail: email,
+    };
+  }
+
+  /**
+   * `POST /guest/orders/claim` (TASK-010): a code to the `guest_email` of the
+   * claimable orders, which is the account email (R31). `404` when nothing
+   * can be claimed; unmatched orders are never revealed.
+   */
+  async function requestGuestOrderClaim(
+    principal: CustomerPrincipal,
+    meta: RequestMeta,
+  ): Promise<CodeSent> {
+    const now = clock.now();
+    const email = principal.view.account.email;
+    if ((await db.order.count({ where: claimableOrders(principal, email) })) === 0) {
+      throw new AppError("NOT_FOUND", "No guest orders match your phone and email.");
+    }
+    return sendChangeCode(principal, "GUEST_ORDER_CLAIM", email, undefined, meta, now);
+  }
+
+  /**
+   * `POST /guest/orders/claim/verify`: links every claimable order to the
+   * customer in one transaction, one audit entry per order. A guest order is
+   * linked once and never moves (the `orders_immutable` trigger, TASK-030).
+   */
+  async function confirmGuestOrderClaim(
+    principal: CustomerPrincipal,
+    input: { code: string },
+    meta: RequestMeta,
+  ): Promise<ClaimedOrder[]> {
+    const challenge = await consumeChangeCode(principal, "GUEST_ORDER_CLAIM", input.code, meta);
+    // The code proves the email it was sent to; it must still be the account's.
+    if (challenge.destination !== principal.view.account.email) {
+      throw new AppError("AUTH_OTP_INVALID", "The code is incorrect.");
+    }
+    const now = clock.now();
+    const linked = await runInTransaction(
+      async (tx) => {
+        await lockCustomerRow(tx, principal.customerId);
+        const orders = await tx.order.findMany({
+          where: claimableOrders(principal, challenge.destination),
+          select: { id: true, orderNumber: true },
+          orderBy: { createdAt: "asc" },
+        });
+        await tx.order.updateMany({
+          where: { id: { in: orders.map((o) => o.id) }, customerId: null },
+          data: { customerId: principal.customerId, updatedAt: now },
+        });
+        for (const order of orders) {
+          await recordAudit(tx, {
+            actor: customerActor(principal),
+            action: "ORDER_CLAIMED",
+            entityType: AUDIT_ENTITY_TYPES.order,
+            entityId: order.id,
+            previous: { customerId: null },
+            next: { customerId: principal.customerId },
+            correlationId: meta.requestId ?? null,
+            createdAt: now,
+          });
+        }
+        return orders;
+      },
+      {},
+      db,
+    );
+    meta.logger.info("guest orders claimed", {
+      accountId: principal.accountId,
+      orderCount: linked.length,
+    });
+    return linked;
+  }
+
+  /**
    * `POST /me/deactivate` (Q154, R34): current password, then in one
    * transaction the account is deactivated, every session revoked and the
    * profile wiped: name, email, phone, date of birth, addresses, codes and
@@ -481,6 +568,8 @@ export function createProfileService(deps: {
     confirmEmailChange,
     requestPhoneChange,
     confirmPhoneChange,
+    requestGuestOrderClaim,
+    confirmGuestOrderClaim,
     deactivate,
   };
 }

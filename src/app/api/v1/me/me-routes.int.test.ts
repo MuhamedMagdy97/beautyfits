@@ -13,6 +13,8 @@ import {
 import { POST as setDefault } from "@/app/api/v1/me/addresses/[addressId]/set-default/route";
 import { GET as listAddresses, POST as createAddress } from "@/app/api/v1/me/addresses/route";
 import { POST as register } from "@/app/api/v1/auth/register/route";
+import { POST as claim } from "@/app/api/v1/guest/orders/claim/route";
+import { POST as verifyClaim } from "@/app/api/v1/guest/orders/claim/verify/route";
 import { POST as changeEmail } from "@/app/api/v1/me/change-email/route";
 import { POST as verifyEmailChange } from "@/app/api/v1/me/change-email/verify/route";
 import { POST as changePhone } from "@/app/api/v1/me/change-phone/route";
@@ -30,7 +32,10 @@ import { MS_PER_DAY, MS_PER_HOUR } from "@/server/time/time";
 import { resetDatabase } from "@/test/integration/database";
 import { bareOrder } from "@/test/integration/orders";
 
-/** HTTP-level tests of /me, /locations and the admin location endpoints (TASK-009, API §11). */
+/**
+ * HTTP-level tests of /me, /locations and the admin location endpoints (TASK-009, API §11),
+ * and of the guest order claim (TASK-010, API §12).
+ */
 
 const db = getDb();
 const BASE = "http://localhost/api/v1";
@@ -441,6 +446,124 @@ describe("phone change (Q153, R30)", () => {
       429,
     );
     expect(locked.code).toBe("AUTH_RATE_LIMITED");
+  });
+});
+
+describe("guest order claim (Q43, Q44, R31, TASK-010)", () => {
+  const PHONE = "+201012345678";
+  const EMAIL = "g@example.com";
+
+  it("links only the guest orders whose phone and email both match, after the code", async () => {
+    const { customer: profile, token } = await customer(EMAIL, PHONE);
+    const other = await customer();
+    const matching = [
+      await bareOrder(null, { phone: PHONE, email: EMAIL }),
+      await bareOrder(null, { phone: PHONE, email: EMAIL }),
+    ];
+    const notLinked = [
+      await bareOrder(null, { phone: PHONE, email: "someone@example.com" }),
+      await bareOrder(null, { phone: PHONE }),
+      await bareOrder(null, { phone: "+201099999999", email: EMAIL }),
+      await bareOrder(other.customer.id),
+    ];
+
+    const sent = await data(
+      await call(claim, "/guest/orders/claim", { method: "POST", token }),
+      202,
+    );
+    expect(sent).toEqual({ codeSent: true, cooldownSeconds: 60 });
+    expect((await mailsTo(EMAIL))[0]).toContain("earlier guest orders");
+    // Nothing is linked before the code is used.
+    expect(await db.order.count({ where: { customerId: profile.id } })).toBe(0);
+
+    const code = await mailedCode(EMAIL);
+    const linked = await data(
+      await call(verifyClaim, "/guest/orders/claim/verify", {
+        method: "POST",
+        token,
+        body: { code },
+      }),
+    );
+    expect(linked.linkedOrders.map((o: { id: string }) => o.id).sort()).toEqual(
+      [...matching].sort(),
+    );
+    const orders = await db.order.findMany({ where: { id: { in: [...matching, ...notLinked] } } });
+    for (const order of orders) {
+      const expected = matching.includes(order.id)
+        ? profile.id
+        : order.id === notLinked[3]
+          ? other.customer.id
+          : null;
+      expect(order.customerId).toBe(expected);
+    }
+    const audits = await db.auditLog.findMany({ where: { action: "ORDER_CLAIMED" } });
+    expect(audits).toHaveLength(2);
+    expect(audits[0]).toMatchObject({
+      actorType: "CUSTOMER",
+      actorId: profile.id,
+      entityType: "ORDER",
+      newDataJson: { customerId: profile.id },
+    });
+
+    // The code is single-use, and nothing is left to claim.
+    await errorOf(
+      await call(verifyClaim, "/guest/orders/claim/verify", {
+        method: "POST",
+        token,
+        body: { code },
+      }),
+      401,
+    );
+    await errorOf(await call(claim, "/guest/orders/claim", { method: "POST", token }), 404);
+  });
+
+  it("never sends a code for a phone match alone", async () => {
+    const { token } = await customer(EMAIL, PHONE);
+    await bareOrder(null, { phone: PHONE, email: "someone@example.com" });
+    await bareOrder(null, { phone: PHONE });
+    const missing = await errorOf(
+      await call(claim, "/guest/orders/claim", { method: "POST", token }),
+      404,
+    );
+    expect(missing.code).toBe("NOT_FOUND");
+    expect(await mailsTo(EMAIL)).toEqual([]);
+    expect(await mailsTo("someone@example.com")).toEqual([]);
+  });
+
+  it("refuses wrong codes, a stale email, a resend within the cooldown and guests", async () => {
+    const { account, token } = await customer(EMAIL, PHONE);
+    const orderId = await bareOrder(null, { phone: PHONE, email: EMAIL });
+    expect((await call(claim, "/guest/orders/claim", { method: "POST" })).status).toBe(401);
+
+    await data(await call(claim, "/guest/orders/claim", { method: "POST", token }), 202);
+    const again = await errorOf(
+      await call(claim, "/guest/orders/claim", { method: "POST", token }),
+      429,
+    );
+    expect(again.code).toBe("AUTH_RATE_LIMITED");
+
+    const code = await mailedCode(EMAIL);
+    const wrong = await errorOf(
+      await call(verifyClaim, "/guest/orders/claim/verify", {
+        method: "POST",
+        token,
+        body: { code: code === "000000" ? "111111" : "000000" },
+      }),
+      401,
+    );
+    expect(wrong).toMatchObject({ code: "AUTH_OTP_INVALID", details: { attemptsRemaining: 4 } });
+
+    // The account email changed after the code was sent: the code proves the old one only.
+    await db.account.update({ where: { id: account.id }, data: { email: "new@example.com" } });
+    await errorOf(
+      await call(verifyClaim, "/guest/orders/claim/verify", {
+        method: "POST",
+        token,
+        body: { code },
+      }),
+      401,
+    );
+    expect((await db.order.findUniqueOrThrow({ where: { id: orderId } })).customerId).toBeNull();
   });
 });
 
