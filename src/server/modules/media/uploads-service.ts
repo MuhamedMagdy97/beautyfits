@@ -59,8 +59,20 @@ export const UPLOAD_START_LIMIT: RateLimitPolicy = {
   blockMs: 15 * MS_PER_MINUTE,
 };
 
-/** The permission needed to upload, attach and manage files of each purpose. */
-export const PURPOSE_PERMISSION: Record<MediaPurpose, PermissionCode> = {
+/** Uploads one customer may start per hour (return evidence, TASK-037, ADR-0049). */
+export const CUSTOMER_UPLOAD_START_LIMIT: RateLimitPolicy = {
+  limit: 30,
+  windowMs: MS_PER_HOUR,
+  blockMs: 15 * MS_PER_MINUTE,
+};
+
+/** The purpose customers upload: photos for their own return requests (Q100). */
+export const CUSTOMER_UPLOAD_PURPOSE = "RETURN_EVIDENCE" satisfies MediaPurpose;
+
+type StaffPurpose = Exclude<MediaPurpose, typeof CUSTOMER_UPLOAD_PURPOSE>;
+
+/** The permission needed to upload, attach and manage files of each staff purpose. */
+export const PURPOSE_PERMISSION: Record<StaffPurpose, PermissionCode> = {
   PRODUCT_MEDIA: "MANAGE_PRODUCT_MEDIA",
   SUPPLIER_INVOICE: "SUPPLIER_PAYMENT_MANAGE",
 };
@@ -69,6 +81,7 @@ export const PURPOSE_PERMISSION: Record<MediaPurpose, PermissionCode> = {
 const PURPOSE_FOLDER: Record<MediaPurpose, string> = {
   PRODUCT_MEDIA: "product-media",
   SUPPLIER_INVOICE: "supplier-invoices",
+  RETURN_EVIDENCE: "return-evidence",
 };
 
 export const UPLOAD_TOKEN_HEADER = "x-upload-token";
@@ -82,9 +95,14 @@ export function stagingKey(mediaAssetId: string): string {
   return `staging/${mediaAssetId}.upload`;
 }
 
-export interface UploadActor {
-  employeeId: string;
-  permissions: ReadonlySet<PermissionCode>;
+/** Who uploads: an employee (staff purposes) or a customer (return evidence). */
+export type UploadActor =
+  { employeeId: string; permissions: ReadonlySet<PermissionCode> } | { customerId: string };
+
+function actorLogFields(actor: UploadActor): Record<string, string> {
+  return "customerId" in actor
+    ? { actorCustomerId: actor.customerId }
+    : { actorEmployeeId: actor.employeeId };
 }
 
 export interface UploadAuthorization {
@@ -120,7 +138,8 @@ export function mediaContentUrl(mediaAssetId: string): string {
 
 /**
  * Staff who may see files of a purpose: product images, anyone who can see
- * products or manage their images; supplier invoices, supplier finance.
+ * products or manage their images; supplier invoices, supplier finance;
+ * return evidence, anyone who can see returns.
  */
 export function canViewPurpose(
   permissions: ReadonlySet<PermissionCode>,
@@ -133,6 +152,8 @@ export function canViewPurpose(
       return (
         permissions.has("SUPPLIER_FINANCE_VIEW") || permissions.has(PURPOSE_PERMISSION[purpose])
       );
+    case "RETURN_EVIDENCE":
+      return permissions.has("RETURNS_VIEW");
   }
 }
 
@@ -260,7 +281,15 @@ export interface UploadsServiceDeps {
 export function createUploadsService(deps: UploadsServiceDeps) {
   const { db, storage, scanner, clock } = deps;
 
+  /** Customers upload return evidence only; staff upload the other purposes with their permission. */
   function assertPurposeAllowed(actor: UploadActor, purpose: MediaPurpose): void {
+    const forCustomers = purpose === CUSTOMER_UPLOAD_PURPOSE;
+    if ("customerId" in actor || forCustomers) {
+      if ("customerId" in actor && forCustomers) {
+        return;
+      }
+      throw new AppError("FORBIDDEN", "This kind of file cannot be uploaded with this session.");
+    }
     const required = PURPOSE_PERMISSION[purpose];
     if (!actor.permissions.has(required)) {
       throw new AppError("PERMISSION_DENIED", "You do not have permission to do this.", {
@@ -276,14 +305,22 @@ export function createUploadsService(deps: UploadsServiceDeps) {
   ): Promise<UploadAuthorization> {
     assertPurposeAllowed(actor, input.purpose);
     const now = clock.now();
-    const limitKey = `upload-start:employee:${actor.employeeId}`;
+    const isCustomer = "customerId" in actor;
+    const limitKey = isCustomer
+      ? `upload-start:customer:${actor.customerId}`
+      : `upload-start:employee:${actor.employeeId}`;
     const blockedUntil = await getBlockedUntil(db, limitKey, now);
     if (blockedUntil) {
       throw new AppError("RATE_LIMITED", "Too many uploads. Try again later.", {
         details: { retryAfterSeconds: secondsUntil(blockedUntil, now) },
       });
     }
-    await recordHit(db, limitKey, UPLOAD_START_LIMIT, now);
+    await recordHit(
+      db,
+      limitKey,
+      isCustomer ? CUSTOMER_UPLOAD_START_LIMIT : UPLOAD_START_LIMIT,
+      now,
+    );
 
     const token = generateToken("upload");
     const extension = IMAGE_EXTENSIONS[input.mimeType][0];
@@ -299,14 +336,15 @@ export function createUploadsService(deps: UploadsServiceDeps) {
         scanStatus: "PENDING",
         uploadTokenHash: hashToken(token),
         uploadExpiresAt: expiresAt,
-        createdByEmployeeId: actor.employeeId,
+        createdByEmployeeId: isCustomer ? null : actor.employeeId,
+        createdByCustomerId: isCustomer ? actor.customerId : null,
         createdAt: now,
       },
     });
     logger.info("upload started", {
       mediaAssetId: asset.id,
       purpose: input.purpose,
-      actorEmployeeId: actor.employeeId,
+      ...actorLogFields(actor),
     });
     return {
       mediaAssetId: asset.id,
@@ -419,8 +457,12 @@ export function createUploadsService(deps: UploadsServiceDeps) {
           throw uploadNotFound();
         }
         const asset = await tx.mediaAsset.findUniqueOrThrow({ where: { id: mediaAssetId } });
-        // Only the employee who started an upload completes it.
-        if (asset.createdByEmployeeId !== actor.employeeId) {
+        // Only the employee or customer who started an upload completes it.
+        const owner =
+          "customerId" in actor
+            ? asset.createdByCustomerId === actor.customerId
+            : asset.createdByEmployeeId === actor.employeeId;
+        if (!owner) {
           throw uploadNotFound();
         }
         assertPurposeAllowed(actor, asset.purpose);
@@ -491,14 +533,14 @@ export function createUploadsService(deps: UploadsServiceDeps) {
       logger.warn("upload rejected", {
         mediaAssetId: outcome.asset.id,
         reason: outcome.problem,
-        actorEmployeeId: actor.employeeId,
+        ...actorLogFields(actor),
       });
       throw rejection(outcome.problem);
     }
     if (outcome.kind === "safe") {
       logger.info("upload completed", {
         mediaAssetId: outcome.asset.id,
-        actorEmployeeId: actor.employeeId,
+        ...actorLogFields(actor),
       });
     }
     return toMediaAssetView(outcome.asset);

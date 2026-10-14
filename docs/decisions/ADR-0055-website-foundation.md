@@ -1,0 +1,20 @@
+# ADR-0055 — Website foundation: storefront shell, customer API client, session and guest cart
+
+**Status:** Accepted (TASK-058, 2026-10-14)
+
+## Context
+TASK-058 connects the customer website to the backend. The repository holds no BeautyFits storefront yet (only the `create-next-app` starter page), so the shell is built, not adapted. The Website is a client of the one backend API (Architecture §1, §3); the API already offers the customer cookie transport with an `Origin` check (ADR-0013), the email-code flows (ADR-0014), and guest carts named by `X-Guest-Cart-Token` with a merge after sign-in (ADR-0031, R33). The dashboard (ADR-0045) solved the same problems for staff.
+
+## Decision
+1. **Location.** The storefront lives at the site root in the route group `src/app/(store)/**` (layout, home, `/login`, `/register`, `/forgot-password`, error boundary). The starter `src/app/page.tsx` is removed. `src/app/not-found.tsx` is the 404 for unmatched URLs. No monorepo move.
+2. **Client of the API.** Store screens call `/api/v1/**` through `src/app/(store)/_lib/api.ts` (`storeApi`, `storePost`, `StoreApiError`), never `src/server/**`. Every request carries `X-Auth-Transport: cookie`, `credentials: same-origin` (the browser adds `Origin` for the CSRF check) and `Accept-Language` of the page (R14).
+3. **Session.** Tokens stay in HttpOnly cookies. On `401 UNAUTHENTICATED` the client calls `POST /auth/refresh` once (shared by concurrent calls) and retries. Browsing never needs a session: `ShopperProvider` (`_lib/session.tsx`) loads `GET /auth/session` once per page load (no polling) and treats `UNAUTHENTICATED` as a guest. Pages that need a customer (TASK-059/060) check `useShopper().shopper.status` and call `redirectToLogin`. Sign-in uses a full page load so the new session is read; `next` accepts only storefront paths (not `/staff`, `/api`, external or `//` URLs). Sign out calls `logout` or `logout-all`. No client timer for the 30-day session: the API ends it on the next request.
+4. **Guest cart token.** Kept in `localStorage` (`bf_guest_cart`) and sent as `X-Guest-Cart-Token` on every request; any response whose `data.guestCartToken` is set replaces it (the API returns it once, on the write that creates the cart; an expired token simply starts a new cart, R35). When a customer session is found and a token is stored, `ShopperProvider` calls `POST /cart/merge` and drops the token only after the API answered (merge is idempotent, so a failure retries on the next page load). The header badge shows `cart.itemCount`; `useShopper().reload()` refreshes it after cart changes.
+5. **Languages (R14).** Arabic and English dictionaries in `_lib/i18n.tsx`; the choice is the `bf_lang` cookie (`Path=/`), read by the root layout to set `<html lang dir>` on the first paint (the dashboard keeps `bf_staff_lang` and its own `dir`). Default: Arabic, the API default (open item). API validation messages are not shown to shoppers; known issue codes are translated.
+6. **Shared UI.** The generic form/status pieces of the dashboard moved to `src/app/_components/ui.tsx`; `src/app/staff/_components/ui.tsx` re-exports them, so dashboard imports are unchanged. Look follows the Stitch homepage header and the Editorial Velvet tokens already in `globals.css`. No new dependencies.
+
+## Consequences
+- Pages read the language cookie and are rendered dynamically; locale-prefixed URLs (`/ar`, `/en`) and `hreflang` for SEO can replace the cookie later without changing the API client.
+- The guest cart token is readable by page scripts (a capability for a guest cart only, never for an account). An HttpOnly cookie would need an API change.
+- A session revoked elsewhere leaves a dead access cookie for up to 15 minutes; during that time cart calls answer `401` (the API never falls back to the guest cart). TASK-061 may let the API clear the cookies on a refused refresh.
+- Public catalog endpoints (`GET /products`, `/categories`, `/brands`, API §13) are in the contract but not implemented yet; TASK-059 needs them for the catalog screens and the category navigation.

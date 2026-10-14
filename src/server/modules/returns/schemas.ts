@@ -1,0 +1,80 @@
+import { z } from "zod";
+import { pageQuery, uuidParam } from "@/server/modules/rbac/schemas";
+
+/** Customer return requests (TASK-037, ADR-0049; API §17, "TASK-037 Amendments"). */
+
+export const MAX_RETURN_REASON_LENGTH = 2000;
+/** Photos one return may hold (technical limit, ADR-0049 §4). */
+export const MAX_RETURN_EVIDENCE = 10;
+/** Order lines one request may list (an order has far fewer). */
+const MAX_RETURN_LINES = 100;
+
+export const RETURN_CLAIM_TYPES = ["DAMAGED", "WRONG_ITEM", "OTHER"] as const;
+/** Claims that need at least one photo (Q100). */
+export const CLAIMS_NEEDING_EVIDENCE: ReadonlySet<string> = new Set(["DAMAGED", "WRONG_ITEM"]);
+
+const mediaAssetIds = z
+  .array(z.uuid().transform((id) => id.toLowerCase()))
+  .max(MAX_RETURN_EVIDENCE)
+  .refine((ids) => new Set(ids).size === ids.length, { message: "Each file may be sent once." });
+
+/** `POST /orders/{orderId}/returns` and `POST /returns/{returnId}/resubmit`. */
+export const createReturnSchema = z
+  .object({
+    claimType: z.enum(RETURN_CLAIM_TYPES),
+    reason: z.string().trim().min(1).max(MAX_RETURN_REASON_LENGTH),
+    items: z
+      .array(
+        z.object({
+          orderItemId: uuidParam.transform((id) => id.toLowerCase()),
+          quantity: z.number().int().min(1),
+        }),
+      )
+      .min(1)
+      .max(MAX_RETURN_LINES)
+      .refine((items) => new Set(items.map((i) => i.orderItemId)).size === items.length, {
+        message: "Each order item may be listed once.",
+      }),
+    evidenceMediaAssetIds: mediaAssetIds.default([]),
+  })
+  .superRefine((value, ctx) => {
+    if (CLAIMS_NEEDING_EVIDENCE.has(value.claimType) && value.evidenceMediaAssetIds.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["evidenceMediaAssetIds"],
+        params: { code: "evidence_required" },
+        message: "Add at least one photo for a damaged or wrong item.",
+      });
+    }
+  });
+
+/** `POST /returns/{returnId}/evidence`. */
+export const addReturnEvidenceSchema = z.object({
+  mediaAssetIds: mediaAssetIds.pipe(z.array(z.string()).min(1)),
+});
+
+/** `GET /me/returns`. */
+export const listMyReturnsQuerySchema = z.object({ ...pageQuery });
+
+export const RETURN_STATUSES = [
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "PICKUP_SCHEDULED",
+  "RECEIVED",
+  "INSPECTING",
+  "PARTIALLY_COMPLETED",
+  "COMPLETED",
+  "REJECTED",
+  "CANCELLED",
+] as const;
+
+/** `GET /admin/returns`. */
+export const listReturnsQuerySchema = z.object({
+  ...pageQuery,
+  status: z.enum(RETURN_STATUSES).optional(),
+  orderId: uuidParam.optional(),
+  customerId: uuidParam.optional(),
+});
+
+export type CreateReturnInput = z.infer<typeof createReturnSchema>;
+export type ListReturnsQuery = z.infer<typeof listReturnsQuerySchema>;

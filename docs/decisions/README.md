@@ -50,6 +50,13 @@
 | [ADR-0043](ADR-0043-notification-service.md) | Notification service: in-app centre, outbox dispatch and channel fallback | TASK-045 |
 | [ADR-0044](ADR-0044-analytics-events.md) | Analytics event collection | TASK-050 |
 | [ADR-0045](ADR-0045-dashboard-shell.md) | Dashboard shell: API client, session handling, navigation | TASK-052 |
+| [ADR-0046](ADR-0046-guest-order-claim.md) | Guest order claim | TASK-010 |
 | [ADR-0047](ADR-0047-delivery-failures.md) | Delivery failures, attempts and customer-contact tasks | TASK-035 |
+| [ADR-0049](ADR-0049-return-requests.md) | Customer return requests: window, quantities, evidence uploads | TASK-037 |
+| [ADR-0050](ADR-0050-restock-and-wishlist-reminders.md) | Restock Notify Me and wishlist purchase reminders | TASK-043 |
+| [ADR-0051](ADR-0051-marketing-consent-ledger.md) | Marketing consent ledger: append-only per-channel history | TASK-046 |
+| [ADR-0052](ADR-0052-analytics-aggregation.md) | Analytics aggregation and profit metrics | TASK-051 |
+| [ADR-0053](ADR-0053-catalog-dashboard.md) | Catalog & inventory dashboard screens | TASK-053 |
+| [ADR-0055](ADR-0055-website-foundation.md) | Website foundation: storefront shell, customer API client, session and guest cart | TASK-058 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

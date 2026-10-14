@@ -7,14 +7,18 @@ let counter = 0;
  * order (reservations, discount uses, wallet holds) without going through
  * checkout. Test-only.
  */
-export async function bareOrder(customerId: string | null = null): Promise<string> {
+export async function bareOrder(
+  customerId: string | null = null,
+  guest: { phone?: string; email?: string } = {},
+): Promise<string> {
   counter += 1;
   const now = new Date();
   const order = await getDb().order.create({
     data: {
       orderNumber: `BF-T${counter}-${now.getTime()}`,
       customerId,
-      guestPhone: customerId ? null : "+201000000000",
+      guestPhone: customerId ? null : (guest.phone ?? "+201000000000"),
+      guestEmail: customerId ? null : (guest.email ?? null),
       status: "PENDING_CONFIRMATION",
       locale: "en",
       subtotal: BigInt(10000),
