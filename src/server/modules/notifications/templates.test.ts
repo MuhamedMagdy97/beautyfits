@@ -5,11 +5,15 @@ import {
   codConfirmationLink,
   eligibleChannels,
   isTemplateKey,
+  productLink,
 } from "@/server/modules/notifications/templates";
+
+const PRODUCT_KEYS: string[] = ["RESTOCK_AVAILABLE", "WISHLIST_REMINDER"];
+const ORDER_KEYS = TEMPLATE_KEYS.filter((key) => !PRODUCT_KEYS.includes(key));
 
 describe("notification templates", () => {
   it("render in both languages with the order number (R14)", () => {
-    for (const key of TEMPLATE_KEYS) {
+    for (const key of ORDER_KEYS) {
       for (const locale of ["ar", "en"] as const) {
         const message = NOTIFICATION_TEMPLATES[key].render(locale, {
           orderNumber: "BF-1001",
@@ -21,8 +25,28 @@ describe("notification templates", () => {
     }
   });
 
+  it("render restock and wishlist reminders with the product and its link (TASK-043)", () => {
+    expect(productLink("https://shop.test", "rose oil")).toBe(
+      "https://shop.test/products/rose%20oil",
+    );
+    for (const key of ["RESTOCK_AVAILABLE", "WISHLIST_REMINDER"] as const) {
+      const template = NOTIFICATION_TEMPLATES[key];
+      expect(template.channels, key).toEqual(["WHATSAPP", "EMAIL"]);
+      expect(template.codLink, key).toBe(false);
+      for (const locale of ["ar", "en"] as const) {
+        const message = template.render(locale, { productName: "Rose Oil", link: "https://l" });
+        expect(message.title, key).not.toBe("");
+        expect(message.text, key).toContain("Rose Oil");
+        expect(message.text, key).toContain("https://l");
+      }
+    }
+    // R6: marketing reminders have no in-app copy; restock does.
+    expect(NOTIFICATION_TEMPLATES.WISHLIST_REMINDER.inApp).toBe(false);
+    expect(NOTIFICATION_TEMPLATES.RESTOCK_AVAILABLE.inApp).toBe(true);
+  });
+
   it("puts the COD link only in the WhatsApp-only COD messages (R39)", () => {
-    for (const key of TEMPLATE_KEYS) {
+    for (const key of ORDER_KEYS) {
       const template = NOTIFICATION_TEMPLATES[key];
       const text = template.render("en", { orderNumber: "BF-1", link: "https://x.test/l" }).text;
       expect(text.includes("https://x.test/l"), key).toBe(template.codLink);
