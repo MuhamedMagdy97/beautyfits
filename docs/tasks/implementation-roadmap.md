@@ -513,6 +513,8 @@ Capture anonymous/customer Product View, Add to Cart, Checkout Start, Checkout A
 
 Implement dashboards for revenue, orders, customers, views, conversion funnel, COGS, estimated gross profit, AOV and product performance.
 
+**Status after TASK-051** (`docs/tasks/TASK-051-analytics-aggregation.md`, ADR-0052): `GET /admin/analytics/overview`, `/funnel`, `/products` (`ANALYTICS_VIEW`) and `/profit` (`VIEW_PROFIT`) query orders and `analytics_events` on read (no new tables) for Today/Yesterday/7D/30D/90D/Custom in Africa/Cairo days. Revenue = order line totals of provisional revenue statuses (pending a business decision); COGS = `unit_cost_at_sale × quantity`; cost fields only with `VIEW_PROFIT`. `/admin/analytics/inventory` not built (low stock is `/admin/inventory/low-stock`). The dashboard screens read these endpoints in a later dashboard task.
+
 ---
 
 # Phase 11 — Admin Dashboard

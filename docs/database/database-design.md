@@ -2009,3 +2009,7 @@ Added by TASK-046 (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051).
 - Append-only: trigger `marketing_consents_append_only` rejects UPDATE and DELETE. Current state per channel = the row with the highest `id`; no row = not opted in (Q59). Writers lock the customer row; a write that changes nothing adds no row.
 - Deactivation (R34) appends `OPTED_OUT` / `ACCOUNT_DEACTIVATED` for each opted-in channel; history is kept.
 - Index `(customer_id, channel, id)`.
+
+## v1.2 TASK-051 Notes
+
+TASK-051 (`docs/tasks/TASK-051-analytics-aggregation.md`, ADR-0052) adds no tables, columns or migrations. Reports are queried on read from `orders`, `order_items` (`line_total`, `unit_cost_at_sale`), `customers` and `analytics_events` with the existing indexes. Rollup tables may be added later if reporting queries need them.
