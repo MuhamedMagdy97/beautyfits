@@ -92,3 +92,12 @@ export type CreateAddressInput = z.infer<typeof createAddressSchema>;
 export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
 
 export const deactivateSchema = z.object({ currentPassword: existingPasswordSchema });
+
+/** `PATCH /me/marketing-consents` (TASK-046, Q59, Q60): `true` opts in, `false` opts out. */
+export const marketingConsentsSchema = z
+  .object({ email: z.boolean().optional(), whatsapp: z.boolean().optional() })
+  .refine((value) => value.email !== undefined || value.whatsapp !== undefined, {
+    message: "Provide at least one channel.",
+  });
+
+export type MarketingConsentsInput = z.infer<typeof marketingConsentsSchema>;
