@@ -455,6 +455,8 @@ Account-only wishlist, unavailable/Coming Soon behavior and move-to-cart support
 
 Implement explicit restock subscriptions, one notification per restock event, and wishlist purchase reminders with cadence, maximum, stopping conditions and consent checks per Business Spec R6.
 
+**Status after TASK-043** (`docs/tasks/TASK-043-restock-reminders.md`, ADR-0050): `restock_subscriptions` and `GET/POST/DELETE /variants/{variantId}/restock-subscription` (channels WhatsApp and/or email, only while the variant cannot be bought). `jobs:notify-restocks` closes the subscriptions of variants back on sale and queues one `RESTOCK_AVAILABLE` message each; `jobs:send-wishlist-reminders` keeps the R6 state on `wishlist_items` (every 3 days, at most 3; stops on purchase, unavailability, consent withdrawal, maximum) and queues `WISHLIST_REMINDER` messages; both go out through `jobs:dispatch-notifications`. Marketing consent is read from the TASK-046 ledger through `marketingConsentChannels` in `src/server/modules/notifications/marketing-consent.ts`. TASK-066 schedules the jobs.
+
 ### TASK-044 — Verified Reviews
 **Depends on:** TASK-030, TASK-014
 
@@ -477,6 +479,8 @@ Implement in-app notification center, read/unread, transactional notifications, 
 **Depends on:** TASK-009, TASK-045
 
 Implement explicit opt-in, opt-out, timestamps, source, per-channel preferences and consent history/retention.
+
+**Status after TASK-046** (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051): append-only table `marketing_consents` (UPDATE/DELETE rejected by a trigger; current state = latest row per customer and channel; no row = not opted in); `GET/PATCH /me/marketing-consents` for email and WhatsApp independently (source `CUSTOMER_ACCOUNT`); deactivation opts out of every channel (`ACCOUNT_DEACTIVATED`). `currentConsents` / `recordConsentChanges` in `src/server/modules/customers/marketing-consents.ts` serve TASK-047–TASK-049 and R6 reminders. Retention period and consent after a contact change await business decisions (kept indefinitely; consent stays with the account).
 
 ### TASK-047 — Customer Segmentation
 **Depends on:** TASK-030, TASK-046, TASK-050 later for analytics data
@@ -555,6 +559,8 @@ System settings, critical setting approvals, employee roles, permissions, approv
 **Depends on:** TASK-029, TASK-030 and required catalog/auth APIs
 
 Connect the Next.js website in this repository to the backend without rewriting the UI unnecessarily. Note: as of TASK-001 the repository contains a Next.js starter project, not a completed BeautyFits storefront, so storefront UI will need to be built; it stays at the repository root unless a task explicitly moves it.
+
+**Status after TASK-058** (`docs/tasks/TASK-058-website-foundation.md`, ADR-0055): the storefront lives at the site root in `src/app/(store)` with header, footer, home placeholder, error boundary and a root 404; Arabic (RTL, default) and English via the `bf_lang` cookie. `/login` (with the email-code step for unverified accounts), `/register` and `/forgot-password` use the customer cookie transport. `storeApi`/`storePost` (`src/app/(store)/_lib/api.ts`) send `Accept-Language` and the guest cart token, keep a returned `guestCartToken` and refresh an expired access token once; `ShopperProvider`/`useShopper` load guest or customer once per page, merge the guest cart after sign-in and expose the bag count (`reload()` after cart changes). TASK-059 adds the screens and needs the public catalog endpoints (`GET /products`, `/categories`, `/brands`), which are not implemented yet.
 
 ### TASK-059 — Customer Shopping Experience Integration
 **Depends on:** TASK-058

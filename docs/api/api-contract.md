@@ -1772,6 +1772,28 @@ Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules:
 | 100 items already | `409 CONFLICT`, `details = { reason: "WISHLIST_LIMIT_REACHED", limit: 100 }` |
 | Move-to-cart refused by the cart (no stock / unavailable / 50-line limit) | `422 OUT_OF_STOCK` / `404 NOT_FOUND` / `409 CONFLICT`, as `POST /cart/items`; nothing changes |
 
+## TASK-043 Amendments
+
+Added by TASK-043 (`docs/tasks/TASK-043-restock-reminders.md`, ADR-0050). Business rules: Q47, Q51, Q52, Q62, R6, R12. Implements the restock rows of §19 and the "Wishlist reminders" amendment.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /variants/{variantId}/restock-subscription` | Customer | — | `200` `{ subscription }` (the active one, or `null`) |
+| `POST /variants/{variantId}/restock-subscription` | Customer | `{ channels: ("WHATSAPP" \| "EMAIL")[] }`, 1–2, no repeats | `200` `{ subscription }`; an active subscription keeps its id and takes the new channels |
+| `DELETE /variants/{variantId}/restock-subscription` | Customer | — | `200` `{ subscription: null }` (idempotent) |
+
+- `subscription = { id, variantId, channels, status: "ACTIVE", subscribedAt }`. The `GET` row is an addition to §19 so the product page can show the state.
+- `npm run jobs:notify-restocks` closes each active subscription whose variant is on sale again (published, active, priced, available stock) and queues one `RESTOCK_AVAILABLE` event (§31); `jobs:dispatch-notifications` sends it: in-app (`type = RESTOCK`, `deepLink = { type: "PRODUCT", id }`) plus WhatsApp then email, only on the channels of the subscription. Another restock needs a new subscription (Q52).
+- `npm run jobs:send-wishlist-reminders` queues `WISHLIST_REMINDER` events (R6: every 3 days, at most 3 per item); sent on WhatsApp then email only for channels with marketing consent, no in-app copy. Consent comes from the marketing consent ledger (`/me/marketing-consents`, TASK-046).
+- Delivery log rows of these messages have `orderId = null` and `templateKey` `RESTOCK_AVAILABLE` / `WISHLIST_REMINDER`.
+
+| Situation | Response |
+|---|---|
+| No customer session | `401 UNAUTHENTICATED` |
+| Unknown or malformed variant, product not published, variant archived | `404 NOT_FOUND` |
+| Variant purchasable and in stock now | `409 CONFLICT`, `details = { reason: "VARIANT_IN_STOCK" }` |
+| Bad `channels` | `400 VALIDATION_ERROR` |
+
 ## TASK-044 Amendments
 
 Added by TASK-044 (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042). Business rules: Q3, Q11, Q12, Q49, Q50, Q171–Q174, C6; User Flows §5. Implements §20 and "Review moderation".
@@ -1850,6 +1872,26 @@ Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Busines
 | Unknown `eventType`, bad `productId`, or a guest without a valid `X-Anonymous-Id` | `400 VALIDATION_ERROR` |
 | Invalid customer credential | `401 UNAUTHENTICATED` |
 | Too many events | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
+
+## TASK-046 Amendments
+
+Added by TASK-046 (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051). Business rules: Q59, Q60, R34, R38.4. Implements "Marketing consent" (`/me/marketing-consents`).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /me/marketing-consents` | Customer | — | `200` `{ email: { optedIn, changedAt }, whatsapp: { optedIn, changedAt } }` |
+| `PATCH /me/marketing-consents` | Customer | `{ email?: boolean, whatsapp?: boolean }` (at least one) | `200` the same body after the change |
+
+- `true` opts in, `false` opts out; channels are independent (Q60). An omitted channel is unchanged.
+- A new account is opted out of both (`optedIn: false`, `changedAt: null`): consent is never pre-enabled or inferred (Q59).
+- `changedAt` is when the current state was recorded. Setting a channel to its current state changes nothing (no new history entry, same `changedAt`).
+- Every change is kept in an append-only history (source `CUSTOMER_ACCOUNT`); deactivation opts out of every channel (source `ACCOUNT_DEACTIVATED`).
+- Transactional notifications are not affected (Q53). Guests have no marketing consent (R38.4).
+
+| Situation | Response |
+|---|---|
+| Empty body, unknown-only fields or a non-boolean value | `400 VALIDATION_ERROR` |
+| No session / wrong session type | `401 UNAUTHENTICATED` / `403 FORBIDDEN` |
 
 ## TASK-051 Amendments
 

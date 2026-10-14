@@ -12,8 +12,11 @@ import type { SupportedLocale } from "@/server/http/locale";
  */
 
 export interface TemplateVars {
-  orderNumber: string;
-  /** The COD secure link; only for the COD templates. */
+  /** Order templates. */
+  orderNumber?: string;
+  /** Restock and wishlist reminder templates (TASK-043). */
+  productName?: string;
+  /** The COD secure link, or the product page link. */
   link?: string;
 }
 
@@ -118,6 +121,38 @@ export const NOTIFICATION_TEMPLATES = {
             text: `Your order ${orderNumber} was not confirmed in time and has expired.`,
           },
   },
+  // TASK-043. Restock (Q52, Q62): its own preference, sent on the channels the
+  // customer chose on the subscription; the recipient only has the chosen ones.
+  RESTOCK_AVAILABLE: {
+    channels: PRIMARY_WITH_FALLBACK,
+    inApp: true,
+    codLink: false,
+    render: (locale, { productName, link }) =>
+      locale === "ar"
+        ? { title: "المنتج متوفر الآن", text: `${productName} متوفر الآن في BeautyFits: ${link}` }
+        : {
+            title: "Back in stock",
+            text: `${productName} is back in stock at BeautyFits: ${link}`,
+          },
+  },
+  // R6: marketing-style; the recipient only has the channels with marketing
+  // consent (email fallback only with email marketing consent, v1.1 §9).
+  // No in-app copy: in-app is not a consented marketing channel.
+  WISHLIST_REMINDER: {
+    channels: PRIMARY_WITH_FALLBACK,
+    inApp: false,
+    codLink: false,
+    render: (locale, { productName, link }) =>
+      locale === "ar"
+        ? {
+            title: "ما زال في قائمة أمنياتك",
+            text: `${productName} ما زال في قائمة أمنياتك ومتوفر الآن: ${link}`,
+          }
+        : {
+            title: "Still on your wishlist",
+            text: `${productName} is still on your wishlist and available now: ${link}`,
+          },
+  },
 } satisfies Record<string, NotificationTemplate>;
 
 export type TemplateKey = keyof typeof NOTIFICATION_TEMPLATES;
@@ -131,6 +166,11 @@ export function isTemplateKey(value: string): value is TemplateKey {
 /** Where the customer opens the COD link (ADR-0043): the token stays in the fragment. */
 export function codConfirmationLink(websiteUrl: string, orderId: string, token: string): string {
   return `${websiteUrl}/orders/${orderId}/confirm-cod#token=${token}`;
+}
+
+/** The website product page (TASK-043 messages). */
+export function productLink(websiteUrl: string, slug: string): string {
+  return `${websiteUrl}/products/${encodeURIComponent(slug)}`;
 }
 
 /** The channels to try, in order, given the recipient's contacts (Q61, "authorized" fallback). */
