@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createAddressSchema,
+  marketingConsentsSchema,
   updateAddressSchema,
   updateProfileSchema,
 } from "@/server/modules/customers/schemas";
@@ -34,5 +35,15 @@ describe("profile schema", () => {
     expect(updateProfileSchema.safeParse({ dateOfBirth: "2999-01-01" }).success).toBe(false);
     expect(updateProfileSchema.safeParse({ dateOfBirth: "30/04/1995" }).success).toBe(false);
     expect(updateProfileSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("marketing consents schema (TASK-046)", () => {
+  it("needs at least one boolean channel", () => {
+    expect(marketingConsentsSchema.safeParse({ email: true }).success).toBe(true);
+    expect(marketingConsentsSchema.safeParse({ whatsapp: false }).success).toBe(true);
+    expect(marketingConsentsSchema.safeParse({}).success).toBe(false);
+    expect(marketingConsentsSchema.safeParse({ sms: true }).success).toBe(false);
+    expect(marketingConsentsSchema.safeParse({ email: "true" }).success).toBe(false);
   });
 });

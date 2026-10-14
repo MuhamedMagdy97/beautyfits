@@ -742,6 +742,15 @@ describe("deactivation (Q154, R34)", () => {
       201,
     );
     await db.cart.create({ data: { customerId: profile.id } });
+    await db.marketingConsent.create({
+      data: {
+        customerId: profile.id,
+        channel: "EMAIL",
+        status: "OPTED_IN",
+        source: "CUSTOMER_ACCOUNT",
+        occurredAt: new Date(),
+      },
+    });
 
     await errorOf(
       await call(deactivate, "/me/deactivate", {
@@ -780,6 +789,17 @@ describe("deactivation (Q154, R34)", () => {
     expect(after.customer?.anonymizedAt).not.toBeNull();
     expect(await db.customerAddress.count({ where: { customerId: profile.id } })).toBe(0);
     expect(await db.cart.count({ where: { customerId: profile.id } })).toBe(0); // R35
+    // TASK-046: opted out of the opted-in channel only; history kept.
+    expect(
+      await db.marketingConsent.findMany({
+        where: { customerId: profile.id },
+        orderBy: { id: "asc" },
+        select: { channel: true, status: true, source: true },
+      }),
+    ).toEqual([
+      { channel: "EMAIL", status: "OPTED_IN", source: "CUSTOMER_ACCOUNT" },
+      { channel: "EMAIL", status: "OPTED_OUT", source: "ACCOUNT_DEACTIVATED" },
+    ]);
     expect(await db.authSession.count({ where: { accountId: account.id, revokedAt: null } })).toBe(
       0,
     );

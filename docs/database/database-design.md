@@ -2000,3 +2000,12 @@ Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Migrate
 - `session_id` is not created: there is no browsing-session concept yet (added when a task needs it).
 - No foreign keys: carts are deleted on deactivation (R34) and analytics must never block or be blocked by domain rows. No IP address, user agent or contact data is stored.
 - Indexes: `(event_type, occurred_at)` (§22) and `(entity_id, event_type, occurred_at)` for the refresh, open-start and abandonment checks.
+
+## v1.2 TASK-046 Amendments
+
+Added by TASK-046 (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051). Migrated in `prisma/migrations/20261014046000_marketing_consents`.
+
+- `marketing_consents` (§3.4, "Marketing consent"): `id` is `BIGSERIAL` (not a UUID): it increases with each insert and orders a customer's history exactly. `customer_id` FK → `customers` (`RESTRICT`). `channel` enum `marketing_channel` = `EMAIL` | `WHATSAPP`; `purpose` enum `consent_purpose` = `MARKETING` (default); `status` enum `marketing_consent_status` = `OPTED_IN` | `OPTED_OUT`; `source` enum `marketing_consent_source` = `CUSTOMER_ACCOUNT` | `ACCOUNT_DEACTIVATED`; `occurred_at`.
+- Append-only: trigger `marketing_consents_append_only` rejects UPDATE and DELETE. Current state per channel = the row with the highest `id`; no row = not opted in (Q59). Writers lock the customer row; a write that changes nothing adds no row.
+- Deactivation (R34) appends `OPTED_OUT` / `ACCOUNT_DEACTIVATED` for each opted-in channel; history is kept.
+- Index `(customer_id, channel, id)`.

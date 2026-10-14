@@ -1872,3 +1872,23 @@ Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Busines
 | Unknown `eventType`, bad `productId`, or a guest without a valid `X-Anonymous-Id` | `400 VALIDATION_ERROR` |
 | Invalid customer credential | `401 UNAUTHENTICATED` |
 | Too many events | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
+
+## TASK-046 Amendments
+
+Added by TASK-046 (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051). Business rules: Q59, Q60, R34, R38.4. Implements "Marketing consent" (`/me/marketing-consents`).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /me/marketing-consents` | Customer | — | `200` `{ email: { optedIn, changedAt }, whatsapp: { optedIn, changedAt } }` |
+| `PATCH /me/marketing-consents` | Customer | `{ email?: boolean, whatsapp?: boolean }` (at least one) | `200` the same body after the change |
+
+- `true` opts in, `false` opts out; channels are independent (Q60). An omitted channel is unchanged.
+- A new account is opted out of both (`optedIn: false`, `changedAt: null`): consent is never pre-enabled or inferred (Q59).
+- `changedAt` is when the current state was recorded. Setting a channel to its current state changes nothing (no new history entry, same `changedAt`).
+- Every change is kept in an append-only history (source `CUSTOMER_ACCOUNT`); deactivation opts out of every channel (source `ACCOUNT_DEACTIVATED`).
+- Transactional notifications are not affected (Q53). Guests have no marketing consent (R38.4).
+
+| Situation | Response |
+|---|---|
+| Empty body, unknown-only fields or a non-boolean value | `400 VALIDATION_ERROR` |
+| No session / wrong session type | `401 UNAUTHENTICATED` / `403 FORBIDDEN` |
