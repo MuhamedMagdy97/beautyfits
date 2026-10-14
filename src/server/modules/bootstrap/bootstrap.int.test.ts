@@ -52,6 +52,7 @@ describe("runBootstrap", () => {
         SETTING_KEYS.codReminderIntervalHours,
         SETTING_KEYS.codReminderMaxCount,
         SETTING_KEYS.codConfirmationChannel,
+        SETTING_KEYS.shippingDeliveryFailureContactThreshold,
       ].sort(),
     );
     expect(report.rolesCreated).toEqual(DEFAULT_ROLES.map((role) => role.name));

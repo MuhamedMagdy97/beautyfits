@@ -1964,6 +1964,15 @@ Added by TASK-034 (`docs/tasks/TASK-034-shipment-core.md`, ADR-0040). Migrated i
 - `shipments` (§9): `id`, `order_id` (FK, `RESTRICT`), `shipping_company_id` (FK, `RESTRICT`, required), `tracking_number` nullable, `status` (enum `shipment_status`), `picked_up_at` (carrier handoff), `delivered_at`, `created_at`, `updated_at`. The row is created at handoff (`mark-shipped`); the documented `PENDING`/`READY` values are not stored (the order's `READY_FOR_SHIPMENT` is that stage, ADR-0040 §1). `status` = `SHIPPED` | `OUT_FOR_DELIVERY` | `DELIVERY_FAILED` | `RETURN_TO_SENDER` | `RETURNED` | `DELIVERED`. `attempt_count` (TASK-035) and `returned_at` (TASK-036) are added by their tasks. Unique `(shipping_company_id, tracking_number)` (§22); indexes `order_id`, `tracking_number`. Checks: `delivered_at` set exactly when `DELIVERED`; a tracking number is not blank. Trigger `shipments_no_delete`.
 - `shipment_events` (§9): fields of §9; `event_type` enum `shipment_event_type` (`SHIPPED`, `TRACKING_UPDATED`, `OUT_FOR_DELIVERY`, `DELIVERED`; later tasks add theirs, e.g. `SHIPPING_CANCELLATION_REQUESTED`); `notes` nullable. Index `(shipment_id, event_at)`. Append-only (trigger `shipment_events_append_only`).
 
+## v1.2 TASK-035 Amendments
+
+Added by TASK-035 (`docs/tasks/TASK-035-delivery-failures.md`, ADR-0047). Migrated in `prisma/migrations/20261014035000_delivery_failures`.
+
+- `shipments.attempt_count` (§9): INTEGER, default 0, ≥ 0 — failed delivery attempts; each `DELIVERY_FAILED` adds one.
+- `shipment_event_type` gains `DELIVERY_FAILED`.
+- `customer_contact_tasks` ("Shipping follow-up"): fields as documented plus `updated_at`; `shipment_id` nullable (required for `DELIVERY_FAILED_THRESHOLD`, check). Enums `contact_task_reason`, `contact_task_status`. FKs `RESTRICT` to `orders`, `shipments`, `employees` (assignee, resolver). Check: `resolved_at` set exactly when `RESOLVED`/`CANCELLED`. Partial unique index `(shipment_id)` where `reason = DELIVERY_FAILED_THRESHOLD` and `status IN (OPEN, IN_PROGRESS)`. Indexes `(status, created_at)`, `order_id`, `shipment_id`. Trigger `customer_contact_tasks_no_delete`.
+- Setting `shipping.delivery_failure_contact_threshold` (INTEGER > 0, provisional default 2 pending a business decision).
+
 ## v1.2 TASK-037 Amendments
 
 Added by TASK-037 (`docs/tasks/TASK-037-return-requests.md`, ADR-0049). Migrated in `prisma/migrations/20261014037000_return_requests`.
