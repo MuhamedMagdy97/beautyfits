@@ -184,6 +184,8 @@ model Customer {
   reviewReports        ReviewReport[]
   notifications        Notification[]
   marketingConsents    MarketingConsent[]
+  returns              Return[]
+  mediaUploads         MediaAsset[]
 
   @@unique([phone], map: "customers_verified_phone_key", where: raw("phone_verified_at IS NOT NULL"))
   @@index([phone])
@@ -801,6 +803,8 @@ enum MediaPurpose {
   PRODUCT_MEDIA
   /// A supplier invoice image (TASK-023, Q117).
   SUPPLIER_INVOICE
+  /// A customer's photo for a return request (TASK-037, Q100).
+  RETURN_EVIDENCE
 
   @@map("media_purpose")
 }
@@ -834,13 +838,18 @@ model MediaAsset {
   uploadedAt          DateTime?       @map("uploaded_at") @db.Timestamptz(3)
   completedAt         DateTime?       @map("completed_at") @db.Timestamptz(3)
   createdByEmployeeId String?         @map("created_by_employee_id") @db.Uuid
+  /// Set instead of the employee for customer uploads (return evidence, TASK-037).
+  createdByCustomerId String?         @map("created_by_customer_id") @db.Uuid
   createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  createdBy        Employee?         @relation("MediaAssetCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
-  productMedia     ProductMedia[]
-  purchaseInvoices PurchaseInvoice[]
+  createdBy         Employee?         @relation("MediaAssetCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
+  createdByCustomer Customer?         @relation(fields: [createdByCustomerId], references: [id], onDelete: Restrict)
+  productMedia      ProductMedia[]
+  purchaseInvoices  PurchaseInvoice[]
+  returnEvidence    ReturnEvidence?
 
   @@index([createdByEmployeeId, createdAt])
+  @@index([createdByCustomerId, createdAt])
   @@map("media_assets")
 }
 
@@ -2004,6 +2013,7 @@ model Order {
   shipments                 Shipment[]
   reviews                   Review[]
   notificationDeliveries    NotificationDelivery[]
+  returns                   Return[]
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
@@ -2089,10 +2099,11 @@ model OrderItem {
   lineTotal           BigInt   @map("line_total")
   createdAt           DateTime @map("created_at") @db.Timestamptz(3)
 
-  order   Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  product Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
-  variant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  reviews Review[]
+  order       Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  product     Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant     ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  reviews     Review[]
+  returnItems ReturnItem[]
 
   /// One variant may have two lines after a revision: the order price and
   /// today's price for the extra quantity (R40).
@@ -2408,4 +2419,98 @@ model MarketingConsent {
 
   @@index([customerId, channel, id])
   @@map("marketing_consents")
+}
+
+// ---------------------------------------------------------------------------
+// Customer returns (DB design §12, "v1.2 TASK-037 Amendments"; TASK-037,
+// ADR-0049). A return is its own lifecycle: the order stays DELIVERED (Q90).
+// ---------------------------------------------------------------------------
+
+/// DB design §12. TASK-037 sets PENDING_APPROVAL and CANCELLED; the review,
+/// pickup, inspection and completion tasks (TASK-038 to TASK-041) set the rest.
+enum ReturnStatus {
+  PENDING_APPROVAL
+  APPROVED
+  PICKUP_SCHEDULED
+  RECEIVED
+  INSPECTING
+  PARTIALLY_COMPLETED
+  COMPLETED
+  REJECTED
+  CANCELLED
+
+  @@map("return_status")
+}
+
+/// What the customer says happened (Q100: photos are required for damage and
+/// wrong-item cases). The final assessed responsibility is recorded later (Q99).
+enum ReturnClaimType {
+  DAMAGED
+  WRONG_ITEM
+  OTHER
+
+  @@map("return_claim_type")
+}
+
+/// A customer's return request for items of one delivered order. Never
+/// deleted; a rejected request is not rewritten, a new one is created (Q92).
+model Return {
+  id                 String          @id @default(uuid(7)) @db.Uuid
+  /// "RT-000001", from the sequence `return_number_seq`.
+  returnNumber       String          @unique @default(dbgenerated("('RT-'::text || lpad((nextval('return_number_seq'::regclass))::text, 6, '0'::text))")) @map("return_number")
+  orderId            String          @map("order_id") @db.Uuid
+  customerId         String?         @map("customer_id") @db.Uuid
+  status             ReturnStatus    @default(PENDING_APPROVAL)
+  claimType          ReturnClaimType @map("claim_type")
+  /// The customer's own words (Q14, Q99).
+  customerReasonText String          @map("customer_reason_text")
+  /// The rejected return this one corrects (Q92).
+  resubmittedFromId  String?         @map("resubmitted_from_return_id") @db.Uuid
+  cancelledAt        DateTime?       @map("cancelled_at") @db.Timestamptz(3)
+  createdAt          DateTime        @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime        @map("updated_at") @db.Timestamptz(3)
+
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  customer        Customer?        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  resubmittedFrom Return?          @relation("ReturnResubmission", fields: [resubmittedFromId], references: [id], onDelete: Restrict)
+  resubmissions   Return[]         @relation("ReturnResubmission")
+  items           ReturnItem[]
+  evidence        ReturnEvidence[]
+
+  @@index([customerId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([orderId])
+  @@map("returns")
+}
+
+/// One order line and quantity the customer wants to return (Q34).
+model ReturnItem {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  returnId          String   @map("return_id") @db.Uuid
+  orderItemId       String   @map("order_item_id") @db.Uuid
+  requestedQuantity Int      @map("requested_quantity")
+  createdAt         DateTime @map("created_at") @db.Timestamptz(3)
+
+  return    Return    @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+
+  @@unique([returnId, orderItemId])
+  @@index([orderItemId])
+  @@map("return_items")
+}
+
+/// A checked photo attached to a return (Q100). Append-only.
+model ReturnEvidence {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  returnId       String         @map("return_id") @db.Uuid
+  mediaAssetId   String         @unique @map("media_asset_id") @db.Uuid
+  uploadedByType AuditActorType @map("uploaded_by_type")
+  uploadedById   String?        @map("uploaded_by_id") @db.Uuid
+  createdAt      DateTime       @map("created_at") @db.Timestamptz(3)
+
+  return     Return     @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  mediaAsset MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+
+  @@index([returnId, createdAt])
+  @@map("return_evidence")
 }

@@ -1771,6 +1771,44 @@ Added by TASK-034 (`docs/tasks/TASK-034-shipment-core.md`, ADR-0040). Business r
 | Shipment step not allowed (e.g. `SHIPPED → DELIVERED`) | `409 CONFLICT`, `details = { reason: "SHIPMENT_STATE_INVALID", status, to }` |
 | `DELIVERED` without `MARK_AS_DELIVERED` | `403 PERMISSION_DENIED` |
 
+## TASK-037 Amendments
+
+Added by TASK-037 (`docs/tasks/TASK-037-return-requests.md`, ADR-0049). Business rules: Q14, Q17, Q34, Q90–Q92, Q99, Q100, R21, R34. Implements the customer part of §17, `GET /admin/returns[/{returnId}]`, and customer uploads for return evidence (§28).
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /orders/{orderId}/returns` | Customer | `createReturn` | `201` `return`, `status = PENDING_APPROVAL` |
+| `GET /me/returns` | Customer | `?page&pageSize` | `200` `[return]` + `meta.pagination`, newest first |
+| `GET /returns/{returnId}` | Customer (own) | — | `200` `return` |
+| `POST /returns/{returnId}/evidence` | Customer (own) | `{ mediaAssetIds: [uuid] }` (1–10) | `200` `return` |
+| `POST /returns/{returnId}/resubmit` | Customer (own) | `createReturn` | `201` the new `return`, `resubmittedFromReturnId` = the rejected one |
+| `POST /returns/{returnId}/cancel` | Customer (own) | — | `200` `return`, `status = CANCELLED` |
+| `GET /admin/returns` | `RETURNS_VIEW` | `?page&pageSize&status&orderId&customerId` | `200` `[adminReturn]` + `meta.pagination`, newest first |
+| `GET /admin/returns/{returnId}` | `RETURNS_VIEW` | — | `200` `adminReturn` |
+
+- `createReturn`: `{ claimType: "DAMAGED" | "WRONG_ITEM" | "OTHER", reason, items: [{ orderItemId, quantity }], evidenceMediaAssetIds?: [uuid] }`. `reason`: trimmed, 1–2000 characters, the customer's own words. `items`: 1–100 distinct lines of the order, `quantity` ≥ 1. `evidenceMediaAssetIds`: up to 10 distinct ids; at least one for `DAMAGED` and `WRONG_ITEM` (Q100). `claimType` is the customer's claim; the assessed reason/responsibility comes after inspection (Q99).
+- Eligibility: the order belongs to the signed-in customer, is `DELIVERED`, and the request arrives before the end of the 14th calendar day after `deliveredAt` in Africa/Cairo (R21). Each line can be requested up to its ordered quantity minus the units in the order's other returns that are not `REJECTED` or `CANCELLED` (Q34). The order status does not change (Q90).
+- `return`: `{ id, returnNumber ("RT-000001"), orderId, orderNumber, status, claimType, reason, resubmittedFromReturnId, items: [{ id, orderItemId, productId, variantId, sku, productName, variantName, orderedQuantity, requestedQuantity }], evidence: [{ mediaAssetId, url, createdAt }], cancelledAt, createdAt, updatedAt }` (names are the order-time `{ ar, en }` snapshots). `adminReturn` adds `customerId`.
+- `status` values (DB Design §12): `PENDING_APPROVAL`, `APPROVED`, `PICKUP_SCHEDULED`, `RECEIVED`, `INSPECTING`, `PARTIALLY_COMPLETED`, `COMPLETED`, `REJECTED`, `CANCELLED`. This task sets the first and `CANCELLED`; TASK-038+ the rest.
+- Evidence and cancellation only while `PENDING_APPROVAL`; resubmit only from `REJECTED` (the rejected return is unchanged, Q92) and with every check of a new request.
+- Evidence uploads: a customer calls `POST /files/upload-init` with `purpose: "RETURN_EVIDENCE"` and a customer session, sends the bytes as for other uploads, and calls `POST /files/complete` with the same session. Same file rules as other images (JPEG/PNG/WebP, ≤ 5 MB, 500–6000 px). Customers may upload only `RETURN_EVIDENCE`; staff sessions may not upload it (`403 FORBIDDEN`). Customer uploads: 30 starts per customer per hour (`429 RATE_LIMITED`). A photo can be attached once, by the customer who uploaded it. `GET /files/{id}/content` serves evidence to staff with `RETURNS_VIEW`.
+- R34: `POST /me/deactivate` `details.openItems` may also hold `OPEN_RETURN` (a return not `COMPLETED`, `REJECTED` or `CANCELLED`).
+- Audit actions added (entity `RETURN`, actor: the customer): `RETURN_REQUESTED`, `RETURN_EVIDENCE_ADDED`, `RETURN_CANCELLED`.
+
+| Situation | Response |
+|---|---|
+| Unknown order, another customer's order or a guest order; unknown or another customer's return | `404 NOT_FOUND` |
+| Order not `DELIVERED` | `409 ORDER_STATE_INVALID`, `details = { status, required: "DELIVERED" }` |
+| Window over | `422 RETURN_WINDOW_EXPIRED`, `details = { deliveredAt, returnWindowEndsAt }` |
+| A line not in the order | `400 VALIDATION_ERROR` (`order_item_not_found`) |
+| More units than can still be returned | `409 CONFLICT`, `details = { reason: "RETURN_QUANTITY_EXCEEDED", orderItemId, requestedQuantity, returnableQuantity }` |
+| Missing photo for `DAMAGED` / `WRONG_ITEM` | `400 VALIDATION_ERROR` (`evidence_required`) |
+| Photo not the customer's `RETURN_EVIDENCE` upload | `400 VALIDATION_ERROR` (`media_asset_not_found`) |
+| Photo not checked yet / already attached | `409 CONFLICT`, `details.reason = MEDIA_NOT_READY` / `MEDIA_ALREADY_ATTACHED` |
+| More than 10 photos on a return | `400 VALIDATION_ERROR` (`too_many_files`) |
+| Evidence/cancel when not `PENDING_APPROVAL`; resubmit when not `REJECTED` | `409 RETURN_STATE_INVALID`, `details = { status, required }` |
+| Missing `RETURNS_VIEW` | `403 PERMISSION_DENIED` |
+
 ## TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules: Q4, Q47, Q48, Q51. Implements the wishlist endpoints of §19; the restock subscription endpoints come with TASK-043.

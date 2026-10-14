@@ -421,6 +421,8 @@ Implement Shipping Cancellation Requested → Return to Sender/Returned → Canc
 
 Implement 14-day eligibility, free-text reason, evidence rules and Pending Approval state.
 
+**Status after TASK-037** (`docs/tasks/TASK-037-return-requests.md`, ADR-0049): `returns` (`RT-` numbers, enum `return_status` with all DB-design values), `return_items` and append-only `return_evidence`. Customers request a return of some or all units of their own `DELIVERED` order until the end of the 14th Cairo calendar day after `delivered_at` (`POST /orders/{orderId}/returns`; `claimType` `DAMAGED` / `WRONG_ITEM` need a photo), add photos and withdraw while `PENDING_APPROVAL`, list and view their returns, and resubmit after a rejection (new linked return, Q92). Customers upload photos through `/files/*` with purpose `RETURN_EVIDENCE`. `GET /admin/returns[/{id}]` (`RETURNS_VIEW`). Units in live (not rejected/cancelled) returns cannot be requested twice; open returns block deactivation. TASK-038 adds approve/reject/pickup transitions and the status history.
+
 ### TASK-038 — Return Approval & Carrier Pickup
 **Depends on:** TASK-037
 
