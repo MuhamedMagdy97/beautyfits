@@ -1992,3 +1992,7 @@ Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Migrate
 - `session_id` is not created: there is no browsing-session concept yet (added when a task needs it).
 - No foreign keys: carts are deleted on deactivation (R34) and analytics must never block or be blocked by domain rows. No IP address, user agent or contact data is stored.
 - Indexes: `(event_type, occurred_at)` (§22) and `(entity_id, event_type, occurred_at)` for the refresh, open-start and abandonment checks.
+
+## v1.2 TASK-051 Notes
+
+TASK-051 (`docs/tasks/TASK-051-analytics-aggregation.md`, ADR-0052) adds no tables, columns or migrations. Reports are queried on read from `orders`, `order_items` (`line_total`, `unit_cost_at_sale`), `customers` and `analytics_events` with the existing indexes. Rollup tables may be added later if reporting queries need them.

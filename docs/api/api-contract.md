@@ -1850,3 +1850,27 @@ Added by TASK-050 (`docs/tasks/TASK-050-analytics-events.md`, ADR-0044). Busines
 | Unknown `eventType`, bad `productId`, or a guest without a valid `X-Anonymous-Id` | `400 VALIDATION_ERROR` |
 | Invalid customer credential | `401 UNAUTHENTICATED` |
 | Too many events | `429 RATE_LIMITED`, `details.retryAfterSeconds` |
+
+## TASK-051 Amendments
+
+Added by TASK-051 (`docs/tasks/TASK-051-analytics-aggregation.md`, ADR-0052). Business rules: Q103, Q149, Q150, R20. Implements the §27 admin reports except `/admin/analytics/inventory` (low stock stays `GET /admin/inventory/low-stock`).
+
+All take `?range=TODAY|YESTERDAY|7D|30D|90D|CUSTOM` (default `30D`) and, for `CUSTOM`, `from` and `to` (`YYYY-MM-DD`, inclusive, at most 366 days). Days are Africa/Cairo calendar days (R20); `7D`/`30D`/`90D` include today. Every response has `period: { range, from, to, timeZone }`. Amounts are integer piastres.
+
+| Endpoint | Permission | Success |
+|---|---|---|
+| `GET /admin/analytics/overview` | `ANALYTICS_VIEW` | `200` `{ period, orders: { count, byStatus }, revenue, shippingFees, averageOrderValue, customers: { new, ordering, guestOrders }, visitors, productViews: { visitors, events }, daily: [{ date, orders, revenue }] }`; with `VIEW_PROFIT` also `cogs`, `estimatedGrossProfit`, `revenueWithoutCost`, `linesWithoutCost` (top level and per day) |
+| `GET /admin/analytics/funnel` | `ANALYTICS_VIEW` | `200` `{ period, visitors, productViews, addToCart, checkoutStarted, checkoutAbandoned, orderCreated, ordersDelivered }`; each step is `{ visitors, events }` |
+| `GET /admin/analytics/products` | `ANALYTICS_VIEW` | `200` `{ period, items: [{ productId, name: { ar, en }, views, addToCart, unitsSold, revenue }] }` + `meta.pagination` (`page`, `pageSize` ≤ 100); best revenue first; with `VIEW_PROFIT` items add `cogs`, `estimatedGrossProfit`, `revenueWithoutCost`, `linesWithoutCost` |
+| `GET /admin/analytics/profit` | `VIEW_PROFIT` | `200` `{ period, orders, revenue, cogs, estimatedGrossProfit, revenueWithoutCost, linesWithoutCost, daily: [{ date, orders, revenue, cogs, estimatedGrossProfit, revenueWithoutCost, linesWithoutCost }] }` |
+
+- Sales come from orders, never from analytics events. `orders.count`, revenue, AOV, costs and product sales cover revenue orders only: provisionally `NEW`, `CONFIRMED`, `PREPARING`, `READY_FOR_SHIPMENT`, `SHIPPED`, `DELIVERED`, by creation date (pending business decision, TASK-051). `orders.byStatus` counts every order created in the period.
+- `revenue` = sum of order line totals (after discounts, tax-inclusive); shipping fees are separate. `averageOrderValue` = revenue ÷ revenue orders, HALF-UP.
+- `cogs` = `unit_cost_at_sale × quantity` (Q103). `estimatedGrossProfit` = revenue − COGS for lines that have a cost (Q150); lines without one are `revenueWithoutCost` / `linesWithoutCost`. Returns are not deducted yet.
+- Funnel steps count visitors (customer or anonymous id) and events in the period, each step independently. `customers.new` = customer accounts created in the period; `ordering` = distinct customers with revenue orders.
+
+| Situation | Response |
+|---|---|
+| Unknown `range`, `CUSTOM` without `from`/`to`, `to` before `from`, more than 366 days, bad paging | `400 VALIDATION_ERROR` |
+| No session / wrong session type | `401 UNAUTHENTICATED` / `403 FORBIDDEN` |
+| Missing `ANALYTICS_VIEW` (or `VIEW_PROFIT` for `/profit`) | `403 PERMISSION_DENIED` |
