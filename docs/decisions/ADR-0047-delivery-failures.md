@@ -16,7 +16,7 @@
 
 `customer_contact_tasks` follows DB Design "Shipping follow-up". When a failure brings `attempt_count` to the threshold or beyond and the shipment has no unfinished (`OPEN`/`IN_PROGRESS`) `DELIVERY_FAILED_THRESHOLD` task, one is created in the same transaction, audited `CONTACT_TASK_CREATED` with the System actor. A partial unique index keeps at most one unfinished threshold task per shipment; after a task is closed, the next failure at or above the threshold opens a new one.
 
-The threshold is the setting `shipping.delivery_failure_contact_threshold` (Q19, Q129 "configurable"; DB Design: "a setting"). The documents give no value: **2 is a provisional default** pending a business decision (TASK-035 open items), the same approach as ADR-0044's abandonment threshold. Changing it needs no code change (settings screen TASK-057).
+The threshold is the setting `shipping.delivery_failure_contact_threshold` (Q19, Q129 "configurable"; DB Design: "a setting"). The documents give no value; the owner decided on **2** (2026-10-15). Changing it needs no code change (settings screen TASK-057).
 
 `GET /admin/contact-tasks` and `PATCH /admin/contact-tasks/{id}` (`CONTACT_TASK_MANAGE`) list tasks (oldest first; filters status, order, assignee) and assign (active employee), record outcome notes and move `OPEN → IN_PROGRESS → RESOLVED | CANCELLED`. Closed tasks are final (`409 CONFLICT`, `CONTACT_TASK_CLOSED`); closing records `resolved_at` and the employee. Every change is audited `CONTACT_TASK_UPDATED`. Tasks are never deleted (trigger). Tasks do not carry customer contact data; staff open the order (contact masking stays with `VIEW_CUSTOMER_CONTACT`).
 

@@ -88,7 +88,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 - [BUSINESS DECISION REQUIRED] What "purchased" means: implemented as an order by the customer containing the variant, created after the item was added, not `CANCELLED` or `EXPIRED`.
 - [BUSINESS DECISION REQUIRED] Out-of-stock wishlist items: implemented as no reminder and not counted (Notify Me is the offer); R6 only names unavailable/archived as a stop.
 - [BUSINESS DECISION REQUIRED] Consent: reminders stop for good (`NO_MARKETING_CONSENT`) when consent is gone after at least one reminder; an item whose customer never consented just waits. Decide whether re-consenting should restart stopped reminders.
-- [BUSINESS DECISION REQUIRED] Restock with both channels chosen: implemented as one message, WhatsApp first and email only as fallback (Q52 "one notification", Q61). Decide if both channels should each get a copy.
+- Resolved (owner decision 2026-10-15): with both channels chosen, a restock sends one message, WhatsApp first and email only as fallback (Q52, Q61).
 - [BUSINESS DECISION REQUIRED] Notify Me is accepted only while the variant cannot be bought (Q20, Q47); in stock → `409 VARIANT_IN_STOCK`. Confirm.
 - [BUSINESS DECISION REQUIRED] Message wording (ar/en) of the restock and reminder messages, and the product page link `WEBSITE_URL/products/{slug}`.
 - `/me/preferences` (TASK-045 open item): not added; restock channels are per subscription and marketing preferences belong to TASK-046.

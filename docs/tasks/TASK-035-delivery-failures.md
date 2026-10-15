@@ -79,7 +79,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Contact threshold: after how many failed attempts is a customer-contact task created (Q19, Q129 say "configurable" without a value)? Implemented as setting `shipping.delivery_failure_contact_threshold` with a provisional default of 2.
+- Resolved (owner decision 2026-10-15): a customer-contact task opens after 2 failed attempts (setting `shipping.delivery_failure_contact_threshold`, default 2).
 - [BUSINESS DECISION REQUIRED] Repeat tasks: after a task is closed and deliveries keep failing, should each further failure open a new task (implemented), or only one task per shipment ever?
 - [BUSINESS DECISION REQUIRED] Should a task close automatically when the shipment is delivered or returned? Not implemented; staff close it.
 - [BUSINESS DECISION REQUIRED] Should the customer be notified of a failed attempt (WhatsApp/email)? No notification yet.

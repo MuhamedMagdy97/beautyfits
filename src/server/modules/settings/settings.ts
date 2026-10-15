@@ -190,7 +190,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     isValid: isPositiveInteger,
     critical: false,
     unit: "COUNT",
-    source: "Business Spec Q19, Q129 (configurable); provisional 2 pending decision (ADR-0047)",
+    source:
+      "Business Spec Q19, Q129 (configurable); default 2, owner decision 2026-10-15 (ADR-0047)",
   },
 ];
 
