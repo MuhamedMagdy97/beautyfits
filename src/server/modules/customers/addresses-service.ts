@@ -43,11 +43,11 @@ export interface AddressView {
   updatedAt: string;
 }
 
-const WITH_AREA = { area: { include: { governorate: true } } } as const;
+export const WITH_AREA = { area: { include: { governorate: true } } } as const;
 
 type AddressRow = Prisma.CustomerAddressGetPayload<{ include: typeof WITH_AREA }>;
 
-function toView(row: AddressRow, locale: SupportedLocale): AddressView {
+export function toView(row: AddressRow, locale: SupportedLocale): AddressView {
   const { area } = row;
   const { governorate } = area;
   return {

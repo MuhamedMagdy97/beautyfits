@@ -2179,3 +2179,22 @@ Added by TASK-060 (`docs/tasks/TASK-060-account-orders-returns.md`, ADR-0062). A
 
 - `customerOrder.items[]` ("TASK-030 Amendments") gains `id`: the order line. It is the `orderItemId` of `POST /orders/{orderId}/returns` ("TASK-037 Amendments") and `POST /orders/{orderId}/items/{orderItemId}/review` ("TASK-044 Amendments"). It appears wherever `customerOrder` is returned (`GET /orders/{orderId}`, `POST /orders/{orderId}/cancel`, `POST /orders/{orderId}/revisions/{revisionId}/confirm`). The checkout `order` response ("TASK-029 Amendments") is unchanged.
 - The website page for the WhatsApp COD link ("TASK-045 Amendments") is `/orders/{orderId}/confirm-cod#token=bfo_…`; it posts the token to `confirm-cod` only after the customer clicks *Confirm*.
+
+## TASK-054 Amendments
+
+Added by TASK-054 (`docs/tasks/TASK-054-orders-returns-dashboard.md`, ADR-0063). Business rules: Q80, R34. Implements the admin customer reads listed in "TASK-002A Amendments". Employee session (Bearer, or the employee cookie).
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `GET /admin/customers` | `CUSTOMER_VIEW` | query `page`, `pageSize` (max 100), `search` (name, 1–100), `phone` (Egyptian mobile; needs `VIEW_CUSTOMER_CONTACT`) | `200` `[customerListItem]` newest first + `meta.pagination` |
+| `GET /admin/customers/{customerId}` | `CUSTOMER_VIEW` | — | `200` `adminCustomer` |
+
+- `customerListItem`: `{ id, fullName, accountStatus, anonymized, orderCount, createdAt, phone?, email? }`. `accountStatus` = `PENDING_VERIFICATION` \| `ACTIVE` \| `SUSPENDED` \| `DEACTIVATED`, or `null` for a customer without an account; `anonymized` is true once the customer deactivated and the profile was wiped (R34). `phone` and `email` only with `VIEW_CUSTOMER_CONTACT`.
+- `adminCustomer`: `customerListItem` + `{ preferredLocale, phoneVerified, emailVerified, anonymizedAt, orders, addresses? }`. `orders` = the 20 latest `orderListItem` ("TASK-030 Amendments", without `customer`), newest first; `orderCount` is the total and the rest is `GET /admin/orders?customerId=`. `addresses` (the `address` of §11, default first) only with `VIEW_CUSTOMER_CONTACT`. The date of birth is never returned. Names of governorates and areas follow `Accept-Language`.
+- Read-only: no audit entry.
+
+| Situation | Response |
+|---|---|
+| Unknown or malformed customer id | `404 NOT_FOUND` |
+| Missing `CUSTOMER_VIEW`, or the `phone` filter without `VIEW_CUSTOMER_CONTACT` | `403 PERMISSION_DENIED` |
+| Invalid query | `400 VALIDATION_ERROR` |
