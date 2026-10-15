@@ -83,7 +83,7 @@ Legend for the "Source" column: **Q/R/API/UF** = already in the documents; **NEW
 | `CUSTOMER_VIEW` | Customer list and profile (name, order history) | NEW |
 | `VIEW_CUSTOMER_CONTACT` | See customer phone and addresses | NEW (Q80) |
 | `DISCOUNT_VIEW` / `DISCOUNT_MANAGE` | View / manage discounts | API §23 |
-| `MARKETING_VIEW` / `MARKETING_CREATE` / `MARKETING_EDIT` | Campaign drafts | API §24 |
+| `MARKETING_VIEW` / `MARKETING_CREATE` / `MARKETING_EDIT` | Campaign drafts; `MARKETING_VIEW` also previews segment sizes (TASK-047) | API §24 |
 | `MARKETING_APPROVE` | Final campaign approval | NEW (Q142) |
 | `MARKETING_SEND` | Send an approved campaign | API §24 |
 | `NOTIFICATION_LOG_VIEW` | Notification delivery logs | NEW (TASK-056) |
