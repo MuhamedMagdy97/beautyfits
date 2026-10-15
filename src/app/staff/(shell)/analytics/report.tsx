@@ -89,7 +89,7 @@ function Bar({ value, max, text }: { value: number; max: number; text: string })
           style={{ width: `${percent(Math.max(value, 0), max)}%` }}
         />
       </div>
-      <span className="w-32 text-end tabular-nums">{text}</span>
+      <span className="w-44 shrink-0 text-end whitespace-nowrap tabular-nums">{text}</span>
     </div>
   );
 }
