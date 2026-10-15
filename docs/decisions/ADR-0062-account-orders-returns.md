@@ -1,0 +1,22 @@
+# ADR-0062 — Customer account screens: orders, returns, wallet and settings
+
+**Status:** Accepted (TASK-060, 2026-10-15)
+
+## Context
+TASK-060 adds the signed-in customer's order tracking and returns to the storefront (ADR-0055, ADR-0059), plus the account screens left open by TASK-059 (email, phone and password change, marketing consent, notifications, closing the account). The order, cancellation, revision, shipment, return, wallet, notification and consent endpoints already exist (TASK-009, 028, 030–038, 044–046). Refund calculation and return completion (TASK-040/041) do not. Writing a review needs the order line id, which the customer order response did not return.
+
+## Decision
+1. **Order line id (additive API change).** `customerOrder.items[]` gains `id`, the order line (`order_items.id`), in `GET /orders/{orderId}` and every response that returns `customerOrder` (cancel, revision confirm). It is the `orderItemId` of `POST /orders/{orderId}/returns` and `POST /orders/{orderId}/items/{orderItemId}/review`. The checkout `order` response is unchanged. No other API or database change.
+2. **Screens.** `src/app/(store)/account/`: `orders` (list) and `orders/[orderId]` (status history, delivery tracking, payment summary, address, cancel / stop delivery, change request and revision confirmation, return request, reviews), `returns` and `returns/[returnId]` (status, rejection reason, pickup, add photos, withdraw, new request after rejection), `wallet`, `notifications`, `settings`. One account switcher (`account-nav.tsx`) links them; the header menu and footer link the orders (and returns).
+3. **Actions are offered by status only.** `orderActions(status)` (`_lib/account.ts`) mirrors the documented windows (R11 cancellation, `SHIPPED` → shipping-cancellation request, changes before `PREPARING`, returns and reviews when `DELIVERED`) to decide which buttons to show. The API checks every request again (window, returnable units, photos, one review per order and product) and its refusal is shown with a localized message. The website computes no prices, totals, refunds, return windows or eligibility.
+4. **Order change.** The change form sends the whole new list, one row per variant (lines of one variant at two prices, R40, are summed), and optionally another saved address. The API answers with a revision; the page then shows the proposed lines, old and new total and expiry, and the customer confirms. Adding products to an existing order is not offered (the customer re-orders).
+5. **Return photos.** The browser runs the documented upload flow (`upload-init` with `RETURN_EVIDENCE` → `PUT` the bytes with exactly the returned headers → `complete`) per file before creating the return or adding evidence. Customers cannot fetch evidence content (`GET /files/{id}/content` is staff-only for this purpose), so the return shows the number of photos, not the photos.
+6. **COD confirmation page.** `/orders/{orderId}/confirm-cod#token=…` (the link of the WhatsApp message, TASK-045) reads the token from the URL fragment, so it never reaches server or proxy logs, and posts it only when the customer clicks *Confirm* — a link preview opening the page confirms nothing. The page sets `referrer: no-referrer` and shows only the confirmation (R16). In the account, a `PENDING_CONFIRMATION` order explains that confirmation happens through that link.
+7. **Refunds are not shown.** Returns show status, pickup and the rejection reason only; a note says any refund is decided after inspection and goes to the wallet (Q26). Amounts come with TASK-040/041.
+8. **Closing the account.** Requires the current password and an explicit "cannot be undone" checkbox; a `409 ACCOUNT_HAS_OPEN_ITEMS` refusal lists the open items in words. After success the browser leaves for the home page (the API cleared the cookies).
+9. **Dates** are shown in Africa/Cairo time in the page language.
+
+## Consequences
+- Reviews: one review per order and product is enforced by the API; the form shows "already reviewed" from the `409` (`details.reviewId`) instead of reading existing reviews first.
+- Customers do not see their own return photos, the return window end date or "days remaining" (the order response does not expose `returnWindowEndsAt`); see the task's open items.
+- Several Stitch elements have no rule or data (VAT invoice download, membership id/tier, wallet "redeem"/withdrawal, refund destination choice); they are not built (task open items).

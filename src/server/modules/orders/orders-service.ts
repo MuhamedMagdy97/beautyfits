@@ -114,7 +114,9 @@ export interface OrderSummaryView {
 }
 
 /** `GET /orders/{orderId}`. */
-export interface CustomerOrderView extends OrderSummaryView {
+export interface CustomerOrderView extends Omit<OrderSummaryView, "items"> {
+  /** `id` is the order line, for return requests and reviews (TASK-060). */
+  items: (OrderSummaryView["items"][number] & { id: string })[];
   discount: { code: string | null; name: string | null } | null;
   shippingAddress: Prisma.JsonValue;
   statusHistory: { status: OrderStatus; at: string }[];
@@ -266,8 +268,10 @@ function toCustomerView(order: OrderDetail, locale: SupportedLocale, now: Date):
     (r) => effectiveRevisionStatus(r, order.status, now) === "PENDING_CONFIRMATION",
   );
   const discount = order.discountSnapshot as Snapshot | null;
+  const summary = toSummary(order, locale);
   return {
-    ...toSummary(order, locale),
+    ...summary,
+    items: summary.items.map((item, i) => ({ id: order.items[i].id, ...item })),
     discount: discount && {
       code: (discount.code as string | null) ?? null,
       name: ((locale === "ar" ? discount.nameAr : discount.nameEn) as string | null) ?? null,
