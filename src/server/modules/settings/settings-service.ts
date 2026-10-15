@@ -21,7 +21,10 @@ import { systemClock, type Clock } from "@/server/time/time";
  *
  * - A non-critical setting changes at once.
  * - A critical setting (Q180) opens a `CRITICAL_SETTING` approval request;
- *   another Owner/Admin approves it and the handler below applies it.
+ *   another Owner/Admin approves it and the handler below applies it. When the
+ *   requester is an Owner and no other active Owner/Admin exists, nobody could
+ *   approve, so the change applies at once and the audit entry records
+ *   `approvalSkipped: "SOLE_OWNER"` (owner decision 2026-10-15).
  * - Every applied change writes a `setting_history` row (old value, new value,
  *   who changed it, who approved it, when; Q181) and a `SETTING_CHANGED` audit
  *   entry, in the same transaction.
@@ -110,6 +113,8 @@ async function applyChange(
     reason: string | null;
     correlationId: string | null;
     now: Date;
+    /** Set when a critical change skipped approval because no approver exists. */
+    approvalSkipped?: "SOLE_OWNER";
   },
 ): Promise<void> {
   const definition = definitionOf(input.key);
@@ -150,6 +155,7 @@ async function applyChange(
       critical: definition.critical,
       changedByEmployeeId: input.changedByEmployeeId,
       approvedByEmployeeId: input.approvedByEmployeeId,
+      ...(input.approvalSkipped ? { approvalSkipped: input.approvalSkipped } : {}),
     },
     reason: input.reason,
     correlationId: input.correlationId,
@@ -189,6 +195,25 @@ export const criticalSettingApprovalHandler: ApprovalHandler = {
     });
   },
 };
+
+/** True when the employee is an Owner and no other active Owner/Admin could approve. */
+async function isSoleOwner(tx: TransactionClient, employeeId: string): Promise<boolean> {
+  const requester = await tx.employee.findUnique({
+    where: { id: employeeId },
+    select: { employeeLevel: true },
+  });
+  if (requester?.employeeLevel !== "OWNER") {
+    return false;
+  }
+  const approvers = await tx.employee.count({
+    where: {
+      id: { not: employeeId },
+      status: "ACTIVE",
+      employeeLevel: { in: ["OWNER", "ADMIN"] },
+    },
+  });
+  return approvers === 0;
+}
 
 const person = { select: { id: true, displayName: true } } as const;
 
@@ -272,7 +297,8 @@ export function createSettingsService(deps: { db: PrismaClient; clock: Clock }) 
         if (JSON.stringify(previousValue) === JSON.stringify(input.value)) {
           return { outcome: "UNCHANGED" as const, approvalRequestId: null };
         }
-        if (definition.critical) {
+        const soleOwner = definition.critical && (await isSoleOwner(tx, employeeId));
+        if (definition.critical && !soleOwner) {
           // A second proposal while one is pending: 409 APPROVAL_PENDING.
           const request = await requestApproval(
             tx,
@@ -298,6 +324,7 @@ export function createSettingsService(deps: { db: PrismaClient; clock: Clock }) 
           reason,
           correlationId,
           now,
+          ...(soleOwner ? { approvalSkipped: "SOLE_OWNER" as const } : {}),
         });
         return { outcome: "APPLIED" as const, approvalRequestId: null };
       },

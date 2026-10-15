@@ -125,7 +125,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     dataType: "INTEGER",
     defaultValue: DEFAULT_MIN_MARGIN_BASIS_POINTS,
     isValid: isMarginBasisPoints,
-    critical: false,
+    critical: true, // Owner decision 2026-10-15 (ADR-0054 §5 item 1)
     unit: "BASIS_POINTS",
     source: "Business Spec Q102, Q111; 10% decided by the product owner (ADR-0023)",
   },

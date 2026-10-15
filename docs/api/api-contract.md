@@ -2083,7 +2083,7 @@ Added by TASK-057 (`docs/tasks/TASK-057-settings-dashboard.md`, ADR-0054). Busin
 | `GET /admin/settings/history` | `SETTINGS_VIEW` | query `page`, `pageSize` (max 100), `key` | `200` `[settingChange]` newest first + `meta.pagination` |
 
 - `setting`: `{ key, dataType, value, defaultValue, critical, unit, options, source, updatedBy: { id, displayName } | null, updatedAt | null, pendingApproval: { id, value, requestedBy: { id, displayName }, requestedAt } | null }`. `value` is the value in effect (the default when none is stored). `unit` = `MINUTES` \| `HOURS` \| `DAYS` \| `PIASTRES` \| `BASIS_POINTS` \| `COUNT` \| null; `options` lists the allowed values of a string setting.
-- `outcome`: `APPLIED` (non-critical: stored now), `PENDING_APPROVAL` (critical, Q180: a `CRITICAL_SETTING` approval request was opened, `approvalRequestId` set; another Owner/Admin approves it through `/admin/approval-requests/{id}/approve`), `UNCHANGED` (same value as now; nothing recorded).
+- `outcome`: `APPLIED` (non-critical: stored now), `PENDING_APPROVAL` (critical, Q180: a `CRITICAL_SETTING` approval request was opened, `approvalRequestId` set; another Owner/Admin approves it through `/admin/approval-requests/{id}/approve`; an Owner with no other active Owner/Admin gets `APPLIED` instead, audited with `approvalSkipped: "SOLE_OWNER"`), `UNCHANGED` (same value as now; nothing recorded).
 - `settingChange`: `{ id, key, oldValue, newValue, changedBy: { id, displayName }, approvedBy: { id, displayName } | null, createdAt }` (Q181).
 - Every applied change also writes the audit action `SETTING_CHANGED` (entity `SETTING`, entity id = key). Approval request `metadata` for a critical setting: `{ key, previousValue, newValue }`.
 
