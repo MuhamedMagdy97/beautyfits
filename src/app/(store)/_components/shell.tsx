@@ -6,8 +6,8 @@ import { useSwitchLanguage, useT } from "../_lib/i18n";
 
 /**
  * Storefront header and footer (TASK-058), after the Stitch homepage header
- * (design-reference/google-stitch/beautyfits_luxury_beauty_homepage). The
- * category navigation and search arrive with the catalog screens (TASK-059).
+ * (design-reference/google-stitch/beautyfits_luxury_beauty_homepage), with
+ * the shop link, search box and account links of TASK-059.
  */
 
 export function BrandLink() {
@@ -63,6 +63,12 @@ function AccountArea() {
         {t.hello.replace("{name}", shopper.session.customer.fullName)}
       </summary>
       <div className="absolute end-0 z-10 mt-2 w-56 rounded-md border border-line bg-white p-2 shadow-sm">
+        <Link href="/account" className="block rounded px-3 py-2 text-sm hover:bg-velvet-low">
+          {t.account}
+        </Link>
+        <Link href="/wishlist" className="block rounded px-3 py-2 text-sm hover:bg-velvet-low">
+          {t.wishlistPage.title}
+        </Link>
         <button
           type="button"
           onClick={() => void signOut()}
@@ -89,7 +95,20 @@ export function StoreHeader() {
     <header className="border-b border-line bg-velvet">
       <div className="mx-auto flex h-20 max-w-[1360px] items-center justify-between gap-4 px-4 md:px-8">
         <BrandLink />
+        <form action="/products" role="search" className="hidden max-w-md flex-1 md:block">
+          <input
+            type="search"
+            name="search"
+            maxLength={100}
+            aria-label={t.shop.search}
+            placeholder={t.shop.searchPlaceholder}
+            className="w-full rounded-full border border-line bg-white px-4 py-2 text-sm outline-none focus:border-plum"
+          />
+        </form>
         <nav aria-label={t.mainNav} className="flex items-center gap-4">
+          <Link href="/products" className="text-sm text-ink hover:text-plum">
+            {t.shop.title}
+          </Link>
           <LanguageButton />
           <AccountArea />
           <Link
