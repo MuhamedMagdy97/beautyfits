@@ -19,7 +19,13 @@ export const RETURN_CLAIM_TYPES = [
   "OTHER",
 ] as const;
 /** Claims that need at least one photo (Q100). */
-export const CLAIMS_NEEDING_EVIDENCE: ReadonlySet<string> = new Set(["DAMAGED", "WRONG_ITEM"]);
+export const CLAIMS_NEEDING_EVIDENCE: ReadonlySet<string> = new Set([
+  "DAMAGED",
+  "WRONG_ITEM",
+  // Owner decision 2026-10-15; a missing item cannot be photographed.
+  "DEFECTIVE",
+  "EXPIRED",
+]);
 
 const mediaAssetIds = z
   .array(z.uuid().transform((id) => id.toLowerCase()))
@@ -51,7 +57,7 @@ export const createReturnSchema = z
         code: "custom",
         path: ["evidenceMediaAssetIds"],
         params: { code: "evidence_required" },
-        message: "Add at least one photo for a damaged or wrong item.",
+        message: "Add at least one photo of the problem.",
       });
     }
   });

@@ -7,6 +7,7 @@ import {
   restockQuantity,
   returnWindowEndsAt,
 } from "@/server/modules/returns/returns";
+import { createReturnSchema } from "@/server/modules/returns/schemas";
 
 describe("returnWindowEndsAt (R21)", () => {
   it("ends at Cairo midnight after the 14th calendar day; the delivery day is day 0", () => {
@@ -105,5 +106,21 @@ describe("isNotReturnableLine (owner decision 2026-10-15)", () => {
     expect(isNotReturnableLine("OTHER", BigInt(15000))).toBe(false);
     expect(isNotReturnableLine("DAMAGED", BigInt(0))).toBe(false);
     expect(isNotReturnableLine("MISSING_ITEM", BigInt(0))).toBe(false);
+  });
+});
+
+describe("createReturnSchema evidence (Q100, owner decision 2026-10-15)", () => {
+  const base = {
+    reason: "Problem",
+    items: [{ orderItemId: "019a0000-0000-7000-8000-000000000001", quantity: 1 }],
+  };
+
+  it("needs a photo for damaged, wrong, defective and expired items only", () => {
+    for (const claimType of ["DAMAGED", "WRONG_ITEM", "DEFECTIVE", "EXPIRED"]) {
+      expect(createReturnSchema.safeParse({ ...base, claimType }).success).toBe(false);
+    }
+    for (const claimType of ["MISSING_ITEM", "OTHER"]) {
+      expect(createReturnSchema.safeParse({ ...base, claimType }).success).toBe(true);
+    }
   });
 });
