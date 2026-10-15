@@ -432,6 +432,8 @@ Implement 14-day eligibility, free-text reason, evidence rules and Pending Appro
 
 Admin review, approval/rejection, carrier pickup request and shipping responsibility rules.
 
+**Status after TASK-038** (`docs/tasks/TASK-038-return-approval.md`, ADR-0056): `POST /admin/returns/{id}/approve` and `/reject` (`APPROVE_RETURN`; reason required, shown to the customer) move `PENDING_APPROVAL → APPROVED | REJECTED`; `/pickup` (`MANAGE_RETURNS`) moves `APPROVED → PICKUP_SCHEDULED` with an active carrier, optional tracking number and the provisional pickup fee payer (`CUSTOMER` by default, C2). Allowed moves live in `requiredStatusFor` (`src/server/modules/returns/returns.ts`); every move writes `return_status_history` (append-only, on `adminReturn.statusHistory`) and an audit entry; approval writes the `RETURN_APPROVED` outbox event. TASK-039 adds `receive` from `PICKUP_SCHEDULED`; the pickup fee amount and final responsibility come with TASK-040.
+
 ### TASK-039 — Return Receiving & Inspection
 **Depends on:** TASK-038
 
