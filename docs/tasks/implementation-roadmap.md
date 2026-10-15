@@ -504,6 +504,8 @@ Implement MVP segments: all opted-in, previous buyers, product/brand/category bu
 
 Draft → Pending Approval → Approved → Sending → Completed/Failed campaign lifecycle.
 
+**Status after TASK-048** (`docs/tasks/TASK-048-campaigns.md`, ADR-0061): tables `campaigns` and `campaign_recipients` exist. Marketing staff create and edit drafts (`name`, TASK-047 `segment`, email `subject`, plain-text `content`; the channel is the segment's) and submit them, which opens a `MARKETING_CAMPAIGN` approval request; an Owner/Admin other than the submitter approves or rejects (back to `DRAFT`) through `/admin/campaigns/{id}/approve|reject` or the approval queue. `POST /admin/campaigns/{id}/send` (`MARKETING_SEND`) moves `APPROVED → SENDING` and fixes the opted-in recipients as `PENDING` `campaign_recipients` rows with their consent id; nothing is sent. TASK-049 picks up `SENDING` campaigns, delivers the `PENDING` recipients (rechecking consent, frequency limits, retries, fallback), ends the campaign `COMPLETED`/`FAILED` via `assertTransition` in `src/server/modules/marketing/campaigns.ts`, and adds `GET /admin/campaigns/{id}/delivery`. Open decisions: TASK-048 open items.
+
 ### TASK-049 — Marketing Delivery, Frequency & Fallbacks
 **Depends on:** TASK-048, TASK-045
 

@@ -1,4 +1,5 @@
 import type { ApprovalHandlers } from "@/server/modules/approvals/approvals";
+import { campaignApprovalHandler } from "@/server/modules/marketing/campaigns";
 import { overDeliveryApprovalHandler } from "@/server/modules/purchasing/goods-receipts";
 import { purchaseOrderApprovalHandler } from "@/server/modules/purchasing/purchase-orders";
 import { supplierReturnApprovalHandler } from "@/server/modules/purchasing/supplier-returns";
@@ -30,6 +31,9 @@ export const APPROVAL_HANDLERS: ApprovalHandlers = {
   },
   get SUPPLIER_RETURN() {
     return supplierReturnApprovalHandler;
+  },
+  get MARKETING_CAMPAIGN() {
+    return campaignApprovalHandler;
   },
   get CRITICAL_SETTING() {
     return criticalSettingApprovalHandler;

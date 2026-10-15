@@ -184,6 +184,7 @@ model Customer {
   reviewReports        ReviewReport[]
   notifications        Notification[]
   marketingConsents    MarketingConsent[]
+  campaignRecipients   CampaignRecipient[]
   returns              Return[]
   mediaUploads         MediaAsset[]
 
@@ -375,6 +376,9 @@ model Employee {
   contactTasksAssigned    CustomerContactTask[]   @relation("ContactTaskAssignedTo")
   contactTasksResolved    CustomerContactTask[]   @relation("ContactTaskResolvedBy")
   customerReturnsApproved Return[]                @relation("ReturnApprovedBy")
+  campaignsCreated        Campaign[]              @relation("CampaignCreatedBy")
+  campaignsApproved       Campaign[]              @relation("CampaignApprovedBy")
+  campaignsSent           Campaign[]              @relation("CampaignSentBy")
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -2652,4 +2656,87 @@ model ReturnEvidence {
 
   @@index([returnId, createdAt])
   @@map("return_evidence")
+}
+
+// ---------------------------------------------------------------------------
+// Marketing campaigns (DB design §18, "v1.2 TASK-048 Amendments"; TASK-048,
+// ADR-0061). Delivery (frequency limits, retries, fallback) is TASK-049.
+// ---------------------------------------------------------------------------
+
+/// DB design §18. TASK-048 moves DRAFT → PENDING_APPROVAL → APPROVED →
+/// SENDING (a rejection returns to DRAFT); TASK-049 ends SENDING in COMPLETED
+/// or FAILED. CANCELLED is reserved (no endpoint yet).
+enum CampaignStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+
+  @@map("campaign_status")
+}
+
+/// PENDING until TASK-049 delivers or fails the message.
+enum CampaignRecipientStatus {
+  PENDING
+  SENT
+  FAILED
+
+  @@map("campaign_recipient_status")
+}
+
+/// A marketing campaign (Q13, Q139, Q142). Never deleted. Only drafts change,
+/// so what an Owner/Admin approved is what is sent.
+model Campaign {
+  id                   String           @id @default(uuid(7)) @db.Uuid
+  name                 String
+  /// DB design §18 `type`; always the segment's channel (check constraint).
+  channel              MarketingChannel
+  status               CampaignStatus   @default(DRAFT)
+  /// The audience: a segment definition (TASK-047, ADR-0057), resolved when sending starts.
+  segment              Json             @map("segment_json")
+  /// Email subject; null for WhatsApp.
+  subject              String?
+  /// Plain text message.
+  content              String
+  createdByEmployeeId  String           @map("created_by_employee_id") @db.Uuid
+  submittedAt          DateTime?        @map("submitted_at") @db.Timestamptz(3)
+  approvedByEmployeeId String?          @map("approved_by_employee_id") @db.Uuid
+  approvedAt           DateTime?        @map("approved_at") @db.Timestamptz(3)
+  sentByEmployeeId     String?          @map("sent_by_employee_id") @db.Uuid
+  sendingStartedAt     DateTime?        @map("sending_started_at") @db.Timestamptz(3)
+  createdAt            DateTime         @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime         @map("updated_at") @db.Timestamptz(3)
+
+  createdBy  Employee            @relation("CampaignCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
+  approvedBy Employee?           @relation("CampaignApprovedBy", fields: [approvedByEmployeeId], references: [id], onDelete: Restrict)
+  sentBy     Employee?           @relation("CampaignSentBy", fields: [sentByEmployeeId], references: [id], onDelete: Restrict)
+  recipients CampaignRecipient[]
+
+  @@index([status, createdAt])
+  @@map("campaigns")
+}
+
+/// One customer a campaign goes to, fixed when sending starts. Never deleted.
+model CampaignRecipient {
+  id                  String                  @id @default(uuid(7)) @db.Uuid
+  campaignId          String                  @map("campaign_id") @db.Uuid
+  customerId          String                  @map("customer_id") @db.Uuid
+  channel             MarketingChannel
+  status              CampaignRecipientStatus @default(PENDING)
+  /// Why the customer was eligible: `{ segmentType, consentId }`.
+  eligibilitySnapshot Json                    @map("eligibility_snapshot_json")
+  sentAt              DateTime?               @map("sent_at") @db.Timestamptz(3)
+  failureReason       String?                 @map("failure_reason")
+  createdAt           DateTime                @map("created_at") @db.Timestamptz(3)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@unique([campaignId, customerId])
+  @@index([campaignId, status])
+  @@index([customerId, createdAt])
+  @@map("campaign_recipients")
 }
