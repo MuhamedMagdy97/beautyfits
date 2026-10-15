@@ -2557,6 +2557,10 @@ enum ReturnStatus {
 enum ReturnClaimType {
   DAMAGED
   WRONG_ITEM
+  DEFECTIVE
+  EXPIRED
+  MISSING_ITEM
+  /// Change of mind: the store is not at fault (owner decision 2026-10-15).
   OTHER
 
   @@map("return_claim_type")

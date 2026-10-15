@@ -86,11 +86,12 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Claim categories: Q100 needs to know whether a case is "damage / wrong item". Implemented as a customer-chosen `claimType` (`DAMAGED`, `WRONG_ITEM`, `OTHER`); photos required for the first two. Are these the right categories (e.g. separate "defective", "expired", "missing item")?
+- Resolved (owner decision 2026-10-15): claim categories `DAMAGED`, `WRONG_ITEM`, `DEFECTIVE`, `EXPIRED`, `MISSING_ITEM`, `OTHER` (change of mind).
+- [BUSINESS DECISION REQUIRED] Photos are required only for `DAMAGED` and `WRONG_ITEM` (Q100). Should `DEFECTIVE` and `EXPIRED` also need a photo?
 - [BUSINESS DECISION REQUIRED] Guest orders: customer return endpoints need an account, so guest orders cannot be returned through the API (R16 gives guests no order access). Should support staff create returns for guest orders, and with which permission?
 - [BUSINESS DECISION REQUIRED] Evidence limits: at most 10 photos per return and 30 customer uploads per hour are technical defaults; images must be at least 500 × 500 px like product images. Confirm, and decide whether videos are needed.
 - [BUSINESS DECISION REQUIRED] Should customers be able to view/download their own evidence photos (currently staff only) and add photos after approval?
-- [BUSINESS DECISION REQUIRED] Items not eligible for return (e.g. hygiene/opened cosmetics, free gifts): no rule exists, so every delivered line is returnable; inspection decides the outcome (Q98, R7).
+- Resolved (owner decision 2026-10-15): on a change of mind (`OTHER`), free gifts (zero-price lines) cannot be requested and opened units must be rejected at inspection. Damaged, wrong, defective, expired and missing-item claims may return both.
 - Note: no `Idempotency-Key` on return creation (not required by API §17); the quantity check bounds duplicates (ADR-0049 §2).
 
 ## Status

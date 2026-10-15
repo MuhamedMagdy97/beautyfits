@@ -19,6 +19,7 @@ import {
 } from "@/server/modules/media/uploads-service";
 import {
   checkInspection,
+  isNotReturnableLine,
   checkReturnQuantities,
   RELEASED_RETURN_STATUSES,
   requiredStatusFor,
@@ -376,7 +377,7 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
 
     const orderItems = await tx.orderItem.findMany({
       where: { orderId },
-      select: { id: true, quantity: true },
+      select: { id: true, quantity: true, unitPrice: true },
     });
     const claimed = await tx.returnItem.groupBy({
       by: ["orderItemId"],
@@ -405,6 +406,17 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
         requestedQuantity: problem.requested,
         returnableQuantity: problem.returnable,
       });
+    }
+    const giftIndex = input.items.findIndex((line) => {
+      const item = orderItems.find((i) => i.id === line.orderItemId);
+      return item !== undefined && isNotReturnableLine(input.claimType, item.unitPrice);
+    });
+    if (giftIndex >= 0) {
+      throw validationError(
+        `items.${giftIndex}.orderItemId`,
+        "free_gift_not_returnable",
+        "A free gift cannot be returned on a change of mind.",
+      );
     }
     await lockEvidence(tx, customerId, input.evidenceMediaAssetIds, "evidenceMediaAssetIds");
 
@@ -954,7 +966,18 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
             reason: "RETURN_ITEM_ALREADY_INSPECTED",
           });
         }
-        const problem = checkInspection(item.requestedQuantity, input.outcomes);
+        const { claimType } = await tx.return.findUniqueOrThrow({
+          where: { id: item.returnId },
+          select: { claimType: true },
+        });
+        const problem = checkInspection(item.requestedQuantity, input.outcomes, claimType);
+        if (problem?.kind === "OPENED_NOT_RETURNABLE") {
+          throw validationError(
+            `outcomes.${problem.index}.result`,
+            "opened_not_returnable",
+            "Opened items cannot be returned on a change of mind: reject them.",
+          );
+        }
         if (problem?.kind === "RESTOCK_NOT_SELLABLE") {
           throw validationError(
             `outcomes.${problem.index}.condition`,

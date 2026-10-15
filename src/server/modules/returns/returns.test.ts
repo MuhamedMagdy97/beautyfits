@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   checkInspection,
+  isNotReturnableLine,
   checkReturnQuantities,
   requiredStatusFor,
   restockQuantity,
@@ -86,5 +87,23 @@ describe("checkInspection (Q30, Q35, Q36)", () => {
     expect(
       checkInspection(3, [damaged, { result: "RESTOCK", condition: "DAMAGED", quantity: 2 }]),
     ).toEqual({ kind: "RESTOCK_NOT_SELLABLE", index: 1 });
+  });
+  it("rejects opened units on a change of mind only (owner decision 2026-10-15)", () => {
+    expect(checkInspection(3, [restock, damaged], "OTHER")).toEqual({
+      kind: "OPENED_NOT_RETURNABLE",
+      index: 1,
+    });
+    const rejected = { result: "REJECTED", condition: "OPENED_USED", quantity: 1 } as const;
+    expect(checkInspection(3, [restock, rejected], "OTHER")).toBeNull();
+    expect(checkInspection(3, [restock, damaged], "DEFECTIVE")).toBeNull();
+  });
+});
+
+describe("isNotReturnableLine (owner decision 2026-10-15)", () => {
+  it("refuses free gifts on a change of mind only", () => {
+    expect(isNotReturnableLine("OTHER", BigInt(0))).toBe(true);
+    expect(isNotReturnableLine("OTHER", BigInt(15000))).toBe(false);
+    expect(isNotReturnableLine("DAMAGED", BigInt(0))).toBe(false);
+    expect(isNotReturnableLine("MISSING_ITEM", BigInt(0))).toBe(false);
   });
 });
