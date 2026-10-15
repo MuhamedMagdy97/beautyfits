@@ -75,6 +75,7 @@ type StaffPurpose = Exclude<MediaPurpose, typeof CUSTOMER_UPLOAD_PURPOSE>;
 export const PURPOSE_PERMISSION: Record<StaffPurpose, PermissionCode> = {
   PRODUCT_MEDIA: "MANAGE_PRODUCT_MEDIA",
   SUPPLIER_INVOICE: "SUPPLIER_PAYMENT_MANAGE",
+  RETURN_INSPECTION: "INSPECT_RETURN",
 };
 
 /** Object key prefix per purpose. */
@@ -82,6 +83,7 @@ const PURPOSE_FOLDER: Record<MediaPurpose, string> = {
   PRODUCT_MEDIA: "product-media",
   SUPPLIER_INVOICE: "supplier-invoices",
   RETURN_EVIDENCE: "return-evidence",
+  RETURN_INSPECTION: "return-inspection",
 };
 
 export const UPLOAD_TOKEN_HEADER = "x-upload-token";
@@ -139,7 +141,7 @@ export function mediaContentUrl(mediaAssetId: string): string {
 /**
  * Staff who may see files of a purpose: product images, anyone who can see
  * products or manage their images; supplier invoices, supplier finance;
- * return evidence, anyone who can see returns.
+ * return evidence and inspection photos, anyone who can see returns.
  */
 export function canViewPurpose(
   permissions: ReadonlySet<PermissionCode>,
@@ -154,6 +156,8 @@ export function canViewPurpose(
       );
     case "RETURN_EVIDENCE":
       return permissions.has("RETURNS_VIEW");
+    case "RETURN_INSPECTION":
+      return permissions.has("RETURNS_VIEW") || permissions.has(PURPOSE_PERMISSION[purpose]);
   }
 }
 

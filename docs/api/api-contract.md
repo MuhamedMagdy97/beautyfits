@@ -1881,6 +1881,31 @@ Added by TASK-038 (`docs/tasks/TASK-038-return-approval.md`, ADR-0056). Business
 | Missing/blank reject reason; unknown or inactive company; bad `feePayer` | `400 VALIDATION_ERROR` |
 | Missing permission | `403 PERMISSION_DENIED` |
 
+## TASK-039 Amendments
+
+Added by TASK-039 (`docs/tasks/TASK-039-return-inspection.md`, ADR-0060). Business rules: Q29, Q30, Q34–Q36, Q94–Q96, Q108; User Flows §11.2, §11.4. Implements `receive`, `start-inspection` and the item `inspection` of §17 (admin).
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `POST /admin/returns/{returnId}/receive` | `RECEIVE_RETURN` | optional `{ notes? }` (1–1000) | `200` `adminReturn`, `status = RECEIVED` |
+| `POST /admin/returns/{returnId}/start-inspection` | `INSPECT_RETURN` | optional `{ notes? }` (1–1000) | `200` `adminReturn`, `status = INSPECTING` |
+| `POST /admin/return-items/{returnItemId}/inspection` | `INSPECT_RETURN` | `{ outcomes: [{ result, condition, quantity, notes? }] (1–15), evidenceMediaAssetIds?: uuid[] (≤ 10) }` | `200` `adminReturn` |
+
+- Moves: `PICKUP_SCHEDULED → RECEIVED` (sets `receivedAt`; outbox event `RETURN_RECEIVED`, §31, payload `returnId`, `orderId`, `customerId`) and `RECEIVED → INSPECTING`. The notes are the status history `reason`. The return stays `INSPECTING` after its lines are inspected (completion: TASK-040/041).
+- Item inspection: only while the return is `INSPECTING`, once per line. `result` = `RESTOCK` | `DAMAGED` | `REJECTED`; `condition` = `SELLABLE` | `DAMAGED` | `OPENED_USED` | `MISSING_PARTS` | `REJECTED`; `quantity` ≥ 1; `notes` 1–2000. The quantities must add up to the line's `requestedQuantity` (a line may be split, Q35). `RESTOCK` needs `SELLABLE` (Q36). Restocked units are added to Available stock in the same transaction (inventory movement `CUSTOMER_RETURN_RESTOCK`, reference `RETURN`); `DAMAGED` and `REJECTED` change no stock.
+- `evidenceMediaAssetIds`: `SAFE` uploads of the new purpose `RETURN_INSPECTION` (§28; upload needs `INSPECT_RETURN`; content visible with `RETURNS_VIEW` or `INSPECT_RETURN`), each attached once.
+- `return` gains `receivedAt`. `adminReturn.items[]` gains `inspection`: `null`, or `{ inspectedAt, inspectedByEmployeeId, outcomes: [{ result, condition, quantity, notes }], evidence: [{ mediaAssetId, url }] }`. The customer view does not include inspections.
+- Audit actions (entity `RETURN`, actor: the employee): `RETURN_RECEIVED`, `RETURN_INSPECTION_STARTED`, `RETURN_ITEM_INSPECTED` (`next`: `returnItemId`, `outcomes`, `restockedQuantity`, `evidenceMediaAssetIds`).
+
+| Situation | Response |
+|---|---|
+| Unknown return or return item | `404 NOT_FOUND` |
+| Receive when not `PICKUP_SCHEDULED`; start inspection when not `RECEIVED`; inspect when not `INSPECTING` | `409 RETURN_STATE_INVALID`, `details = { status, required }` |
+| Line already inspected | `409 CONFLICT`, `details.reason = RETURN_ITEM_ALREADY_INSPECTED` |
+| Photo already attached to an inspection | `409 CONFLICT`, `details.reason = MEDIA_ALREADY_ATTACHED`; not checked yet: `MEDIA_NOT_READY` |
+| Quantities not equal to the returned quantity (`quantity_mismatch`); `RESTOCK` without `SELLABLE` (`restock_not_sellable`); unknown values; a file that is not a `RETURN_INSPECTION` upload | `400 VALIDATION_ERROR` |
+| Missing permission | `403 PERMISSION_DENIED` |
+
 ## TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules: Q4, Q47, Q48, Q51. Implements the wishlist endpoints of §19; the restock subscription endpoints come with TASK-043.

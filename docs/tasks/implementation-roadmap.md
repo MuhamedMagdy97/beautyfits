@@ -439,6 +439,8 @@ Admin review, approval/rejection, carrier pickup request and shipping responsibi
 
 Implement Received → Inspecting and per-item outcomes: Restock/Damaged/Rejected, with notes and evidence.
 
+**Status after TASK-039** (`docs/tasks/TASK-039-return-inspection.md`, ADR-0060): `POST /admin/returns/{id}/receive` (`RECEIVE_RETURN`) moves `PICKUP_SCHEDULED → RECEIVED` (sets `receivedAt`, outbox `RETURN_RECEIVED`); `/start-inspection` (`INSPECT_RETURN`) moves `RECEIVED → INSPECTING`; `POST /admin/return-items/{id}/inspection` (`INSPECT_RETURN`) records a line's outcomes once, split by quantity (`return_inspections`: result, condition, quantity, notes; staff photos of purpose `RETURN_INSPECTION` in `return_inspection_evidence`). Restocked units (`SELLABLE` only) go to Available through a `CUSTOMER_RETURN_RESTOCK` movement in the same transaction, so TASK-041 completion must not restock again; damaged/rejected units change no stock yet (open item). The return stays `INSPECTING`; TASK-040 adds the R7 resolution (`RETURN_TO_CUSTOMER`), refund amounts and `final_responsibility`, reading `return_inspections`.
+
 ### TASK-040 — Refund Calculation & Resolution Rules
 **Depends on:** TASK-039, TASK-028
 

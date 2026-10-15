@@ -15,7 +15,12 @@ export const MAX_IMAGE_SIDE = 6000;
 export const FILENAME_MAX = 255;
 
 /** Supplier invoices (ADR-0028) and return evidence (ADR-0049) are images too. */
-export const MEDIA_PURPOSES = ["PRODUCT_MEDIA", "SUPPLIER_INVOICE", "RETURN_EVIDENCE"] as const;
+export const MEDIA_PURPOSES = [
+  "PRODUCT_MEDIA",
+  "SUPPLIER_INVOICE",
+  "RETURN_EVIDENCE",
+  "RETURN_INSPECTION",
+] as const;
 
 /** The last path segment of a client file name, without control characters. */
 function baseName(value: string): string {

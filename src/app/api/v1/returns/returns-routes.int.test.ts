@@ -1,7 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { POST as approveReturn } from "@/app/api/v1/admin/returns/[returnId]/approve/route";
 import { POST as requestPickup } from "@/app/api/v1/admin/returns/[returnId]/pickup/route";
+import { POST as inspectItem } from "@/app/api/v1/admin/return-items/[returnItemId]/inspection/route";
+import { POST as receiveReturn } from "@/app/api/v1/admin/returns/[returnId]/receive/route";
 import { POST as rejectReturn } from "@/app/api/v1/admin/returns/[returnId]/reject/route";
+import { POST as startInspection } from "@/app/api/v1/admin/returns/[returnId]/start-inspection/route";
 import { GET as adminReturn } from "@/app/api/v1/admin/returns/[returnId]/route";
 import { GET as adminReturns } from "@/app/api/v1/admin/returns/route";
 import { POST as addItem } from "@/app/api/v1/cart/items/route";
@@ -233,15 +236,18 @@ async function order(
   return { orderId: placed.id as string, itemIds: items.map((i) => i.id) };
 }
 
-/** A customer's photo through the three upload steps (API §28). */
-async function photo(token: string): Promise<string> {
+/** A photo through the three upload steps (API §28): a customer's, or a staff inspection photo. */
+async function photo(
+  token: string,
+  purpose: "RETURN_EVIDENCE" | "RETURN_INSPECTION" = "RETURN_EVIDENCE",
+): Promise<string> {
   const bytes = png(800, 800);
   const started = await data(
     await call(uploadInit, "/files/upload-init", {
       method: "POST",
       token,
       body: {
-        purpose: "RETURN_EVIDENCE",
+        purpose,
         filename: "damage.png",
         mimeType: "image/png",
         sizeBytes: bytes.length,
@@ -263,7 +269,7 @@ async function photo(token: string): Promise<string> {
       body: { mediaAssetId: started.mediaAssetId },
     }),
   );
-  expect(asset).toMatchObject({ purpose: "RETURN_EVIDENCE", scanStatus: "SAFE" });
+  expect(asset).toMatchObject({ purpose, scanStatus: "SAFE" });
   return asset.id;
 }
 
@@ -643,6 +649,7 @@ describe("admin view", () => {
     expect(listed.data).toEqual([
       {
         ...created,
+        items: created.items.map((item: object) => ({ ...item, inspection: null })),
         customerId: sara.customerId,
         approvedByEmployeeId: null,
         statusHistory: [
@@ -941,5 +948,265 @@ describe("staff review and pickup (TASK-038)", () => {
       db.returnStatusHistory.updateMany({ where: { returnId }, data: { reason: "x" } }),
     ).rejects.toThrow();
     await expect(db.returnStatusHistory.deleteMany({ where: { returnId } })).rejects.toThrow();
+  });
+});
+
+describe("receiving and inspection (TASK-039)", () => {
+  function admin(handler: unknown, action: string, token: string, id: string, body?: unknown) {
+    return call(handler, `/admin/returns/${id}/${action}`, {
+      method: "POST",
+      token,
+      body,
+      params: { returnId: id },
+    });
+  }
+
+  function inspect(token: string, returnItemId: string, body: unknown) {
+    return call(inspectItem, `/admin/return-items/${returnItemId}/inspection`, {
+      method: "POST",
+      token,
+      body,
+      params: { returnItemId },
+    });
+  }
+
+  /** A return of the whole order (2 + 1 units), picked up by a carrier. */
+  async function pickedUp() {
+    const sara = await customer();
+    const { orderId, itemIds } = await order(sara.token);
+    const created = await data(
+      await request(sara.token, orderId, {
+        claimType: "OTHER",
+        reason: "Changed my mind.",
+        items: [
+          { orderItemId: itemIds[0], quantity: 2 },
+          { orderItemId: itemIds[1], quantity: 1 },
+        ],
+      }),
+      201,
+    );
+    const returnId = created.id as string;
+    await data(await admin(approveReturn, "approve", await staff(["APPROVE_RETURN"]), returnId));
+    counter += 1;
+    const company = await db.shippingCompany.create({
+      data: { code: `CAR${counter}`, name: "Carrier" },
+    });
+    await data(
+      await admin(requestPickup, "pickup", await staff(["MANAGE_RETURNS"]), returnId, {
+        shippingCompanyId: company.id,
+      }),
+    );
+    const items = await db.returnItem.findMany({
+      where: { returnId },
+      include: { orderItem: true },
+      orderBy: { orderItem: { skuSnapshot: "asc" } },
+    });
+    return { sara, returnId, items };
+  }
+
+  async function available(variantId: string) {
+    return (await db.inventoryBalance.findUniqueOrThrow({ where: { productVariantId: variantId } }))
+      .availableQuantity;
+  }
+
+  it("receives, starts inspection and inspects per unit, restocking only sellable units", async () => {
+    const { sara, returnId, items } = await pickedUp();
+    const receiver = await staff(["RECEIVE_RETURN"]);
+    const inspector = await staff(["INSPECT_RETURN"]);
+
+    const early = await errorOf(
+      await admin(startInspection, "start-inspection", inspector, returnId),
+      409,
+    );
+    expect(early.details).toEqual({ status: "PICKUP_SCHEDULED", required: "RECEIVED" });
+
+    const received = await data(
+      await admin(receiveReturn, "receive", receiver, returnId, { notes: "Box intact." }),
+    );
+    expect(received).toMatchObject({ status: "RECEIVED", receivedAt: expect.any(String) });
+    expect(received.statusHistory.at(-1)).toMatchObject({
+      fromStatus: "PICKUP_SCHEDULED",
+      toStatus: "RECEIVED",
+      changedByType: "EMPLOYEE",
+      reason: "Box intact.",
+    });
+    expect(
+      await db.outboxEvent.count({
+        where: { eventType: "RETURN_RECEIVED", aggregateId: returnId },
+      }),
+    ).toBe(1);
+    const again = await errorOf(await admin(receiveReturn, "receive", receiver, returnId), 409);
+    expect(again.details).toEqual({ status: "RECEIVED", required: "PICKUP_SCHEDULED" });
+
+    // No inspection before it is started.
+    const notYet = await errorOf(
+      await inspect(inspector, items[1].id, {
+        outcomes: [{ result: "DAMAGED", condition: "DAMAGED", quantity: 1 }],
+      }),
+      409,
+    );
+    expect(notYet).toMatchObject({
+      code: "RETURN_STATE_INVALID",
+      details: { status: "RECEIVED", required: "INSPECTING" },
+    });
+
+    const started = await data(
+      await admin(startInspection, "start-inspection", inspector, returnId),
+    );
+    expect(started.status).toBe("INSPECTING");
+    expect(started.items.map((i: { inspection: unknown }) => i.inspection)).toEqual([null, null]);
+
+    const [lineA, lineB] = items;
+    const beforeA = await available(lineA.orderItem.productVariantId);
+    const beforeB = await available(lineB.orderItem.productVariantId);
+
+    // Every unit once; restock only when sellable (Q36).
+    for (const outcomes of [
+      [{ result: "RESTOCK", condition: "SELLABLE", quantity: 1 }],
+      [{ result: "RESTOCK", condition: "SELLABLE", quantity: 3 }],
+      [
+        { result: "RESTOCK", condition: "OPENED_USED", quantity: 1 },
+        { result: "DAMAGED", condition: "DAMAGED", quantity: 1 },
+      ],
+      [{ result: "RETURN_TO_CUSTOMER", condition: "SELLABLE", quantity: 2 }],
+    ]) {
+      expect((await errorOf(await inspect(inspector, lineA.id, { outcomes }), 400)).code).toBe(
+        "VALIDATION_ERROR",
+      );
+    }
+
+    // Q35: 1 restock + 1 customer-opened, with notes and a staff photo.
+    const evidence = await photo(inspector, "RETURN_INSPECTION");
+    const inspected = await data(
+      await inspect(inspector, lineA.id, {
+        outcomes: [
+          { result: "RESTOCK", condition: "SELLABLE", quantity: 1, notes: "Sealed." },
+          { result: "DAMAGED", condition: "OPENED_USED", quantity: 1, notes: "Seal broken." },
+        ],
+        evidenceMediaAssetIds: [evidence],
+      }),
+    );
+    const viewA = inspected.items.find((i: { id: string }) => i.id === lineA.id);
+    expect(viewA.inspection).toMatchObject({
+      inspectedAt: expect.any(String),
+      outcomes: [
+        { result: "RESTOCK", condition: "SELLABLE", quantity: 1, notes: "Sealed." },
+        { result: "DAMAGED", condition: "OPENED_USED", quantity: 1, notes: "Seal broken." },
+      ],
+      evidence: [{ mediaAssetId: evidence }],
+    });
+    expect(inspected.status).toBe("INSPECTING");
+    expect(await available(lineA.orderItem.productVariantId)).toBe(beforeA + 1);
+    const movements = await db.inventoryMovement.findMany({
+      where: { movementType: "CUSTOMER_RETURN_RESTOCK", referenceId: returnId },
+    });
+    expect(movements).toMatchObject([
+      {
+        productVariantId: lineA.orderItem.productVariantId,
+        availableDelta: 1,
+        damagedDelta: 0,
+        referenceType: "RETURN",
+        createdByType: "EMPLOYEE",
+      },
+    ]);
+    expect(
+      await db.auditLog.count({ where: { action: "RETURN_ITEM_INSPECTED", entityId: returnId } }),
+    ).toBe(1);
+
+    // Once per line; a photo once.
+    const twice = await errorOf(
+      await inspect(inspector, lineA.id, {
+        outcomes: [{ result: "REJECTED", condition: "REJECTED", quantity: 2 }],
+      }),
+      409,
+    );
+    expect(twice.details.reason).toBe("RETURN_ITEM_ALREADY_INSPECTED");
+    const reused = await errorOf(
+      await inspect(inspector, lineB.id, {
+        outcomes: [{ result: "REJECTED", condition: "REJECTED", quantity: 1 }],
+        evidenceMediaAssetIds: [evidence],
+      }),
+      409,
+    );
+    expect(reused.details.reason).toBe("MEDIA_ALREADY_ATTACHED");
+    // A customer's return photo is not an inspection photo.
+    const customerPhoto = await photo(sara.token);
+    expect(
+      (
+        await errorOf(
+          await inspect(inspector, lineB.id, {
+            outcomes: [{ result: "REJECTED", condition: "REJECTED", quantity: 1 }],
+            evidenceMediaAssetIds: [customerPhoto],
+          }),
+          400,
+        )
+      ).code,
+    ).toBe("VALIDATION_ERROR");
+
+    // A rejected line: no stock change.
+    await data(
+      await inspect(inspector, lineB.id, {
+        outcomes: [{ result: "REJECTED", condition: "REJECTED", quantity: 1 }],
+      }),
+    );
+    expect(await available(lineB.orderItem.productVariantId)).toBe(beforeB);
+
+    // Customers see the status, not the staff inspection.
+    const mine = await data(
+      await call(getReturn, `/returns/${returnId}`, { token: sara.token, params: { returnId } }),
+    );
+    expect(mine).toMatchObject({ status: "INSPECTING", receivedAt: received.receivedAt });
+    expect(mine.items[0]).not.toHaveProperty("inspection");
+
+    // Inspection records are append-only.
+    await expect(
+      db.returnInspection.updateMany({ where: { returnItemId: lineA.id }, data: { quantity: 2 } }),
+    ).rejects.toThrow();
+    await expect(
+      db.returnInspection.deleteMany({ where: { returnItemId: lineA.id } }),
+    ).rejects.toThrow();
+    await expect(db.returnInspectionEvidence.deleteMany({})).rejects.toThrow();
+  });
+
+  it("serializes concurrent inspections of one line: one restock only", async () => {
+    const { returnId, items } = await pickedUp();
+    await data(await admin(receiveReturn, "receive", await staff(["RECEIVE_RETURN"]), returnId));
+    const inspector = await staff(["INSPECT_RETURN"]);
+    await data(await admin(startInspection, "start-inspection", inspector, returnId));
+    const line = items[0];
+    const before = await available(line.orderItem.productVariantId);
+
+    const results = await Promise.all(
+      [1, 2].map(() =>
+        inspect(inspector, line.id, {
+          outcomes: [{ result: "RESTOCK", condition: "SELLABLE", quantity: 2 }],
+        }),
+      ),
+    );
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(await available(line.orderItem.productVariantId)).toBe(before + 2);
+    expect(await db.returnInspection.count({ where: { returnItemId: line.id } })).toBe(1);
+  });
+
+  it("needs RECEIVE_RETURN / INSPECT_RETURN", async () => {
+    const { sara, returnId, items } = await pickedUp();
+    const viewer = await staff(["RETURNS_VIEW", "INSPECT_RETURN"]);
+    expect((await errorOf(await admin(receiveReturn, "receive", viewer, returnId), 403)).code).toBe(
+      "PERMISSION_DENIED",
+    );
+    const receiver = await staff(["RECEIVE_RETURN"]);
+    await data(await admin(receiveReturn, "receive", receiver, returnId));
+    expect(
+      (await errorOf(await admin(startInspection, "start-inspection", receiver, returnId), 403))
+        .code,
+    ).toBe("PERMISSION_DENIED");
+    await data(await admin(startInspection, "start-inspection", viewer, returnId));
+    const body = { outcomes: [{ result: "REJECTED", condition: "REJECTED", quantity: 1 }] };
+    expect((await errorOf(await inspect(receiver, items[1].id, body), 403)).code).toBe(
+      "PERMISSION_DENIED",
+    );
+    expect((await inspect(sara.token, items[1].id, body)).status).toBe(403);
+    expect((await errorOf(await inspect(viewer, UNKNOWN_ID, body), 404)).code).toBe("NOT_FOUND");
+    expect((await admin(receiveReturn, "receive", receiver, UNKNOWN_ID)).status).toBe(404);
   });
 });

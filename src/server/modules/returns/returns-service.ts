@@ -12,18 +12,26 @@ import {
   type AuditActor,
 } from "@/server/modules/audit/audit";
 import { conflict, validationError } from "@/server/modules/catalog/errors";
-import { CUSTOMER_UPLOAD_PURPOSE, mediaContentUrl } from "@/server/modules/media/uploads-service";
 import {
+  CUSTOMER_UPLOAD_PURPOSE,
+  lockAttachableAsset,
+  mediaContentUrl,
+} from "@/server/modules/media/uploads-service";
+import {
+  checkInspection,
   checkReturnQuantities,
   RELEASED_RETURN_STATUSES,
   requiredStatusFor,
+  restockQuantity,
   returnWindowEndsAt,
 } from "@/server/modules/returns/returns";
 import {
   MAX_RETURN_EVIDENCE,
   type ApproveReturnInput,
   type CreateReturnInput,
+  type InspectReturnItemInput,
   type RejectReturnInput,
+  type ReturnStepInput,
   type RequestReturnPickupInput,
   type ListReturnsQuery,
 } from "@/server/modules/returns/schemas";
@@ -45,6 +53,8 @@ import { systemClock, type Clock } from "@/server/time/time";
  *   then ask a carrier to collect the parcel (`MANAGE_RETURNS`, Q93;
  *   TASK-038, ADR-0056). Every status change is kept in
  *   `return_status_history`.
+ * - Warehouse staff receive the parcel, inspect it and record each line's
+ *   outcomes; sellable units are restocked at once (TASK-039, ADR-0060).
  */
 
 interface Ctx {
@@ -83,11 +93,21 @@ export interface ReturnView {
     feePayer: string;
     requestedAt: string;
   } | null;
+  receivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface AdminReturnView extends ReturnView {
+/** A line's inspection (TASK-039): staff only. */
+export interface ReturnItemInspectionView {
+  inspectedAt: string;
+  inspectedByEmployeeId: string;
+  outcomes: { result: string; condition: string; quantity: number; notes: string | null }[];
+  evidence: { mediaAssetId: string; url: string }[];
+}
+
+export interface AdminReturnView extends Omit<ReturnView, "items"> {
+  items: (ReturnView["items"][number] & { inspection: ReturnItemInspectionView | null })[];
   customerId: string | null;
   approvedByEmployeeId: string | null;
   statusHistory: {
@@ -114,6 +134,8 @@ const RETURN_INCLUDE = {
           quantity: true,
         },
       },
+      inspections: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
+      inspectionEvidence: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
@@ -163,14 +185,41 @@ function toView(row: ReturnRow): ReturnView {
             requestedAt: row.pickupRequestedAt.toISOString(),
           }
         : null,
+    receivedAt: row.receivedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
-function toAdminView(row: ReturnRow): AdminReturnView {
+function toInspectionView(item: ReturnRow["items"][number]): ReturnItemInspectionView | null {
+  const first = item.inspections[0];
+  if (!first) {
+    return null;
+  }
   return {
-    ...toView(row),
+    inspectedAt: first.createdAt.toISOString(),
+    inspectedByEmployeeId: first.inspectedByEmployeeId,
+    outcomes: item.inspections.map((o) => ({
+      result: o.result,
+      condition: o.condition,
+      quantity: o.quantity,
+      notes: o.notes,
+    })),
+    evidence: item.inspectionEvidence.map((e) => ({
+      mediaAssetId: e.mediaAssetId,
+      url: mediaContentUrl(e.mediaAssetId),
+    })),
+  };
+}
+
+function toAdminView(row: ReturnRow): AdminReturnView {
+  const view = toView(row);
+  return {
+    ...view,
+    items: view.items.map((item, index) => ({
+      ...item,
+      inspection: toInspectionView(row.items[index]),
+    })),
     customerId: row.customerId,
     approvedByEmployeeId: row.approvedById,
     statusHistory: row.statusHistory.map((h) => ({
@@ -803,10 +852,203 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
     );
   }
 
+  /**
+   * `POST /admin/returns/{returnId}/receive` (`RECEIVE_RETURN`, Q29): the
+   * carrier brought the parcel back. Writes the `RETURN_RECEIVED` outbox event (API §31).
+   */
+  function receiveReturn(
+    employeeId: string,
+    returnId: string,
+    input: ReturnStepInput,
+    ctx: Ctx,
+  ): Promise<AdminReturnView> {
+    return staffTransition(
+      employeeId,
+      returnId,
+      "RECEIVED",
+      {
+        action: "RETURN_RECEIVED",
+        reason: input.notes ?? null,
+        apply: async (tx, current, now) => {
+          await tx.outboxEvent.create({
+            data: {
+              eventType: "RETURN_RECEIVED",
+              aggregateType: "RETURN",
+              aggregateId: returnId,
+              payload: {
+                returnId,
+                orderId: current.orderId,
+                customerId: current.customerId,
+                correlationId: ctx.correlationId,
+              },
+              availableAt: now,
+              createdAt: now,
+            },
+          });
+          return { data: { receivedAt: now } };
+        },
+      },
+      ctx,
+    );
+  }
+
+  /** `POST /admin/returns/{returnId}/start-inspection` (`INSPECT_RETURN`, Q94). */
+  function startInspection(
+    employeeId: string,
+    returnId: string,
+    input: ReturnStepInput,
+    ctx: Ctx,
+  ): Promise<AdminReturnView> {
+    return staffTransition(
+      employeeId,
+      returnId,
+      "INSPECTING",
+      {
+        action: "RETURN_INSPECTION_STARTED",
+        reason: input.notes ?? null,
+        apply: async () => ({ data: {} }),
+      },
+      ctx,
+    );
+  }
+
+  /**
+   * `POST /admin/return-items/{returnItemId}/inspection` (`INSPECT_RETURN`;
+   * Q30, Q35, Q36, Q95): records the outcomes of one returned line, once,
+   * while the return is `INSPECTING`. Units found sellable go back to
+   * Available through a `CUSTOMER_RETURN_RESTOCK` movement in the same
+   * transaction; damaged and rejected units never enter sellable stock.
+   */
+  async function inspectItem(
+    employeeId: string,
+    returnItemId: string,
+    input: InspectReturnItemInput,
+    ctx: Ctx,
+  ): Promise<AdminReturnView> {
+    const now = clock.now();
+    const returnId = await runInTransaction(
+      async (tx) => {
+        const item = await tx.returnItem.findUnique({
+          where: { id: returnItemId },
+          select: {
+            returnId: true,
+            requestedQuantity: true,
+            orderItem: { select: { productVariantId: true } },
+          },
+        });
+        if (!item) {
+          throw new AppError("NOT_FOUND", "Return item not found.");
+        }
+        // The return row lock serializes inspections and status moves.
+        const current = await lockReturn(tx, item.returnId);
+        if (!current) {
+          throw returnNotFound();
+        }
+        if (current.status !== "INSPECTING") {
+          throw new AppError("RETURN_STATE_INVALID", "The return is not being inspected.", {
+            details: { status: current.status, required: "INSPECTING" },
+          });
+        }
+        if ((await tx.returnInspection.count({ where: { returnItemId } })) > 0) {
+          throw conflict("This item has already been inspected.", {
+            reason: "RETURN_ITEM_ALREADY_INSPECTED",
+          });
+        }
+        const problem = checkInspection(item.requestedQuantity, input.outcomes);
+        if (problem?.kind === "RESTOCK_NOT_SELLABLE") {
+          throw validationError(
+            `outcomes.${problem.index}.condition`,
+            "restock_not_sellable",
+            "Only units in sellable condition can be restocked.",
+          );
+        }
+        if (problem?.kind === "QUANTITY_MISMATCH") {
+          throw validationError(
+            "outcomes",
+            "quantity_mismatch",
+            `The outcomes must cover exactly the ${problem.requested} returned units.`,
+          );
+        }
+        for (const mediaAssetId of input.evidenceMediaAssetIds) {
+          await lockAttachableAsset(tx, mediaAssetId, "RETURN_INSPECTION");
+        }
+        const attached = await tx.returnInspectionEvidence.findFirst({
+          where: { mediaAssetId: { in: input.evidenceMediaAssetIds } },
+          select: { mediaAssetId: true },
+        });
+        if (attached) {
+          throw conflict("This photo is already attached to an inspection.", {
+            reason: "MEDIA_ALREADY_ATTACHED",
+            mediaAssetId: attached.mediaAssetId,
+          });
+        }
+
+        await tx.returnInspection.createMany({
+          data: input.outcomes.map((o) => ({
+            returnItemId,
+            inspectedByEmployeeId: employeeId,
+            result: o.result,
+            condition: o.condition,
+            quantity: o.quantity,
+            notes: o.notes ?? null,
+            createdAt: now,
+          })),
+        });
+        await tx.returnInspectionEvidence.createMany({
+          data: input.evidenceMediaAssetIds.map((mediaAssetId) => ({
+            returnItemId,
+            mediaAssetId,
+            uploadedByEmployeeId: employeeId,
+            createdAt: now,
+          })),
+        });
+        const restocked = restockQuantity(input.outcomes);
+        if (restocked > 0) {
+          await tx.inventoryMovement.create({
+            data: {
+              productVariantId: item.orderItem.productVariantId,
+              movementType: "CUSTOMER_RETURN_RESTOCK",
+              availableDelta: restocked,
+              referenceType: "RETURN",
+              referenceId: item.returnId,
+              reason: "Customer return inspected: sellable",
+              createdByType: "EMPLOYEE",
+              createdById: employeeId,
+              createdAt: now,
+            },
+          });
+        }
+        await tx.return.update({ where: { id: item.returnId }, data: { updatedAt: now } });
+        await recordAudit(tx, {
+          actor: employeeActor(employeeId),
+          action: "RETURN_ITEM_INSPECTED",
+          entityType: AUDIT_ENTITY_TYPES.return,
+          entityId: item.returnId,
+          next: {
+            returnItemId,
+            outcomes: input.outcomes,
+            restockedQuantity: restocked,
+            evidenceMediaAssetIds: input.evidenceMediaAssetIds,
+          },
+          correlationId: ctx.correlationId,
+          createdAt: now,
+        });
+        return item.returnId;
+      },
+      {},
+      db,
+    );
+    ctx.logger.info("return item inspected", { returnId, returnItemId });
+    return getReturn(returnId);
+  }
+
   return {
     approveReturn,
     rejectReturn,
     requestPickup,
+    receiveReturn,
+    startInspection,
+    inspectItem,
     createReturn,
     resubmitReturn,
     addEvidence,
