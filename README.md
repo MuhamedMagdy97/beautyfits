@@ -35,7 +35,7 @@ npm run db:status           # show which migrations are applied
 npm run db:reset            # DEVELOPMENT ONLY: drop all local data and re-apply migrations
 npm run db:deploy           # apply committed migrations (CI / staging / production)
 npm run db:seed             # bootstrap: default settings, default roles, first Owner (safe to re-run)
-npm run db:seed:dev         # DEVELOPMENT ONLY: bootstrap + two sample staff accounts
+npm run db:seed:dev         # DEVELOPMENT ONLY: bootstrap + two sample staff + a sample catalog (safe to re-run)
 ```
 
 ### First Owner sign-in
@@ -48,6 +48,10 @@ There is no sign-up for staff and no "create admin" endpoint ([ADR-0017](docs/de
 4. Sign in: `POST /api/v1/employee-auth/login` with `{ "email", "password" }` returns a `loginTicket`; the 6-digit code is in the newest file in `.mail/`; `POST /api/v1/employee-auth/verify-otp` with `{ "loginTicket", "code" }` signs in and trusts the device for 30 days.
 
 The Owner then invites the other staff (`POST /api/v1/admin/employees`). The dashboard screens come later (TASK-052 onward).
+
+### Sample catalog (development only)
+
+`npm run db:seed:dev` also adds 4 brands, the home page categories (Makeup, Perfumes, Skincare, Beauty Essentials, each with subcategories) and 16 published products with prices, one image each and opening stock, so `/products` and the home page have content locally ([TASK-059A](docs/tasks/TASK-059A-dev-sample-catalog.md)). It goes through the catalog, media and inventory services as the Owner: images are uploaded from `prisma/fixtures/dev-catalog/` into `MEDIA_DIR` with the normal checks, and stock is added by `MANUAL_ADJUSTMENT` inventory movements. Re-running adds only what is missing and never changes existing data; SKUs start with `DEV-`. Run it with the same `MEDIA_DIR` as the dev server, or the images will not be found.
 
 Uploaded files such as product images are stored in `.media/` (`MEDIA_DIR`) until a storage provider is chosen ([ADR-0021](docs/decisions/ADR-0021-product-media-and-uploads.md)). Include that folder in backups along with the database.
 
