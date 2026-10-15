@@ -495,6 +495,8 @@ Implement explicit opt-in, opt-out, timestamps, source, per-channel preferences 
 
 Implement MVP segments: all opted-in, previous buyers, product/brand/category buyers, inactive customers, high-spending customers.
 
+**Status after TASK-047** (`docs/tasks/TASK-047-customer-segmentation.md`, ADR-0057): segments are definitions `{ type, channel, … }` (`segmentDefinitionSchema` in `src/server/modules/customers/segments.ts`) evaluated on read, no table; every segment keeps only customers currently opted in to the channel in the consent ledger. `POST /admin/segments/preview` (`MARKETING_VIEW`) returns the audience size only; TASK-048 stores the definition on the campaign and resolves recipients with `segmentCustomerIds`. Inactive days and the minimum spend (piastres) are per-segment parameters; buyer statuses (provisional TASK-051 revenue statuses), the inactivity and spend measures and suspended accounts await business decisions.
+
 ### TASK-048 — Campaign Authoring & Approval
 **Depends on:** TASK-046, TASK-047
 

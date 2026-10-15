@@ -2003,6 +2003,29 @@ Added by TASK-046 (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051).
 | Empty body, unknown-only fields or a non-boolean value | `400 VALIDATION_ERROR` |
 | No session / wrong session type | `401 UNAUTHENTICATED` / `403 FORBIDDEN` |
 
+## TASK-047 Amendments
+
+Added by TASK-047 (`docs/tasks/TASK-047-customer-segmentation.md`, ADR-0057). Business rules: Q59, Q140, Q141. Adds a read-only segment preview to §24; campaigns (TASK-048) store the same definition.
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `POST /admin/segments/preview` | `MARKETING_VIEW` | `segment` | `200` `{ segment, customerCount }` |
+
+- `segment`: `{ type, channel, … }`, `channel` = `EMAIL` \| `WHATSAPP`, and by `type`:
+  - `ALL_OPTED_IN`; `PREVIOUS_BUYERS`;
+  - `PRODUCT_BUYERS` `{ productIds }`, `BRAND_BUYERS` `{ brandIds }`, `CATEGORY_BUYERS` `{ categoryIds }` (1–500 UUIDs; a category includes its subcategories);
+  - `INACTIVE` `{ inactiveDays }` (1–3650): bought before, no buying order in the last `inactiveDays` × 24 h;
+  - `HIGH_SPENDING` `{ minSpent }` (integer piastres ≥ 1): lifetime order line totals (after discounts, shipping excluded) ≥ `minSpent`.
+- Every segment counts only customers whose current consent for `channel` is opted in (Q140, latest row of the consent ledger); anonymized customers never count. Consent is never inferred from orders, an email or a phone (Q59).
+- A buying order is one in the provisional revenue statuses of TASK-051 (`NEW` … `DELIVERED`; pending business decision, TASK-047). Unknown ids simply match nobody.
+- Only the count is returned, no customer data.
+
+| Situation | Response |
+|---|---|
+| Unknown `type`/`channel`, missing or bad fields (e.g. fractional `minSpent`) | `400 VALIDATION_ERROR` |
+| No session / wrong session type | `401 UNAUTHENTICATED` / `403 FORBIDDEN` |
+| Missing `MARKETING_VIEW` | `403 PERMISSION_DENIED` |
+
 ## TASK-051 Amendments
 
 Added by TASK-051 (`docs/tasks/TASK-051-analytics-aggregation.md`, ADR-0052). Business rules: Q103, Q149, Q150, R20. Implements the §27 admin reports except `/admin/analytics/inventory` (low stock stays `GET /admin/inventory/low-stock`).
