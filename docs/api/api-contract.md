@@ -1467,7 +1467,7 @@ Added by TASK-010 (`docs/tasks/TASK-010-guest-order-claiming.md`, ADR-0046). Bus
 | Case | Response |
 |---|---|
 | No customer session | `401 UNAUTHENTICATED` |
-| Nothing to claim | `404 NOT_FOUND` (no code is sent) |
+| Nothing to claim | `404 NOT_FOUND`, `details: { hint: "CONTACT_SUPPORT" }` (no code is sent; the same answer whether or not orders exist under the phone with another email) |
 | Code limits reached | `429 AUTH_RATE_LIMITED`, `details.retryAfterSeconds` |
 | Wrong or used code, or the account email changed since the code was sent | `401 AUTH_OTP_INVALID`, `details.attemptsRemaining` when known |
 | Expired code | `401 AUTH_OTP_EXPIRED` |

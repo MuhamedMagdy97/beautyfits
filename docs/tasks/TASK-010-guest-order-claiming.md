@@ -64,7 +64,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 - [BUSINESS DECISION REQUIRED] Support-assisted linking (R31): who may link a guest order with another or missing email (permission code, e.g. a new `ORDERS_LINK_CUSTOMER`), what identity checks support must make, and whether it needs an approval. No admin endpoint is built until decided.
-- [BUSINESS DECISION REQUIRED] User Flows §3.5 starts with "Same phone detected". This task does not tell a customer that orders exist under their (unproven, R30) phone with another email, because that would expose another person's orders. Confirm, or decide what the customer may be told (for example a generic "contact support" hint).
+- Resolved (owner decision 2026-10-15): the customer is never told that orders exist under their phone with another email; every "nothing to claim" answer carries the same general hint `CONTACT_SUPPORT`.
 
 ## Status
 - [x] Planned

@@ -449,7 +449,9 @@ export function createProfileService(deps: {
   /**
    * `POST /guest/orders/claim` (TASK-010): a code to the `guest_email` of the
    * claimable orders, which is the account email (R31). `404` when nothing
-   * can be claimed; unmatched orders are never revealed.
+   * can be claimed, always with the same general "contact support" hint, so
+   * orders under the phone with another email are never revealed (owner
+   * decision 2026-10-15).
    */
   async function requestGuestOrderClaim(
     principal: CustomerPrincipal,
@@ -458,7 +460,11 @@ export function createProfileService(deps: {
     const now = clock.now();
     const email = principal.view.account.email;
     if ((await db.order.count({ where: claimableOrders(principal, email) })) === 0) {
-      throw new AppError("NOT_FOUND", "No guest orders match your phone and email.");
+      throw new AppError(
+        "NOT_FOUND",
+        "No guest orders match your phone and email. If you ordered with another email, contact support.",
+        { details: { hint: "CONTACT_SUPPORT" } },
+      );
     }
     return sendChangeCode(principal, "GUEST_ORDER_CLAIM", email, undefined, meta, now);
   }
