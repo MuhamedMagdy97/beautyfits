@@ -69,5 +69,6 @@
 | [ADR-0062](ADR-0062-account-orders-returns.md) | Customer account screens: orders, returns, wallet and settings | TASK-060 |
 | [ADR-0063](ADR-0063-orders-customers-returns-dashboard.md) | Orders, customers & returns dashboard screens; admin customer reads | TASK-054 |
 | [ADR-0064](ADR-0064-wallet-marketing-dashboard.md) | Discounts, marketing, wallet & notification-log dashboard screens | TASK-056 |
+| [ADR-0065](ADR-0065-analytics-employees-home-screens.md) | Analytics, employees and dashboard home screens over existing endpoints | TASK-052A |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.
