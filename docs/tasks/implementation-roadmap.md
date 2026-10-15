@@ -568,6 +568,8 @@ Suppliers, purchase orders, approvals, receiving, invoices, supplier returns, ca
 
 Wallet views/controlled adjustments, campaign management, consent views, notification delivery logs and marketing approvals.
 
+**Status after TASK-056** (`docs/tasks/TASK-056-wallet-marketing-dashboard.md`, ADR-0064): the dashboard has real `/staff/discounts` (list, create, edit, activate/deactivate), `/staff/marketing` and `/staff/marketing/[id]` (campaign drafts with a segment builder and live opted-in audience count, submit, Owner/Admin approve/reject, send), `/staff/wallet` (balance, ledger, Owner/Admin credit/debit with reason and a stable `Idempotency-Key`) and `/staff/notifications` (delivery log with filters) screens in Arabic and English, over the existing endpoints (no API or database change). Not built: consent views (no admin consent endpoint), customer search (the wallet opens by customer id or a `?customer=` link) and delivery results (TASK-049).
+
 ### TASK-057 — Settings, Roles, Approvals & Audit Dashboard
 **Depends on:** TASK-012, TASK-013, TASK-052
 
