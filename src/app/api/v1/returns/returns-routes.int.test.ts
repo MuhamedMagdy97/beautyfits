@@ -454,6 +454,11 @@ describe("evidence (Q100)", () => {
       path: "evidenceMediaAssetIds",
       code: "evidence_required",
     });
+    // Defective and expired claims need a photo too (owner decision 2026-10-15).
+    for (const claimType of ["DEFECTIVE", "EXPIRED"]) {
+      const none = await errorOf(await request(sara.token, orderId, { ...base, claimType }), 400);
+      expect(none.details.issues[0]).toMatchObject({ code: "evidence_required" });
+    }
 
     const othersPhoto = await photo(other.token);
     const foreign = await errorOf(
@@ -996,9 +1001,11 @@ describe("receiving and inspection (TASK-039)", () => {
   async function pickedUp(claimType = "OTHER") {
     const sara = await customer();
     const { orderId, itemIds } = await order(sara.token);
+    const evidence = claimType === "OTHER" ? [] : [await photo(sara.token)];
     const created = await data(
       await request(sara.token, orderId, {
         claimType,
+        evidenceMediaAssetIds: evidence,
         reason: "Changed my mind.",
         items: [
           { orderItemId: itemIds[0], quantity: 2 },

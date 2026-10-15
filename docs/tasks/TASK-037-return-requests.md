@@ -64,7 +64,7 @@ Customer endpoints need an active customer session and act only on the customer'
 
 - A customer can request a partial return of their delivered order inside the window; outside it `422 RETURN_WINDOW_EXPIRED`; undelivered `409 ORDER_STATE_INVALID`.
 - Units already in a live return cannot be requested again; withdrawn or rejected ones can.
-- `DAMAGED` / `WRONG_ITEM` need at least one photo; photos must be the customer's own `SAFE` uploads, used once.
+- `DAMAGED` / `WRONG_ITEM` / `DEFECTIVE` / `EXPIRED` need at least one photo; photos must be the customer's own `SAFE` uploads, used once.
 - Withdraw and add photos only while `PENDING_APPROVAL`; resubmit only from `REJECTED`, leaving it unchanged.
 - The order status never changes; returns are never deleted.
 - All required checks pass.
@@ -87,7 +87,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 ## Open Items
 
 - Resolved (owner decision 2026-10-15): claim categories `DAMAGED`, `WRONG_ITEM`, `DEFECTIVE`, `EXPIRED`, `MISSING_ITEM`, `OTHER` (change of mind).
-- [BUSINESS DECISION REQUIRED] Photos are required only for `DAMAGED` and `WRONG_ITEM` (Q100). Should `DEFECTIVE` and `EXPIRED` also need a photo?
+- Resolved (owner decision 2026-10-15): `DEFECTIVE` and `EXPIRED` also need a photo; `MISSING_ITEM` does not.
 - [BUSINESS DECISION REQUIRED] Guest orders: customer return endpoints need an account, so guest orders cannot be returned through the API (R16 gives guests no order access). Should support staff create returns for guest orders, and with which permission?
 - [BUSINESS DECISION REQUIRED] Evidence limits: at most 10 photos per return and 30 customer uploads per hour are technical defaults; images must be at least 500 × 500 px like product images. Confirm, and decide whether videos are needed.
 - [BUSINESS DECISION REQUIRED] Should customers be able to view/download their own evidence photos (currently staff only) and add photos after approval?
