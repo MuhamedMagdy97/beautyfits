@@ -80,5 +80,5 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 - [x] Planned
 - [x] In Progress
 - [x] Tests Passing
-- [ ] Reviewed
-- [ ] Done
+- [x] Reviewed
+- [x] Done
