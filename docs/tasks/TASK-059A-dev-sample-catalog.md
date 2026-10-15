@@ -13,9 +13,9 @@ TASK-004 (bootstrap and development seed, ADR-0017), TASK-015 to TASK-019 (catal
 
 ## Scope
 - `src/server/modules/bootstrap/dev-catalog.ts`: `runDevCatalogSeed`, called by `prisma/seed-dev.ts` after the sample staff.
-- 4 fictional brands; categories Makeup, Perfumes, Skincare, Beauty Essentials with 2–3 subcategories each; 16 products (1–3 variants each, 24 variants), all `PUBLISHED`.
+- 8 fictional brands; categories Makeup, Perfumes, Skincare, Beauty Essentials with 3–5 subcategories each; 66 products (1–3 variants each) across a wide price range (EGP 125 to 13,500), all `PUBLISHED`. (The first 16 products and 4 brands came first; 50 more products, 4 brands and the Nails, Unisex Fragrance, Sun Care, Masks and Bath & Shower subcategories were added later.)
 - Selling prices in integer piastres; opening stock as `MANUAL_ADJUSTMENT` inventory movements; one image per product uploaded from `prisma/fixtures/dev-catalog/<slug>.png`.
-- One product (Cedar Vetiver) has no stock, to show the out-of-stock state.
+- Two products (Cedar Vetiver, Liquid Matte Lip Stain) have no stock, to show the out-of-stock state.
 
 ## Non-Goals
 - No change to the production bootstrap (`prisma/seed.ts`), the API, or the schema.
@@ -41,7 +41,7 @@ None (data only, development databases only).
 Development only. The seed acts as the Owner; uploads use the `MANAGE_PRODUCT_MEDIA` path with the normal checks. Sample SKUs start with `DEV-`.
 
 ## Acceptance Criteria
-- After `npm run db:seed:dev`, `GET /api/v1/products` lists 16 published products with prices and images, and `/products` shows them.
+- After `npm run db:seed:dev`, `GET /api/v1/products` lists 66 published products with prices and images, and `/products` shows them.
 - Re-running adds nothing and changes nothing; a run that stopped half way is completed by the next one.
 - Every unit of stock has an inventory movement.
 
