@@ -89,9 +89,10 @@ export function Loaded<T>({
 
 /**
  * Runs a change against the API: tracks pending, shows a localized error or
- * a saved notice, and calls `onDone` after success.
+ * a saved notice, and calls `onDone` after success. `describe` replaces the
+ * default error wording (screens with their own refusal reasons).
  */
-export function useAction(onDone?: () => void) {
+export function useAction(onDone?: () => void, describe?: (error: unknown) => string) {
   const { t, c } = useCatalogT();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "info" | "error"; text: string } | null>(null);
@@ -104,7 +105,7 @@ export function useAction(onDone?: () => void) {
       onDone?.();
       return true;
     } catch (error) {
-      setMessage({ tone: "error", text: catalogError(t, c, error) });
+      setMessage({ tone: "error", text: describe?.(error) ?? catalogError(t, c, error) });
       return false;
     } finally {
       setPending(false);
@@ -232,7 +233,7 @@ export function Select({
   );
 }
 
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({ status, label }: { status: string; label?: string }) {
   const { c } = useCatalogT();
   const tone =
     status === "PUBLISHED" || status === "ACTIVE"
@@ -242,7 +243,7 @@ export function StatusBadge({ status }: { status: string }) {
         : "bg-blush/30 text-ink border-blush";
   return (
     <span className={`inline-block rounded-full border px-2 py-0.5 text-xs ${tone}`}>
-      {c.statuses[status] ?? status}
+      {label ?? c.statuses[status] ?? status}
     </span>
   );
 }

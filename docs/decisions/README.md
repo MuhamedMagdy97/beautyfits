@@ -67,5 +67,6 @@
 | [ADR-0060](ADR-0060-return-receiving-and-inspection.md) | Return receiving, per-unit inspection outcomes and restock at inspection | TASK-039 |
 | [ADR-0061](ADR-0061-campaign-authoring-and-approval.md) | Campaign authoring, approval and the hand-off to delivery | TASK-048 |
 | [ADR-0062](ADR-0062-account-orders-returns.md) | Customer account screens: orders, returns, wallet and settings | TASK-060 |
+| [ADR-0063](ADR-0063-orders-customers-returns-dashboard.md) | Orders, customers & returns dashboard screens; admin customer reads | TASK-054 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

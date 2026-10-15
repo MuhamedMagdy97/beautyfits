@@ -5,6 +5,7 @@ import {
   existingPasswordSchema,
 } from "@/server/modules/auth/schemas";
 import { AUTH_POLICY } from "@/server/modules/auth/policy";
+import { pageQuery } from "@/server/modules/rbac/schemas";
 
 /** Request schemas of the /me endpoints (TASK-009, API §11, ADR-0030). */
 
@@ -101,3 +102,14 @@ export const marketingConsentsSchema = z
   });
 
 export type MarketingConsentsInput = z.infer<typeof marketingConsentsSchema>;
+
+/** `GET /admin/customers` (TASK-054, ADR-0063). */
+export const listCustomersQuerySchema = z.object({
+  ...pageQuery,
+  /** Matches the customer's name. */
+  search: z.string().trim().min(1).max(100).optional(),
+  /** The profile phone; needs `VIEW_CUSTOMER_CONTACT`. */
+  phone: egyptianMobileSchema.optional(),
+});
+
+export type ListCustomersQuery = z.infer<typeof listCustomersQuerySchema>;
