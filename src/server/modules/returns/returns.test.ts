@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  checkInspection,
   checkReturnQuantities,
   requiredStatusFor,
+  restockQuantity,
   returnWindowEndsAt,
 } from "@/server/modules/returns/returns";
 
@@ -53,5 +55,36 @@ describe("requiredStatusFor (User Flows §11.2)", () => {
     expect(requiredStatusFor("APPROVED", "CANCELLED")).toBe("PENDING_APPROVAL");
     expect(requiredStatusFor("PENDING_APPROVAL", "PICKUP_SCHEDULED")).toBe("APPROVED");
     expect(requiredStatusFor("PICKUP_SCHEDULED", "PICKUP_SCHEDULED")).toBe("APPROVED");
+  });
+
+  it("receives a picked-up parcel, then inspects it (TASK-039)", () => {
+    expect(requiredStatusFor("PICKUP_SCHEDULED", "RECEIVED")).toBeNull();
+    expect(requiredStatusFor("RECEIVED", "INSPECTING")).toBeNull();
+    expect(requiredStatusFor("APPROVED", "RECEIVED")).toBe("PICKUP_SCHEDULED");
+    expect(requiredStatusFor("PICKUP_SCHEDULED", "INSPECTING")).toBe("RECEIVED");
+    expect(requiredStatusFor("INSPECTING", "RECEIVED")).toBe("PICKUP_SCHEDULED");
+  });
+});
+
+describe("checkInspection (Q30, Q35, Q36)", () => {
+  const restock = { result: "RESTOCK", condition: "SELLABLE", quantity: 2 } as const;
+  const damaged = { result: "DAMAGED", condition: "OPENED_USED", quantity: 1 } as const;
+
+  it("splits a line's units across outcomes", () => {
+    expect(checkInspection(3, [restock, damaged])).toBeNull();
+    expect(restockQuantity([restock, damaged])).toBe(2);
+    expect(restockQuantity([damaged])).toBe(0);
+  });
+
+  it("needs every unit inspected once and restocks only sellable units", () => {
+    expect(checkInspection(2, [restock, damaged])).toEqual({
+      kind: "QUANTITY_MISMATCH",
+      inspected: 3,
+      requested: 2,
+    });
+    expect(checkInspection(3, [restock])).toMatchObject({ kind: "QUANTITY_MISMATCH" });
+    expect(
+      checkInspection(3, [damaged, { result: "RESTOCK", condition: "DAMAGED", quantity: 2 }]),
+    ).toEqual({ kind: "RESTOCK_NOT_SELLABLE", index: 1 });
   });
 });

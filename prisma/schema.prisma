@@ -346,39 +346,41 @@ model Employee {
   createdBy Employee?  @relation("EmployeeCreatedBy", fields: [createdByEmployeeId], references: [id])
   created   Employee[] @relation("EmployeeCreatedBy")
 
-  roles                   EmployeeRole[]          @relation("EmployeeRoleHolder")
-  rolesAssigned           EmployeeRole[]          @relation("EmployeeRoleAssigner")
-  rolesCreated            Role[]                  @relation("RoleCreatedBy")
-  invitationsSent         EmployeeInvitation[]    @relation("InvitationInvitedBy")
-  invitationsRevoked      EmployeeInvitation[]    @relation("InvitationRevokedBy")
-  invitation              EmployeeInvitation?     @relation("InvitationAcceptedAs")
-  settingsUpdated         Setting[]               @relation("SettingUpdatedBy")
-  settingChanges          SettingHistory[]        @relation("SettingChangedBy")
-  settingApprovals        SettingHistory[]        @relation("SettingApprovedBy")
-  approvalsRequested      ApprovalRequest[]       @relation("ApprovalRequestedBy")
-  approvalsResolved       ApprovalRequest[]       @relation("ApprovalResolvedBy")
-  mediaUploaded           MediaAsset[]            @relation("MediaAssetCreatedBy")
-  purchasesCreated        PurchaseOrder[]         @relation("PurchaseOrderCreatedBy")
-  purchasesApproved       PurchaseOrder[]         @relation("PurchaseOrderApprovedBy")
-  purchasesCancelled      PurchaseOrder[]         @relation("PurchaseOrderCancelledBy")
-  purchasesClosed         PurchaseOrder[]         @relation("PurchaseOrderClosedBy")
-  goodsReceipts           GoodsReceipt[]          @relation("GoodsReceiptReceivedBy")
-  invoicesRecorded        PurchaseInvoice[]       @relation("PurchaseInvoiceRecordedBy")
-  returnsCreated          SupplierReturn[]        @relation("SupplierReturnCreatedBy")
-  returnsApproved         SupplierReturn[]        @relation("SupplierReturnApprovedBy")
-  returnsSettled          SupplierReturn[]        @relation("SupplierReturnSettledBy")
-  paymentsRecorded        SupplierPayment[]       @relation("SupplierPaymentRecordedBy")
-  ledgerEntries           SupplierLedgerEntry[]   @relation("SupplierLedgerEntryCreatedBy")
-  discountsCreated        Discount[]              @relation("DiscountCreatedBy")
-  codPhoneConfirmations   Order[]                 @relation("OrderCodConfirmationRecordedBy")
-  reviewModerations       ReviewModerationEvent[]
-  notifications           Notification[]
-  contactTasksAssigned    CustomerContactTask[]   @relation("ContactTaskAssignedTo")
-  contactTasksResolved    CustomerContactTask[]   @relation("ContactTaskResolvedBy")
-  customerReturnsApproved Return[]                @relation("ReturnApprovedBy")
-  campaignsCreated        Campaign[]              @relation("CampaignCreatedBy")
-  campaignsApproved       Campaign[]              @relation("CampaignApprovedBy")
-  campaignsSent           Campaign[]              @relation("CampaignSentBy")
+  roles                    EmployeeRole[]             @relation("EmployeeRoleHolder")
+  rolesAssigned            EmployeeRole[]             @relation("EmployeeRoleAssigner")
+  rolesCreated             Role[]                     @relation("RoleCreatedBy")
+  invitationsSent          EmployeeInvitation[]       @relation("InvitationInvitedBy")
+  invitationsRevoked       EmployeeInvitation[]       @relation("InvitationRevokedBy")
+  invitation               EmployeeInvitation?        @relation("InvitationAcceptedAs")
+  settingsUpdated          Setting[]                  @relation("SettingUpdatedBy")
+  settingChanges           SettingHistory[]           @relation("SettingChangedBy")
+  settingApprovals         SettingHistory[]           @relation("SettingApprovedBy")
+  approvalsRequested       ApprovalRequest[]          @relation("ApprovalRequestedBy")
+  approvalsResolved        ApprovalRequest[]          @relation("ApprovalResolvedBy")
+  mediaUploaded            MediaAsset[]               @relation("MediaAssetCreatedBy")
+  purchasesCreated         PurchaseOrder[]            @relation("PurchaseOrderCreatedBy")
+  purchasesApproved        PurchaseOrder[]            @relation("PurchaseOrderApprovedBy")
+  purchasesCancelled       PurchaseOrder[]            @relation("PurchaseOrderCancelledBy")
+  purchasesClosed          PurchaseOrder[]            @relation("PurchaseOrderClosedBy")
+  goodsReceipts            GoodsReceipt[]             @relation("GoodsReceiptReceivedBy")
+  invoicesRecorded         PurchaseInvoice[]          @relation("PurchaseInvoiceRecordedBy")
+  returnsCreated           SupplierReturn[]           @relation("SupplierReturnCreatedBy")
+  returnsApproved          SupplierReturn[]           @relation("SupplierReturnApprovedBy")
+  returnsSettled           SupplierReturn[]           @relation("SupplierReturnSettledBy")
+  paymentsRecorded         SupplierPayment[]          @relation("SupplierPaymentRecordedBy")
+  ledgerEntries            SupplierLedgerEntry[]      @relation("SupplierLedgerEntryCreatedBy")
+  discountsCreated         Discount[]                 @relation("DiscountCreatedBy")
+  codPhoneConfirmations    Order[]                    @relation("OrderCodConfirmationRecordedBy")
+  reviewModerations        ReviewModerationEvent[]
+  notifications            Notification[]
+  contactTasksAssigned     CustomerContactTask[]      @relation("ContactTaskAssignedTo")
+  contactTasksResolved     CustomerContactTask[]      @relation("ContactTaskResolvedBy")
+  customerReturnsApproved  Return[]                   @relation("ReturnApprovedBy")
+  campaignsCreated         Campaign[]                 @relation("CampaignCreatedBy")
+  campaignsApproved        Campaign[]                 @relation("CampaignApprovedBy")
+  campaignsSent            Campaign[]                 @relation("CampaignSentBy")
+  returnInspections        ReturnInspection[]
+  returnInspectionEvidence ReturnInspectionEvidence[]
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -835,6 +837,8 @@ enum MediaPurpose {
   SUPPLIER_INVOICE
   /// A customer's photo for a return request (TASK-037, Q100).
   RETURN_EVIDENCE
+  /// A staff photo of a returned item at inspection (TASK-039, Q95).
+  RETURN_INSPECTION
 
   @@map("media_purpose")
 }
@@ -872,11 +876,12 @@ model MediaAsset {
   createdByCustomerId String?         @map("created_by_customer_id") @db.Uuid
   createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  createdBy         Employee?         @relation("MediaAssetCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
-  createdByCustomer Customer?         @relation(fields: [createdByCustomerId], references: [id], onDelete: Restrict)
-  productMedia      ProductMedia[]
-  purchaseInvoices  PurchaseInvoice[]
-  returnEvidence    ReturnEvidence?
+  createdBy          Employee?                 @relation("MediaAssetCreatedBy", fields: [createdByEmployeeId], references: [id], onDelete: Restrict)
+  createdByCustomer  Customer?                 @relation(fields: [createdByCustomerId], references: [id], onDelete: Restrict)
+  productMedia       ProductMedia[]
+  purchaseInvoices   PurchaseInvoice[]
+  returnEvidence     ReturnEvidence?
+  inspectionEvidence ReturnInspectionEvidence?
 
   @@index([createdByEmployeeId, createdAt])
   @@index([createdByCustomerId, createdAt])
@@ -957,6 +962,9 @@ enum InventoryMovementType {
   /// A shipped order's parcel back from the carrier and inspected (TASK-036,
   /// Q130): intact units into Available, shipping-damaged ones into Damaged.
   SHIPMENT_RETURN
+  /// Customer-returned units found sellable at inspection (TASK-039, Q36):
+  /// into Available. Reference type `RETURN`.
+  CUSTOMER_RETURN_RESTOCK
 
   @@map("inventory_movement_type")
 }
@@ -2581,6 +2589,8 @@ model Return {
   /// Who pays the carrier for the pickup (C2); provisional until inspection.
   pickupFeePayer          ReturnPickupFeePayer? @map("pickup_fee_payer")
   pickupRequestedAt       DateTime?             @map("pickup_requested_at") @db.Timestamptz(3)
+  /// When BeautyFits got the parcel back (TASK-039, Q29).
+  receivedAt              DateTime?             @map("received_at") @db.Timestamptz(3)
   createdAt               DateTime              @map("created_at") @db.Timestamptz(3)
   updatedAt               DateTime              @map("updated_at") @db.Timestamptz(3)
 
@@ -2608,8 +2618,10 @@ model ReturnItem {
   requestedQuantity Int      @map("requested_quantity")
   createdAt         DateTime @map("created_at") @db.Timestamptz(3)
 
-  return    Return    @relation(fields: [returnId], references: [id], onDelete: Restrict)
-  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  return             Return                     @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  orderItem          OrderItem                  @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  inspections        ReturnInspection[]
+  inspectionEvidence ReturnInspectionEvidence[]
 
   @@unique([returnId, orderItemId])
   @@index([orderItemId])
@@ -2656,6 +2668,63 @@ model ReturnEvidence {
 
   @@index([returnId, createdAt])
   @@map("return_evidence")
+}
+
+/// The physical condition found at inspection (DB Design §12).
+enum ReturnItemCondition {
+  SELLABLE
+  DAMAGED
+  OPENED_USED
+  MISSING_PARTS
+  REJECTED
+
+  @@map("return_item_condition")
+}
+
+/// The inspection outcome of returned units (Q30, Q95).
+enum ReturnInspectionResult {
+  /// Sellable: back to Available stock (Q36).
+  RESTOCK
+  /// Damaged / non-sellable.
+  DAMAGED
+  REJECTED
+
+  @@map("return_inspection_result")
+}
+
+/// One outcome for some units of a returned line (Q30, Q35, Q95, TASK-039):
+/// a line is inspected once, its units split across outcomes. Append-only.
+model ReturnInspection {
+  id                    String                 @id @default(uuid(7)) @db.Uuid
+  returnItemId          String                 @map("return_item_id") @db.Uuid
+  inspectedByEmployeeId String                 @map("inspected_by_employee_id") @db.Uuid
+  condition             ReturnItemCondition
+  result                ReturnInspectionResult
+  quantity              Int
+  notes                 String?
+  createdAt             DateTime               @map("created_at") @db.Timestamptz(3)
+
+  returnItem  ReturnItem @relation(fields: [returnItemId], references: [id], onDelete: Restrict)
+  inspectedBy Employee   @relation(fields: [inspectedByEmployeeId], references: [id], onDelete: Restrict)
+
+  @@index([returnItemId])
+  @@map("return_inspections")
+}
+
+/// A staff photo taken when a returned line was inspected (TASK-039). Append-only.
+model ReturnInspectionEvidence {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  returnItemId         String   @map("return_item_id") @db.Uuid
+  mediaAssetId         String   @unique @map("media_asset_id") @db.Uuid
+  uploadedByEmployeeId String   @map("uploaded_by_employee_id") @db.Uuid
+  createdAt            DateTime @map("created_at") @db.Timestamptz(3)
+
+  returnItem ReturnItem @relation(fields: [returnItemId], references: [id], onDelete: Restrict)
+  mediaAsset MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+  uploadedBy Employee   @relation(fields: [uploadedByEmployeeId], references: [id], onDelete: Restrict)
+
+  @@index([returnItemId])
+  @@map("return_inspection_evidence")
 }
 
 // ---------------------------------------------------------------------------

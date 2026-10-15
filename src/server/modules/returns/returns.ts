@@ -29,12 +29,47 @@ export const OPEN_RETURN_STATUSES: readonly ReturnStatus[] = [
 /**
  * Allowed status moves so far (User Flows §11.2): the customer withdraws or
  * staff approve/reject a waiting request (TASK-037/038, Q91, Q92); an
- * approved return gets its carrier pickup (Q93). TASK-039+ add the rest.
+ * approved return gets its carrier pickup (Q93); the parcel is received
+ * and inspected (TASK-039, Q29, Q94). TASK-040+ add the rest.
  */
 const RETURN_TRANSITIONS: Partial<Record<ReturnStatus, readonly ReturnStatus[]>> = {
   PENDING_APPROVAL: ["APPROVED", "REJECTED", "CANCELLED"],
   APPROVED: ["PICKUP_SCHEDULED"],
+  PICKUP_SCHEDULED: ["RECEIVED"],
+  RECEIVED: ["INSPECTING"],
 };
+
+export type InspectionOutcome = {
+  result: "RESTOCK" | "DAMAGED" | "REJECTED";
+  condition: "SELLABLE" | "DAMAGED" | "OPENED_USED" | "MISSING_PARTS" | "REJECTED";
+  quantity: number;
+};
+
+export type InspectionProblem =
+  | { kind: "QUANTITY_MISMATCH"; inspected: number; requested: number }
+  | { kind: "RESTOCK_NOT_SELLABLE"; index: number };
+
+/**
+ * Checks one line's inspection (Q30, Q35, Q36, Q95): every requested unit
+ * gets exactly one outcome, and only units found sellable are restocked.
+ * Returns the first problem, or null.
+ */
+export function checkInspection(
+  requested: number,
+  outcomes: readonly InspectionOutcome[],
+): InspectionProblem | null {
+  const index = outcomes.findIndex((o) => o.result === "RESTOCK" && o.condition !== "SELLABLE");
+  if (index >= 0) {
+    return { kind: "RESTOCK_NOT_SELLABLE", index };
+  }
+  const inspected = outcomes.reduce((sum, o) => sum + o.quantity, 0);
+  return inspected === requested ? null : { kind: "QUANTITY_MISMATCH", inspected, requested };
+}
+
+/** Units of a line that go back to Available stock (Q36). */
+export function restockQuantity(outcomes: readonly InspectionOutcome[]): number {
+  return outcomes.reduce((sum, o) => sum + (o.result === "RESTOCK" ? o.quantity : 0), 0);
+}
 
 /** The status a return must be in to move to `to`, or null when `from` may move there. */
 export function requiredStatusFor(from: ReturnStatus, to: ReturnStatus): ReturnStatus | null {
