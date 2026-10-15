@@ -952,6 +952,28 @@ describe("staff review and pickup (TASK-038)", () => {
 });
 
 describe("receiving and inspection (TASK-039)", () => {
+  it("rejects opened units on a change-of-mind return (owner decision 2026-10-15)", async () => {
+    const { returnId, items } = await pickedUp("OTHER");
+    const inspector = await staff(["INSPECT_RETURN"]);
+    await data(await admin(receiveReturn, "receive", await staff(["RECEIVE_RETURN"]), returnId));
+    await data(await admin(startInspection, "start-inspection", inspector, returnId));
+    const refused = await errorOf(
+      await inspect(inspector, items[1].id, {
+        outcomes: [{ result: "DAMAGED", condition: "OPENED_USED", quantity: 1 }],
+      }),
+      400,
+    );
+    expect(refused.details.issues[0]).toMatchObject({
+      path: "outcomes.0.result",
+      code: "opened_not_returnable",
+    });
+    await data(
+      await inspect(inspector, items[1].id, {
+        outcomes: [{ result: "REJECTED", condition: "OPENED_USED", quantity: 1 }],
+      }),
+    );
+  });
+
   function admin(handler: unknown, action: string, token: string, id: string, body?: unknown) {
     return call(handler, `/admin/returns/${id}/${action}`, {
       method: "POST",
@@ -971,12 +993,12 @@ describe("receiving and inspection (TASK-039)", () => {
   }
 
   /** A return of the whole order (2 + 1 units), picked up by a carrier. */
-  async function pickedUp() {
+  async function pickedUp(claimType = "OTHER") {
     const sara = await customer();
     const { orderId, itemIds } = await order(sara.token);
     const created = await data(
       await request(sara.token, orderId, {
-        claimType: "OTHER",
+        claimType,
         reason: "Changed my mind.",
         items: [
           { orderItemId: itemIds[0], quantity: 2 },
@@ -1010,7 +1032,8 @@ describe("receiving and inspection (TASK-039)", () => {
   }
 
   it("receives, starts inspection and inspects per unit, restocking only sellable units", async () => {
-    const { sara, returnId, items } = await pickedUp();
+    // A defective claim: opened units may be kept as damaged (not a change of mind).
+    const { sara, returnId, items } = await pickedUp("DEFECTIVE");
     const receiver = await staff(["RECEIVE_RETURN"]);
     const inspector = await staff(["INSPECT_RETURN"]);
 

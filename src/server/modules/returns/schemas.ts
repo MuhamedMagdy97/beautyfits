@@ -10,7 +10,14 @@ export const MAX_RETURN_EVIDENCE = 10;
 /** Order lines one request may list (an order has far fewer). */
 const MAX_RETURN_LINES = 100;
 
-export const RETURN_CLAIM_TYPES = ["DAMAGED", "WRONG_ITEM", "OTHER"] as const;
+export const RETURN_CLAIM_TYPES = [
+  "DAMAGED",
+  "WRONG_ITEM",
+  "DEFECTIVE",
+  "EXPIRED",
+  "MISSING_ITEM",
+  "OTHER",
+] as const;
 /** Claims that need at least one photo (Q100). */
 export const CLAIMS_NEEDING_EVIDENCE: ReadonlySet<string> = new Set(["DAMAGED", "WRONG_ITEM"]);
 

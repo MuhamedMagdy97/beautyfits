@@ -39,6 +39,18 @@ const RETURN_TRANSITIONS: Partial<Record<ReturnStatus, readonly ReturnStatus[]>>
   RECEIVED: ["INSPECTING"],
 };
 
+/**
+ * Change of mind (owner decision 2026-10-15): the store is not at fault, so
+ * opened items and free gifts cannot be returned. Every other claim type
+ * (damaged, wrong, defective, expired, missing) can return them.
+ */
+export const CHANGE_OF_MIND_CLAIM = "OTHER";
+
+/** A free gift (a zero-price line) cannot be returned on a change of mind. */
+export function isNotReturnableLine(claimType: string, unitPrice: bigint): boolean {
+  return claimType === CHANGE_OF_MIND_CLAIM && unitPrice === BigInt(0);
+}
+
 export type InspectionOutcome = {
   result: "RESTOCK" | "DAMAGED" | "REJECTED";
   condition: "SELLABLE" | "DAMAGED" | "OPENED_USED" | "MISSING_PARTS" | "REJECTED";
@@ -47,20 +59,31 @@ export type InspectionOutcome = {
 
 export type InspectionProblem =
   | { kind: "QUANTITY_MISMATCH"; inspected: number; requested: number }
-  | { kind: "RESTOCK_NOT_SELLABLE"; index: number };
+  | { kind: "RESTOCK_NOT_SELLABLE"; index: number }
+  | { kind: "OPENED_NOT_RETURNABLE"; index: number };
 
 /**
  * Checks one line's inspection (Q30, Q35, Q36, Q95): every requested unit
  * gets exactly one outcome, and only units found sellable are restocked.
- * Returns the first problem, or null.
+ * On a change of mind, opened units are not returnable: they must be
+ * rejected (owner decision 2026-10-15). Returns the first problem, or null.
  */
 export function checkInspection(
   requested: number,
   outcomes: readonly InspectionOutcome[],
+  claimType?: string,
 ): InspectionProblem | null {
   const index = outcomes.findIndex((o) => o.result === "RESTOCK" && o.condition !== "SELLABLE");
   if (index >= 0) {
     return { kind: "RESTOCK_NOT_SELLABLE", index };
+  }
+  if (claimType === CHANGE_OF_MIND_CLAIM) {
+    const opened = outcomes.findIndex(
+      (o) => o.condition === "OPENED_USED" && o.result !== "REJECTED",
+    );
+    if (opened >= 0) {
+      return { kind: "OPENED_NOT_RETURNABLE", index: opened };
+    }
   }
   const inspected = outcomes.reduce((sum, o) => sum + o.quantity, 0);
   return inspected === requested ? null : { kind: "QUANTITY_MISMATCH", inspected, requested };
