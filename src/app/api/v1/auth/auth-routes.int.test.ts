@@ -431,10 +431,12 @@ describe("email codes and password recovery (TASK-008)", () => {
       body: { email, purpose: "EMAIL_VERIFICATION" },
     });
     expect(resend.status).toBe(429);
-    expect((await resend.json()).error).toMatchObject({
-      code: "AUTH_RATE_LIMITED",
-      details: { retryAfterSeconds: 60 },
-    });
+    const limited = (await resend.json()).error;
+    expect(limited.code).toBe("AUTH_RATE_LIMITED");
+    // Real clock: the 60 s cooldown started at registration, so a slow run
+    // legitimately has 59 s or less left.
+    expect(limited.details.retryAfterSeconds).toBeGreaterThan(50);
+    expect(limited.details.retryAfterSeconds).toBeLessThanOrEqual(60);
   });
 
   it("answers forgot-password the same for an unknown email", async () => {

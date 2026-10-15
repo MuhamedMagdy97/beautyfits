@@ -187,9 +187,13 @@ describe("runBootstrap", () => {
     await runBootstrap(deps, { owner: OWNER });
     const [owner] = await owners();
     const rows = await db.auditLog.findMany({ orderBy: { createdAt: "asc" } });
-    expect(rows.filter((r) => r.action === "ROLE_SEEDED").map((r) => r.entityId)).toEqual(
-      DEFAULT_ROLES.map((role) => role.id),
-    );
+    // Roles are seeded in one transaction, so their timestamps can tie: compare as a set.
+    expect(
+      rows
+        .filter((r) => r.action === "ROLE_SEEDED")
+        .map((r) => r.entityId)
+        .sort(),
+    ).toEqual(DEFAULT_ROLES.map((role) => role.id).sort());
     const ownerEntries = rows.filter((r) => r.action === "OWNER_BOOTSTRAPPED");
     expect(ownerEntries).toHaveLength(1);
     expect(ownerEntries[0]).toMatchObject({
