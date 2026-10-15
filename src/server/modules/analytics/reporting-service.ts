@@ -29,11 +29,10 @@ import {
 
 /**
  * Orders whose sales count as revenue, by the order's creation date.
- * [BUSINESS DECISION REQUIRED] provisional: placed and not cancelled/expired;
- * unconfirmed COD orders (PENDING_CONFIRMATION) excluded. See TASK-051 open items.
+ * Owner decision 2026-10-15: confirmed orders onward (CONFIRMED to DELIVERED),
+ * shipping excluded. PENDING_CONFIRMATION, NEW, CANCELLED and EXPIRED do not count.
  */
 export const REVENUE_ORDER_STATUSES: readonly OrderStatus[] = [
-  "NEW",
   "CONFIRMED",
   "PREPARING",
   "READY_FOR_SHIPMENT",

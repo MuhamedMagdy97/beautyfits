@@ -147,6 +147,13 @@ export const AUDIT_ACTIONS = [
   "RETURN_ITEM_INSPECTED",
   // Settings (TASK-057)
   "SETTING_CHANGED",
+  // Marketing campaigns (TASK-048)
+  "CAMPAIGN_CREATED",
+  "CAMPAIGN_UPDATED",
+  "CAMPAIGN_SUBMITTED",
+  "CAMPAIGN_APPROVED",
+  "CAMPAIGN_REJECTED",
+  "CAMPAIGN_SENDING_STARTED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -178,6 +185,7 @@ export const AUDIT_ENTITY_TYPES = {
   review: "REVIEW",
   return: "RETURN",
   setting: "SETTING",
+  campaign: "CAMPAIGN",
 } as const;
 
 export interface AuditActor {
