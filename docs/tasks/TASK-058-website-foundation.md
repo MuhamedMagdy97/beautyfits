@@ -73,7 +73,7 @@ None.
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] Default website language for a first visit: Arabic is used (API default `ar`, R14 lists Arabic first; same open item as the dashboard in TASK-052). Alternative: follow the browser language.
+- Resolved (owner decision 2026-10-15): a first visit opens the website in Arabic.
 - [BUSINESS DECISION REQUIRED] Header announcement bar: the Stitch design shows "Free shipping on orders over 2,500 EGP • Cash on Delivery across Egypt". The free-shipping threshold comes from the shipping rules (TASK-027) and is not hard-coded; the product owner decides whether the bar is shown and where its text comes from. Not built.
 - Public catalog endpoints `GET /products`, `/categories`, `/brands` (API §13) are not implemented yet; TASK-059 needs them (category navigation, search, product screens).
 - The tagline "Beauty that fits you" comes from the Stitch brand logo; the Arabic wording is a proposal for the product owner.

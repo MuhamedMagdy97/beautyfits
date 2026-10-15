@@ -72,7 +72,7 @@ None.
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] Default dashboard language for a first visit: Arabic is used (R14 lists Arabic first, staff emails are Arabic first); the product owner should confirm.
+- Resolved (owner decision 2026-10-15): a first visit opens the dashboard in Arabic, as on the website.
 - The navigation grouping and section names are a UX proposal; the product owner may rename or regroup them (no business rule depends on them).
 - No Stitch design exists for the dashboard; the shell follows the Editorial Velvet design system. A dashboard reference from design would replace this proposal.
 
