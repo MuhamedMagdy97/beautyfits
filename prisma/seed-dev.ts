@@ -1,11 +1,15 @@
 // Development sample data (TASK-004, ADR-0017): `npm run db:seed:dev`.
-// Runs the production bootstrap, then adds sample staff. Never in production.
+// Runs the production bootstrap, then adds sample staff and a sample catalog
+// (TASK-059A). Never in production.
 import { existsSync } from "node:fs";
 import { getDb } from "@/server/db/client";
+import { logger } from "@/server/logging/logger";
 import { createScryptHasher } from "@/server/modules/auth/password-hash";
 import { BootstrapError, runBootstrap } from "@/server/modules/bootstrap/bootstrap";
 import { devSeedPasswordFromEnv, ownerFromEnv } from "@/server/modules/bootstrap/cli";
+import { runDevCatalogSeed } from "@/server/modules/bootstrap/dev-catalog";
 import { runDevSeed, SAMPLE_STAFF } from "@/server/modules/bootstrap/dev-seed";
+import { getFileStorage } from "@/server/storage/storage";
 import { systemClock } from "@/server/time/time";
 
 if (existsSync(".env")) {
@@ -28,6 +32,14 @@ async function main(): Promise<void> {
       console.log(`  ${sample.email} (${sample.level}, ${sample.roleName})`);
     }
     console.log("Their password is DEV_SEED_PASSWORD; their login codes go to the .mail folder.");
+    const catalog = await runDevCatalogSeed(
+      { db, clock: systemClock, storage: getFileStorage(), logger },
+      { nodeEnv: process.env.NODE_ENV ?? "development" },
+    );
+    console.log(
+      `Sample catalog: ${catalog.brandsCreated} brands, ${catalog.categoriesCreated} categories ` +
+        `and ${catalog.productsCreated} products created; ${catalog.productsPublished} published.`,
+    );
   } catch (error) {
     console.error(error instanceof BootstrapError ? error.message : error);
     process.exitCode = 1;
