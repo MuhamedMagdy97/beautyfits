@@ -553,6 +553,8 @@ Order queues, status transitions, customer details, cancellation, return approva
 
 Suppliers, purchase orders, approvals, receiving, invoices, supplier returns, carriers, tracking and delivery events.
 
+**Status after TASK-055** (`docs/tasks/TASK-055-purchasing-shipping-dashboard.md`, ADR-0058): real routes `/staff/suppliers` (+ `/[id]` balance, ledger, payments), `/staff/purchases` (+ `/[id]` actions, receiving, receipts, invoices; `/returns` list, submit, settle) and `/staff/shipping` (orders queue, `/orders/[orderId]` carrier, handoff, tracking, delivery status, shipping cancellation, return inspection; `/carriers`; `/contact-tasks`) use the existing TASK-021..036 API only. Texts in `_lib/purchasing-i18n.ts`; status labels and conflict reasons were added to `_lib/catalog-i18n.ts`; `Tabs` is in `catalog-ui.tsx`. The `purchases` and `shipping` sections now also show to receiving and shipment staff. Open: no API returns goods receipt line ids, so supplier returns cannot be created from the dashboard; no single-supplier read and no shipment list endpoint.
+
 ### TASK-056 — Wallet, Marketing & Notifications Dashboard
 **Depends on:** TASK-041 → TASK-049
 

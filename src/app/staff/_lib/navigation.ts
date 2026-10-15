@@ -33,14 +33,25 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { slug: "customers", anyOf: ["CUSTOMER_VIEW"] },
       { slug: "returns", anyOf: ["RETURNS_VIEW"] },
       { slug: "wallet", anyOf: ["VIEW_WALLET_BALANCE"] },
-      { slug: "shipping", anyOf: ["SHIPPING_VIEW"] },
+      {
+        slug: "shipping",
+        // TASK-055: shipments are read through the order list; staff who act on them see the section.
+        anyOf: [
+          "SHIPPING_VIEW",
+          "MARK_AS_SHIPPED",
+          "MANAGE_SHIPMENT",
+          "INSPECT_RETURN",
+          "CONTACT_TASK_MANAGE",
+        ],
+      },
     ],
   },
   {
     id: "purchasing",
     sections: [
       { slug: "suppliers", anyOf: ["SUPPLIER_VIEW", "SUPPLIER_FINANCE_VIEW"] },
-      { slug: "purchases", anyOf: ["PURCHASE_VIEW"] },
+      // TASK-055: receiving staff read orders with RECEIVE_PURCHASE; supplier returns are a tab.
+      { slug: "purchases", anyOf: ["PURCHASE_VIEW", "RECEIVE_PURCHASE", "SUPPLIER_RETURN_MANAGE"] },
     ],
   },
   {

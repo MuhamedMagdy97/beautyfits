@@ -126,14 +126,23 @@ export function PageTitle({ children, aside }: { children: string; aside?: React
 /** Products / Brands / Categories switcher. */
 export function CatalogTabs() {
   const { c } = useCatalogT();
-  const pathname = usePathname();
-  const tabs = [
-    { href: "/staff/products", label: c.products },
-    { href: "/staff/products/brands", label: c.brands },
-    { href: "/staff/products/categories", label: c.categories },
-  ];
   return (
-    <nav className="mb-6 flex gap-2 border-b border-line" aria-label={c.products}>
+    <Tabs
+      label={c.products}
+      tabs={[
+        { href: "/staff/products", label: c.products },
+        { href: "/staff/products/brands", label: c.brands },
+        { href: "/staff/products/categories", label: c.categories },
+      ]}
+    />
+  );
+}
+
+/** Links between the screens of one section; the current one is highlighted. */
+export function Tabs({ label, tabs }: { label: string; tabs: { href: string; label: string }[] }) {
+  const pathname = usePathname();
+  return (
+    <nav className="mb-6 flex flex-wrap gap-2 border-b border-line" aria-label={label}>
       {tabs.map((tab) => (
         <Link
           key={tab.href}
