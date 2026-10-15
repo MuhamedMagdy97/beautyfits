@@ -127,19 +127,53 @@ export function StoreHeader() {
   );
 }
 
+function FooterLinks({ title, links }: { title: string; links: [string, string][] }) {
+  return (
+    <nav aria-label={title}>
+      <p className="mb-3 text-xs font-semibold tracking-[0.2em] uppercase opacity-70">{title}</p>
+      <ul className="space-y-2">
+        {links.map(([href, label]) => (
+          <li key={href}>
+            <Link href={href} className="hover:underline">
+              {label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
 export function StoreFooter() {
   const t = useT();
   return (
     <footer className="mt-auto bg-ink text-velvet">
-      <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm md:px-8">
+      <div className="mx-auto grid max-w-[1360px] gap-8 px-4 py-12 text-sm sm:grid-cols-3 md:px-8">
         <div>
           <p className="font-[family-name:var(--font-display)] text-lg tracking-wider uppercase">
             {t.brand}
           </p>
           <p className="text-xs tracking-[0.2em] uppercase opacity-70">{t.tagline}</p>
+          <p className="mt-4 opacity-70">
+            {t.homePage.trustCod} · {t.homePage.trustReturns}
+          </p>
         </div>
-        <p className="opacity-70">© {new Date().getFullYear()} BeautyFits</p>
+        <FooterLinks
+          title={t.homePage.footerShop}
+          links={[["/products", t.homePage.allCategories]]}
+        />
+        <FooterLinks
+          title={t.homePage.footerAccount}
+          links={[
+            ["/account", t.account],
+            ["/wishlist", t.wishlistPage.title],
+            ["/cart", t.cart],
+          ]}
+        />
       </div>
+      <p className="mx-auto max-w-[1360px] border-t border-white/10 px-4 py-6 text-xs opacity-70 md:px-8">
+        © {new Date().getFullYear()} BeautyFits
+      </p>
     </footer>
   );
 }
