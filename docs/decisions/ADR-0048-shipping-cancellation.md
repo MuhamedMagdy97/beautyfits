@@ -25,12 +25,12 @@ It is accepted while the parcel is still on its way (`SHIPPED`, `OUT_FOR_DELIVER
 - one `SHIPMENT_RETURN` inventory movement per variant (reference `SHIPMENT`) puts intact units into Available and damaged ones into Damaged (all stock changes produce movements);
 - the shipment gets `inspected_at` and a `RETURN_INSPECTED` event (notes);
 - the order moves `SHIPPED → CANCELLED` (`cancelled_at`, history) and `releaseOrderHolds` releases the discount use (stock and wallet holds were already consumed at shipping, so those steps do nothing);
-- the wallet credit captured at shipping (`orders.wallet_amount_captured`) is credited back with a new `ORDER_CANCELLATION_REFUND` wallet transaction (Audit Correction 5: a refund only of funds actually captured);
+- the wallet credit captured at shipping (`orders.wallet_amount_captured`) is credited back with a new `ORDER_CANCELLATION_REFUND` wallet transaction (Audit Correction 5: a refund only of funds actually captured). When a shipping cancellation was requested (change of mind after pickup), the order's shipping fee is kept first: refund = captured − min(shipping fee, captured). A parcel returned after failed delivery without a request is refunded in full (owner decision 2026-10-15). The `ORDER_CANCELLED` audit entry records `walletRefunded` and `shippingFeeKept`;
 - audit `SHIPMENT_RETURN_INSPECTED` and `ORDER_CANCELLED`, outbox `ORDER_CANCELLED`.
 
 The same step closes both paths (requested cancellation, and return after failed deliveries) because Q130 and User Flows §10 require inspection before cancelling in both. User Flows §8.3 lists `Shipped → Cancelled` "only after a shipping cancellation request"; Business Spec Q130 (higher in the source order) and User Flows §10 also cover the failed-delivery return. Reported in the task file.
 
-**Permission:** the documents say "Authorized ops" (User Flows §8.3) and name no code. `INSPECT_RETURN` ("Inspect returned items", Q94: warehouse/authorized employee inspects) is used provisionally; the owner is asked to confirm (TASK-036 open items).
+**Permission:** the documents say "Authorized ops" (User Flows §8.3) and name no code. `INSPECT_RETURN` ("Inspect returned items", Q94: warehouse/authorized employee inspects) is used; the owner confirmed it on 2026-10-15.
 
 ## Consequences
 
