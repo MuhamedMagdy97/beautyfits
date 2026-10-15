@@ -51,7 +51,7 @@ export default function AcceptInvitationPage() {
           <TextLink href="/staff/login">{t.signIn}</TextLink>
         </>
       ) : (
-        <form onSubmit={submit(onSubmit)}>
+        <form method="post" onSubmit={submit(onSubmit)}>
           <Notice tone="info">{t.acceptIntro}</Notice>
           <Field label={t.password} name="password" type="password" autoComplete="new-password" />
           <SubmitButton pending={pending}>{t.createAccount}</SubmitButton>

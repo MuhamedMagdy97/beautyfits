@@ -90,7 +90,7 @@ export function LoginForm({
       <Notice tone="info">{info && t[info]}</Notice>
       <Notice tone="error">{error}</Notice>
       {ticket === null ? (
-        <form key="password" onSubmit={submit(onPassword)}>
+        <form method="post" key="password" onSubmit={submit(onPassword)}>
           <Field label={t.email} name="email" type="email" autoComplete="username" />
           <Field
             label={t.password}
@@ -104,7 +104,7 @@ export function LoginForm({
           </p>
         </form>
       ) : (
-        <form key="code" onSubmit={submit(onCode)}>
+        <form method="post" key="code" onSubmit={submit(onCode)}>
           <Field
             label={t.code}
             name="code"

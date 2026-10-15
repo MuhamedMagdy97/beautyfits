@@ -51,13 +51,13 @@ export default function ForgotPasswordPage() {
       {done ? (
         <Notice tone="info">{t.resetDone}</Notice>
       ) : email === null ? (
-        <form key="email" onSubmit={submit(onEmail)}>
+        <form method="post" key="email" onSubmit={submit(onEmail)}>
           <Notice tone="info">{t.resetIntro}</Notice>
           <Field label={t.email} name="email" type="email" autoComplete="username" />
           <SubmitButton pending={pending}>{t.sendCode}</SubmitButton>
         </form>
       ) : (
-        <form key="reset" onSubmit={submit(onReset)}>
+        <form method="post" key="reset" onSubmit={submit(onReset)}>
           <Notice tone="info">{t.codeSent}</Notice>
           <Field
             label={t.code}
