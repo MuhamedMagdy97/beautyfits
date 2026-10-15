@@ -2115,3 +2115,35 @@ Added by TASK-059 (`docs/tasks/TASK-059-shopping-experience.md`, ADR-0059). Busi
 |---|---|
 | Bad query (`pageSize` above 48, unknown `sort`, malformed `categoryId`/`brandId`) | `400 VALIDATION_ERROR` |
 | Unknown product or slug, or a product that is not `PUBLISHED` | `404 NOT_FOUND` |
+
+## TASK-048 Amendments
+
+Added by TASK-048 (`docs/tasks/TASK-048-campaigns.md`, ADR-0061). Business rules: Q13, Q139, Q140, Q142, R19; User Flows §16.4; Architecture §17. Implements §24 except `GET /admin/campaigns/{id}/delivery` (TASK-049) and adds `GET /admin/campaigns/{id}` and `POST /admin/campaigns/{id}/reject`. Employee session (Bearer, or the employee cookie with the `Origin` check).
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `GET /admin/campaigns` | `MARKETING_VIEW` | query `page`, `pageSize` (max 100), `status`, `channel` | `200` `[campaignSummary]` newest first + `meta.pagination` |
+| `GET /admin/campaigns/{id}` | `MARKETING_VIEW` | — | `200` `campaign` |
+| `POST /admin/campaigns` | `MARKETING_CREATE` | `{ name, segment, subject?, content }` | `201` `campaign` (`DRAFT`) |
+| `PATCH /admin/campaigns/{id}` | `MARKETING_EDIT` | any of `{ name, segment, subject, content }`; `subject: null` clears | `200` `campaign` |
+| `POST /admin/campaigns/{id}/submit` | `MARKETING_CREATE` | optional `{ reason? }` | `200` `campaign` (`PENDING_APPROVAL`) with a `MARKETING_CAMPAIGN` approval request |
+| `POST /admin/campaigns/{id}/approve` | `MARKETING_APPROVE` (Owner/Admin only) | optional `{ reason? }` | `200` `campaign` (`APPROVED`) |
+| `POST /admin/campaigns/{id}/reject` | `MARKETING_APPROVE` (Owner/Admin only) | `{ reason }` (required) | `200` `campaign` (back to `DRAFT`) |
+| `POST /admin/campaigns/{id}/send` | `MARKETING_SEND` | — | `200` `campaign` (`SENDING`) |
+
+- Lifecycle: `DRAFT → PENDING_APPROVAL → APPROVED → SENDING`; a rejection returns to `DRAFT` (the author edits and resubmits). TASK-049 ends `SENDING` in `COMPLETED` or `FAILED`. `CANCELLED` is reserved; no endpoint sets it yet. Only drafts are edited, so what was approved is what is sent.
+- `segment` is a segment definition of the "TASK-047 Amendments"; the campaign's `channel` is `segment.channel`. `name` 1–200, `content` 1–10000 (plain text), `subject` 1–200: required for `EMAIL`, not allowed for `WHATSAPP`. `reason` 1–1000.
+- Submit records the audience size at that moment in the approval request `metadata`: `{ name, channel, segment, audienceCount }`. `MARKETING_CAMPAIGN` requests can also be resolved through `/admin/approval-requests/{id}/approve|reject` with the same outcome. Nobody resolves their own request (`403 PERMISSION_DENIED`, `details.reason = SELF_APPROVAL`), so an Owner/Admin's own campaign needs another Owner/Admin.
+- Send (Q13: never automatic) fixes the recipients: the segment's customers opted in to the channel at that moment become `campaign_recipients` with status `PENDING`. **No message is sent by TASK-048**; TASK-049 delivers them (frequency limits, retries, fallback, recheck of consent).
+- `campaignSummary`: `{ id, name, channel, status, segment, subject, content, createdBy, submittedAt, approvedBy, approvedAt, sentBy, sendingStartedAt, createdAt, updatedAt }`; people are `{ id, displayName }` or null.
+- `campaign`: `campaignSummary` + `recipientCount` + `approval: { id, status, resolutionReason, resolvedAt } | null` (the latest request) + `history: [{ action, actor: { type, id }, previousStatus, status, reason, createdAt }]` (the campaign's audit entries, oldest first).
+- Audit actions added (entity type `CAMPAIGN`): `CAMPAIGN_CREATED`, `CAMPAIGN_UPDATED`, `CAMPAIGN_SUBMITTED`, `CAMPAIGN_APPROVED`, `CAMPAIGN_REJECTED`, `CAMPAIGN_SENDING_STARTED`.
+
+| Case | Response |
+|---|---|
+| Invalid body or query; subject missing for email or given for WhatsApp | `400 VALIDATION_ERROR` |
+| Action not allowed in the current status (edit/submit outside `DRAFT`, approve/reject without a pending request, send outside `APPROVED`) | `409 CONFLICT`, `details.reason = CAMPAIGN_STATUS_INVALID`, `details.status` |
+| Send when no customer of the segment is opted in to the channel | `409 CONFLICT`, `details.reason = CAMPAIGN_AUDIENCE_EMPTY`; the campaign stays `APPROVED` |
+| Approving one's own submission | `403 PERMISSION_DENIED`, `details.reason = SELF_APPROVAL` |
+| Missing permission (Managers and Employees never hold `MARKETING_APPROVE`) | `403 PERMISSION_DENIED` |
+| Unknown or malformed campaign id | `404 NOT_FOUND` |

@@ -64,5 +64,6 @@
 | [ADR-0057](ADR-0057-customer-segmentation.md) | Customer segmentation: definitions evaluated on read, consent first | TASK-047 |
 | [ADR-0058](ADR-0058-purchasing-shipping-dashboard.md) | Purchasing & shipping dashboard screens | TASK-055 |
 | [ADR-0059](ADR-0059-shopping-experience.md) | Public catalog endpoints and the storefront shopping screens | TASK-059 |
+| [ADR-0061](ADR-0061-campaign-authoring-and-approval.md) | Campaign authoring, approval and the hand-off to delivery | TASK-048 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

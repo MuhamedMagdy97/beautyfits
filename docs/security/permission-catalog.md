@@ -83,9 +83,9 @@ Legend for the "Source" column: **Q/R/API/UF** = already in the documents; **NEW
 | `CUSTOMER_VIEW` | Customer list and profile (name, order history) | NEW |
 | `VIEW_CUSTOMER_CONTACT` | See customer phone and addresses | NEW (Q80) |
 | `DISCOUNT_VIEW` / `DISCOUNT_MANAGE` | View / manage discounts | API §23 |
-| `MARKETING_VIEW` / `MARKETING_CREATE` / `MARKETING_EDIT` | Campaign drafts; `MARKETING_VIEW` also previews segment sizes (TASK-047) | API §24 |
-| `MARKETING_APPROVE` | Final campaign approval | NEW (Q142) |
-| `MARKETING_SEND` | Send an approved campaign | API §24 |
+| `MARKETING_VIEW` / `MARKETING_CREATE` / `MARKETING_EDIT` | Campaign drafts: view, create and submit for approval, edit drafts (TASK-048); `MARKETING_VIEW` also previews segment sizes (TASK-047) | API §24 |
+| `MARKETING_APPROVE` | Final campaign approval or rejection (never of one's own submission, TASK-048) | NEW (Q142) |
+| `MARKETING_SEND` | Send an approved campaign (fixes its recipients; delivery is TASK-049) | API §24 |
 | `NOTIFICATION_LOG_VIEW` | Notification delivery logs | NEW (TASK-056) |
 | `ANALYTICS_VIEW` | Analytics dashboards | API §27 |
 | `VIEW_PROFIT` | Profit and COGS figures (replaces `ANALYTICS_VIEW_PROFIT`) | UF §17.2 |
