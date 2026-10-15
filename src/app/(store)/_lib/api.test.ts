@@ -122,7 +122,7 @@ describe("storeApi", () => {
   });
 
   it("returns undefined for 204 and sends other methods with a JSON body", async () => {
-    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
     await expect(storeSend("PATCH", "/a", { x: 1 })).resolves.toBeUndefined();
     const init = fetchMock.mock.calls[0][1] as RequestInit;
