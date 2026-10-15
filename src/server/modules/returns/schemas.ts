@@ -98,6 +98,44 @@ export const requestReturnPickupSchema = z.object({
   notes: z.string().trim().min(1).max(1000).optional(),
 });
 
+// Receiving and inspection (TASK-039, ADR-0060)
+
+/** `POST /admin/returns/{returnId}/receive` and `/start-inspection`: an optional note for the history. */
+export const returnStepSchema = z.object({
+  notes: z.string().trim().min(1).max(1000).optional(),
+});
+
+export const RETURN_INSPECTION_RESULTS = ["RESTOCK", "DAMAGED", "REJECTED"] as const;
+export const RETURN_ITEM_CONDITIONS = [
+  "SELLABLE",
+  "DAMAGED",
+  "OPENED_USED",
+  "MISSING_PARTS",
+  "REJECTED",
+] as const;
+
+/**
+ * `POST /admin/return-items/{returnItemId}/inspection` (Q30, Q35, Q95): the
+ * line's units split across outcomes, each with its condition and notes,
+ * plus optional staff photos (`RETURN_INSPECTION` uploads).
+ */
+export const inspectReturnItemSchema = z.object({
+  outcomes: z
+    .array(
+      z.object({
+        result: z.enum(RETURN_INSPECTION_RESULTS),
+        condition: z.enum(RETURN_ITEM_CONDITIONS),
+        quantity: z.number().int().min(1),
+        notes: z.string().trim().min(1).max(2000).optional(),
+      }),
+    )
+    .min(1)
+    .max(RETURN_ITEM_CONDITIONS.length * RETURN_INSPECTION_RESULTS.length),
+  evidenceMediaAssetIds: mediaAssetIds.default([]),
+});
+
+export type ReturnStepInput = z.output<typeof returnStepSchema>;
+export type InspectReturnItemInput = z.output<typeof inspectReturnItemSchema>;
 export type CreateReturnInput = z.infer<typeof createReturnSchema>;
 export type ApproveReturnInput = z.output<typeof approveReturnSchema>;
 export type RejectReturnInput = z.output<typeof rejectReturnSchema>;
