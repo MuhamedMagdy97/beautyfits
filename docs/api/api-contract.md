@@ -263,7 +263,7 @@ A matching phone number alone is not sufficient proof of control. The claim OTP 
 | Method | Endpoint | Purpose | Auth |
 |---|---|---|---|
 | GET | `/products` | Browse/search products | Public |
-| GET | `/products/{productId}` | Product details | Public |
+| GET | `/products/{productId}` | Product details (id or slug, "TASK-059 Amendments") | Public |
 | GET | `/categories` | Categories | Public |
 | GET | `/brands` | Brands | Public |
 
@@ -2072,3 +2072,24 @@ Added by TASK-057 (`docs/tasks/TASK-057-settings-dashboard.md`, ADR-0054). Busin
 | A change of this critical setting is already waiting | `409 CONFLICT`, `details.reason = APPROVAL_PENDING` (+ `approvalRequestId`) |
 | Approving when the value in effect changed since the request | `409 CONFLICT`, `details.reason = SETTING_CHANGED_SINCE`; the request stays `PENDING` |
 | Manager/Employee calling `PATCH` | `403 PERMISSION_DENIED` |
+
+## TASK-059 Amendments
+
+Added by TASK-059 (`docs/tasks/TASK-059-shopping-experience.md`, ADR-0059). Business rules: Q20, Q47, Q138, R14, C1. Implements the Public table of §13. No session; names and descriptions in the `Accept-Language` language.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /products` | Public | query `page`, `pageSize` (default 24, max 48), `search` (product or brand name, 1–100), `categoryId` (the category and its subcategories), `brandId`, `sort` = `newest` (default, by first publication) \| `price_asc` \| `price_desc` (by the lowest variant price) | `200` `[productSummary]` + `meta.pagination` |
+| `GET /products/{productId}` | Public | `productId` is the product id **or its slug** | `200` `product` |
+| `GET /categories` | Public | — | `200` `[{ id, slug, name, parentId, depth }]`, active categories in tree order (each followed by its subcategories, siblings by English name) |
+| `GET /brands` | Public | — | `200` `[{ id, slug, name, description }]`, active brands by English name |
+
+- Only `PUBLISHED` products with at least one active, priced variant are listed; only those variants are shown. A brand or category that is inactive is left out of the product (and filtering by an inactive category returns nothing).
+- `productSummary`: `{ id, slug, name, brand: { id, slug, name } | null, image: { url, width, height, alt } | null, minPrice, maxPrice, currency: "EGP", variantCount, status }`. `image` is the main image.
+- `product`: `productSummary` without `image`/`variantCount`, plus `description`, `categories: [{ id, slug, name }]`, `images: [{ url, width, height, alt, variantId }]` (main image first), `variants: [{ id, sku, name, attributes, isDefault, price, status }]`.
+- Prices are the current selling prices (tax-inclusive, piastres). `status` is `AVAILABLE` or `OUT_OF_STOCK` (Q20: sold-out products stay visible); stock quantities, costs and margins are never returned. Discounts are not applied to catalog prices (the shopper chooses one in the cart, Q138).
+
+| Situation | Response |
+|---|---|
+| Bad query (`pageSize` above 48, unknown `sort`, malformed `categoryId`/`brandId`) | `400 VALIDATION_ERROR` |
+| Unknown product or slug, or a product that is not `PUBLISHED` | `404 NOT_FOUND` |

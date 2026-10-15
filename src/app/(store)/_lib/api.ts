@@ -46,6 +46,26 @@ export function setGuestCartToken(token: string | null): void {
   }
 }
 
+export const ANONYMOUS_ID_KEY = "bf_anon_id";
+
+/**
+ * A random id for this browser (Q146, API "TASK-050 Amendments"), created
+ * once and sent as `X-Anonymous-Id` so analytics can count guests without
+ * naming them. Null when storage is blocked.
+ */
+export function getAnonymousId(): string | null {
+  try {
+    let id = localStorage.getItem(ANONYMOUS_ID_KEY);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(ANONYMOUS_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
 /** The page language set by the root layout from the language cookie. */
 function pageLang(): "ar" | "en" {
   return document.documentElement.lang === "en" ? "en" : "ar";
@@ -67,8 +87,23 @@ function refreshOnce(): Promise<boolean> {
   return refreshing;
 }
 
-async function send<T>(path: string, init: RequestInit, canRefresh: boolean): Promise<T> {
+interface Envelope {
+  data?: unknown;
+  meta?: { pagination?: Pagination };
+  error?: { code?: string; details?: Record<string, unknown> };
+}
+
+/** `meta.pagination` of a list response (API §6). */
+export interface Pagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+async function send(path: string, init: RequestInit, canRefresh: boolean): Promise<Envelope> {
   const guestCart = getGuestCartToken();
+  const anonymousId = getAnonymousId();
   let response: Response;
   try {
     response = await fetch(path, {
@@ -79,6 +114,7 @@ async function send<T>(path: string, init: RequestInit, canRefresh: boolean): Pr
         "accept-language": pageLang(),
         "x-auth-transport": "cookie",
         ...(guestCart ? { "x-guest-cart-token": guestCart } : {}),
+        ...(anonymousId ? { "x-anonymous-id": anonymousId } : {}),
         ...init.headers,
       },
     });
@@ -86,18 +122,15 @@ async function send<T>(path: string, init: RequestInit, canRefresh: boolean): Pr
     throw new StoreApiError(0, "NETWORK_ERROR");
   }
   if (response.status === 204) {
-    return undefined as T;
+    return {};
   }
-  const body = (await response.json().catch(() => null)) as {
-    data?: T & { guestCartToken?: unknown };
-    error?: { code?: string; details?: Record<string, unknown> };
-  } | null;
+  const body = (await response.json().catch(() => null)) as Envelope | null;
   if (response.ok) {
-    const token = body?.data?.guestCartToken;
+    const token = (body?.data as { guestCartToken?: unknown } | undefined)?.guestCartToken;
     if (typeof token === "string" && token) {
       setGuestCartToken(token);
     }
-    return body?.data as T;
+    return body ?? {};
   }
   const code = body?.error?.code ?? "INTERNAL_ERROR";
   if (code === "UNAUTHENTICATED" && canRefresh && (await refreshOnce())) {
@@ -107,17 +140,43 @@ async function send<T>(path: string, init: RequestInit, canRefresh: boolean): Pr
 }
 
 /** Calls the API and returns `data`; failures throw `StoreApiError`. */
-export function storeApi<T>(path: string, init: RequestInit = {}): Promise<T> {
-  return send<T>(path, init, true);
+export async function storeApi<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return (await send(path, init, true)).data as T;
+}
+
+/** GET a list endpoint: `data` with `meta.pagination`. */
+export async function storePage<T>(path: string): Promise<{ data: T; pagination: Pagination }> {
+  const body = await send(path, {}, true);
+  return {
+    data: body.data as T,
+    pagination: body.meta?.pagination ?? { page: 1, pageSize: 0, total: 0, totalPages: 0 },
+  };
 }
 
 /** POST a JSON body. */
 export function storePost<T>(path: string, body?: unknown, init: RequestInit = {}): Promise<T> {
+  return storeSend<T>("POST", path, body, init);
+}
+
+/** Any method with an optional JSON body. */
+export function storeSend<T>(
+  method: "POST" | "PATCH" | "PUT" | "DELETE",
+  path: string,
+  body?: unknown,
+  init: RequestInit = {},
+): Promise<T> {
   return storeApi<T>(path, {
     ...init,
-    method: "POST",
+    method,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+}
+
+/** Records an analytics event (TASK-050); failures never bother the shopper. */
+export function track(
+  event: { eventType: "PRODUCT_VIEW"; productId: string } | { eventType: "CHECKOUT_STARTED" },
+): void {
+  storePost("/api/v1/analytics/events", event).catch(() => undefined);
 }
 
 /**

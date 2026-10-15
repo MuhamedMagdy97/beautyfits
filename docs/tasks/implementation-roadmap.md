@@ -583,6 +583,8 @@ Connect the Next.js website in this repository to the backend without rewriting 
 
 Products, search, product detail, cart, checkout, account, addresses, wishlist and reviews.
 
+**Status after TASK-059** (`docs/tasks/TASK-059-shopping-experience.md`, ADR-0059): the public catalog endpoints `GET /products` (search, category with subcategories, brand, sort newest/price, max 48 per page), `GET /products/{id or slug}`, `GET /categories` and `GET /brands` are implemented (published products only, current prices, `AVAILABLE`/`OUT_OF_STOCK`, no costs or quantities). The storefront has `/products`, `/products/[slug]` (variants, add to bag, wishlist, Notify Me, reviews), `/cart`, `/checkout` (guest or customer, quote then idempotent order, confirmation), `/account`, `/account/addresses` and `/wishlist`; the client sends `X-Anonymous-Id` and records product views and checkout starts. Left for TASK-060: order screens and writing reviews (customer order items need an `id`); email/phone/password change and deactivation screens remain open (see the task's Open Items).
+
 ### TASK-060 — Order Tracking & Returns Integration
 **Depends on:** TASK-058, TASK-034 → TASK-041
 
