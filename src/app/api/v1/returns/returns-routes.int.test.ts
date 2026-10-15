@@ -1,4 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { POST as approveReturn } from "@/app/api/v1/admin/returns/[returnId]/approve/route";
+import { POST as requestPickup } from "@/app/api/v1/admin/returns/[returnId]/pickup/route";
+import { POST as rejectReturn } from "@/app/api/v1/admin/returns/[returnId]/reject/route";
 import { GET as adminReturn } from "@/app/api/v1/admin/returns/[returnId]/route";
 import { GET as adminReturns } from "@/app/api/v1/admin/returns/route";
 import { POST as addItem } from "@/app/api/v1/cart/items/route";
@@ -558,9 +561,16 @@ describe("withdrawing and resubmitting", () => {
     const again = await errorOf(await onReturn(cancelReturn, "cancel", sara.token, first.id), 409);
     expect(again).toMatchObject({ code: "RETURN_STATE_INVALID", details: { status: "CANCELLED" } });
 
-    // Cancelled quantities can be asked for again; staff reject (TASK-038, set directly here).
+    // Cancelled quantities can be asked for again; staff reject (TASK-038).
     const second = await data(await request(sara.token, orderId, body), 201);
-    await db.return.update({ where: { id: second.id }, data: { status: "REJECTED" } });
+    await data(
+      await call(rejectReturn, `/admin/returns/${second.id}/reject`, {
+        method: "POST",
+        token: await staff(["APPROVE_RETURN"]),
+        body: { reason: "Opened item." },
+        params: { returnId: second.id },
+      }),
+    );
     const third = await data(
       await onReturn(resubmit, "resubmit", sara.token, second.id, {
         ...body,
@@ -630,7 +640,23 @@ describe("admin view", () => {
     });
     const listed = await res.json();
     expect(res.status).toBe(200);
-    expect(listed.data).toEqual([{ ...created, customerId: sara.customerId }]);
+    expect(listed.data).toEqual([
+      {
+        ...created,
+        customerId: sara.customerId,
+        approvedByEmployeeId: null,
+        statusHistory: [
+          {
+            fromStatus: null,
+            toStatus: "PENDING_APPROVAL",
+            changedByType: "CUSTOMER",
+            changedById: sara.customerId,
+            reason: null,
+            createdAt: created.createdAt,
+          },
+        ],
+      },
+    ]);
     expect(
       await data(
         await call(adminReturn, `/admin/returns/${created.id}`, {
@@ -671,5 +697,249 @@ describe("admin view", () => {
       db.returnEvidence.deleteMany({ where: { returnId: created.id } }),
     ).rejects.toThrow();
     await expect(db.returnItem.deleteMany({ where: { returnId: created.id } })).rejects.toThrow();
+  });
+});
+
+describe("staff review and pickup (TASK-038)", () => {
+  /** A customer's waiting return of one unit of the order's second line. */
+  async function waiting() {
+    const sara = await customer();
+    const { orderId, itemIds } = await order(sara.token);
+    const created = await data(
+      await request(sara.token, orderId, {
+        claimType: "OTHER",
+        reason: "Changed my mind.",
+        items: [{ orderItemId: itemIds[1], quantity: 1 }],
+      }),
+      201,
+    );
+    return { sara, orderId, itemIds, returnId: created.id as string };
+  }
+
+  function admin(handler: unknown, action: string, token: string, id: string, body?: unknown) {
+    return call(handler, `/admin/returns/${id}/${action}`, {
+      method: "POST",
+      token,
+      body,
+      params: { returnId: id },
+    });
+  }
+
+  async function carrier(status: "ACTIVE" | "INACTIVE" = "ACTIVE") {
+    counter += 1;
+    return db.shippingCompany.create({ data: { code: `CAR${counter}`, name: "Carrier", status } });
+  }
+
+  it("approves a waiting return with history, audit and an outbox event", async () => {
+    const { sara, orderId, returnId } = await waiting();
+    const approver = await staff(["APPROVE_RETURN"]);
+
+    const approved = await data(
+      await admin(approveReturn, "approve", approver, returnId, { note: "  Photos fine. " }),
+    );
+    expect(approved).toMatchObject({ status: "APPROVED", rejectedAt: null, pickup: null });
+    expect(approved.approvedAt).toEqual(expect.any(String));
+    expect(approved.statusHistory).toMatchObject([
+      { fromStatus: null, toStatus: "PENDING_APPROVAL", changedByType: "CUSTOMER" },
+      {
+        fromStatus: "PENDING_APPROVAL",
+        toStatus: "APPROVED",
+        changedByType: "EMPLOYEE",
+        changedById: approved.approvedByEmployeeId,
+        reason: "Photos fine.",
+      },
+    ]);
+    expect(
+      await db.auditLog.count({ where: { action: "RETURN_APPROVED", entityId: returnId } }),
+    ).toBe(1);
+    expect(
+      await db.outboxEvent.count({
+        where: { eventType: "RETURN_APPROVED", aggregateId: returnId },
+      }),
+    ).toBe(1);
+    // The order is untouched (Q90); the customer sees the approval.
+    expect((await db.order.findUniqueOrThrow({ where: { id: orderId } })).status).toBe("DELIVERED");
+    const mine = await data(
+      await call(getReturn, `/returns/${returnId}`, {
+        token: sara.token,
+        params: { returnId },
+      }),
+    );
+    expect(mine).toMatchObject({ status: "APPROVED", approvedAt: approved.approvedAt });
+    expect(mine).not.toHaveProperty("statusHistory");
+
+    // No second review, no withdrawal once approved.
+    for (const [handler, action, body] of [
+      [approveReturn, "approve", undefined],
+      [rejectReturn, "reject", { reason: "No." }],
+    ] as const) {
+      const refused = await errorOf(await admin(handler, action, approver, returnId, body), 409);
+      expect(refused).toMatchObject({
+        code: "RETURN_STATE_INVALID",
+        details: { status: "APPROVED", required: "PENDING_APPROVAL" },
+      });
+    }
+    expect(
+      (await errorOf(await onReturn(cancelReturn, "cancel", sara.token, returnId), 409)).code,
+    ).toBe("RETURN_STATE_INVALID");
+  });
+
+  it("rejects with a required reason shown to the customer, who may resubmit", async () => {
+    const { sara, itemIds, returnId } = await waiting();
+    const approver = await staff(["APPROVE_RETURN"]);
+
+    expect(
+      (await errorOf(await admin(rejectReturn, "reject", approver, returnId, {}), 400)).code,
+    ).toBe("VALIDATION_ERROR");
+    expect(
+      (await errorOf(await admin(rejectReturn, "reject", approver, returnId, { reason: " " }), 400))
+        .code,
+    ).toBe("VALIDATION_ERROR");
+
+    const rejected = await data(
+      await admin(rejectReturn, "reject", approver, returnId, { reason: "Outside policy." }),
+    );
+    expect(rejected).toMatchObject({
+      status: "REJECTED",
+      rejectionReason: "Outside policy.",
+      approvedAt: null,
+      approvedByEmployeeId: null,
+    });
+    expect(rejected.statusHistory.at(-1)).toMatchObject({
+      fromStatus: "PENDING_APPROVAL",
+      toStatus: "REJECTED",
+      reason: "Outside policy.",
+    });
+    expect(
+      await db.auditLog.count({ where: { action: "RETURN_REJECTED", entityId: returnId } }),
+    ).toBe(1);
+    const mine = await data(
+      await call(getReturn, `/returns/${returnId}`, { token: sara.token, params: { returnId } }),
+    );
+    expect(mine).toMatchObject({ status: "REJECTED", rejectionReason: "Outside policy." });
+
+    const refused = await errorOf(await admin(approveReturn, "approve", approver, returnId), 409);
+    expect(refused.details).toEqual({ status: "REJECTED", required: "PENDING_APPROVAL" });
+    // The units are free again (Q92).
+    await data(
+      await onReturn(resubmit, "resubmit", sara.token, returnId, {
+        claimType: "OTHER",
+        reason: "Corrected.",
+        items: [{ orderItemId: itemIds[1], quantity: 1 }],
+      }),
+      201,
+    );
+  });
+
+  it("arranges the carrier pickup of an approved return only", async () => {
+    const { sara, returnId } = await waiting();
+    const manager = await staff(["MANAGE_RETURNS"]);
+    const company = await carrier();
+    const pickup = (body: unknown) => admin(requestPickup, "pickup", manager, returnId, body);
+
+    const early = await errorOf(await pickup({ shippingCompanyId: company.id }), 409);
+    expect(early).toMatchObject({
+      code: "RETURN_STATE_INVALID",
+      details: { status: "PENDING_APPROVAL", required: "APPROVED" },
+    });
+    await data(await admin(approveReturn, "approve", await staff(["APPROVE_RETURN"]), returnId));
+
+    expect((await errorOf(await pickup({}), 400)).code).toBe("VALIDATION_ERROR");
+    expect((await errorOf(await pickup({ shippingCompanyId: UNKNOWN_ID }), 400)).code).toBe(
+      "VALIDATION_ERROR",
+    );
+    const inactive = await carrier("INACTIVE");
+    expect((await errorOf(await pickup({ shippingCompanyId: inactive.id }), 400)).code).toBe(
+      "VALIDATION_ERROR",
+    );
+    expect(
+      (
+        await errorOf(
+          await pickup({ shippingCompanyId: company.id, feePayer: "SOMEONE_ELSE" }),
+          400,
+        )
+      ).code,
+    ).toBe("VALIDATION_ERROR");
+
+    const scheduled = await data(
+      await pickup({ shippingCompanyId: company.id, trackingNumber: "RP-123", notes: "Evening." }),
+    );
+    expect(scheduled).toMatchObject({
+      status: "PICKUP_SCHEDULED",
+      pickup: {
+        shippingCompany: { id: company.id, code: company.code, name: "Carrier" },
+        trackingNumber: "RP-123",
+        feePayer: "CUSTOMER",
+      },
+    });
+    expect(scheduled.statusHistory.at(-1)).toMatchObject({
+      fromStatus: "APPROVED",
+      toStatus: "PICKUP_SCHEDULED",
+      changedByType: "EMPLOYEE",
+      reason: "Evening.",
+    });
+    expect(
+      await db.auditLog.count({ where: { action: "RETURN_PICKUP_REQUESTED", entityId: returnId } }),
+    ).toBe(1);
+    const mine = await data(
+      await call(getReturn, `/returns/${returnId}`, { token: sara.token, params: { returnId } }),
+    );
+    expect(mine.pickup).toEqual(scheduled.pickup);
+
+    const again = await errorOf(await pickup({ shippingCompanyId: company.id }), 409);
+    expect(again.details).toEqual({ status: "PICKUP_SCHEDULED", required: "APPROVED" });
+  });
+
+  it("records BeautyFits as the pickup payer when staff choose it", async () => {
+    const { returnId } = await waiting();
+    await data(await admin(approveReturn, "approve", await staff(["APPROVE_RETURN"]), returnId));
+    const company = await carrier();
+    const scheduled = await data(
+      await admin(requestPickup, "pickup", await staff(["MANAGE_RETURNS"]), returnId, {
+        shippingCompanyId: company.id,
+        feePayer: "BEAUTYFITS",
+      }),
+    );
+    expect(scheduled.pickup).toMatchObject({ trackingNumber: null, feePayer: "BEAUTYFITS" });
+  });
+
+  it("needs the right permission for each action", async () => {
+    const { sara, returnId } = await waiting();
+    const company = await carrier();
+    const viewer = await staff(["RETURNS_VIEW", "MANAGE_RETURNS"]);
+    for (const [handler, action, body] of [
+      [approveReturn, "approve", undefined],
+      [rejectReturn, "reject", { reason: "No." }],
+    ] as const) {
+      const denied = await errorOf(await admin(handler, action, viewer, returnId, body), 403);
+      expect(denied.code).toBe("PERMISSION_DENIED");
+    }
+    const approver = await staff(["APPROVE_RETURN"]);
+    await data(await admin(approveReturn, "approve", approver, returnId));
+    const denied = await errorOf(
+      await admin(requestPickup, "pickup", approver, returnId, { shippingCompanyId: company.id }),
+      403,
+    );
+    expect(denied.code).toBe("PERMISSION_DENIED");
+    // A customer session is not a staff session.
+    expect((await admin(approveReturn, "approve", sara.token, returnId)).status).toBe(403);
+    expect((await admin(approveReturn, "approve", approver, UNKNOWN_ID)).status).toBe(404);
+  });
+
+  it("keeps the status history append-only, including the customer's moves", async () => {
+    const { sara, returnId } = await waiting();
+    await data(await onReturn(cancelReturn, "cancel", sara.token, returnId));
+    const history = await db.returnStatusHistory.findMany({
+      where: { returnId },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(history.map((h) => [h.fromStatus, h.toStatus, h.changedByType])).toEqual([
+      [null, "PENDING_APPROVAL", "CUSTOMER"],
+      ["PENDING_APPROVAL", "CANCELLED", "CUSTOMER"],
+    ]);
+    await expect(
+      db.returnStatusHistory.updateMany({ where: { returnId }, data: { reason: "x" } }),
+    ).rejects.toThrow();
+    await expect(db.returnStatusHistory.deleteMany({ where: { returnId } })).rejects.toThrow();
   });
 });

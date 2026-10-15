@@ -432,6 +432,8 @@ Implement 14-day eligibility, free-text reason, evidence rules and Pending Appro
 
 Admin review, approval/rejection, carrier pickup request and shipping responsibility rules.
 
+**Status after TASK-038** (`docs/tasks/TASK-038-return-approval.md`, ADR-0056): `POST /admin/returns/{id}/approve` and `/reject` (`APPROVE_RETURN`; reason required, shown to the customer) move `PENDING_APPROVAL → APPROVED | REJECTED`; `/pickup` (`MANAGE_RETURNS`) moves `APPROVED → PICKUP_SCHEDULED` with an active carrier, optional tracking number and the provisional pickup fee payer (`CUSTOMER` by default, C2). Allowed moves live in `requiredStatusFor` (`src/server/modules/returns/returns.ts`); every move writes `return_status_history` (append-only, on `adminReturn.statusHistory`) and an audit entry; approval writes the `RETURN_APPROVED` outbox event. TASK-039 adds `receive` from `PICKUP_SCHEDULED`; the pickup fee amount and final responsibility come with TASK-040.
+
 ### TASK-039 — Return Receiving & Inspection
 **Depends on:** TASK-038
 
@@ -495,6 +497,8 @@ Implement explicit opt-in, opt-out, timestamps, source, per-channel preferences 
 
 Implement MVP segments: all opted-in, previous buyers, product/brand/category buyers, inactive customers, high-spending customers.
 
+**Status after TASK-047** (`docs/tasks/TASK-047-customer-segmentation.md`, ADR-0057): segments are definitions `{ type, channel, … }` (`segmentDefinitionSchema` in `src/server/modules/customers/segments.ts`) evaluated on read, no table; every segment keeps only customers currently opted in to the channel in the consent ledger. `POST /admin/segments/preview` (`MARKETING_VIEW`) returns the audience size only; TASK-048 stores the definition on the campaign and resolves recipients with `segmentCustomerIds`. Inactive days and the minimum spend (piastres) are per-segment parameters; buyer statuses (provisional TASK-051 revenue statuses), the inactivity and spend measures and suspended accounts await business decisions.
+
 ### TASK-048 — Campaign Authoring & Approval
 **Depends on:** TASK-046, TASK-047
 
@@ -551,6 +555,8 @@ Order queues, status transitions, customer details, cancellation, return approva
 
 Suppliers, purchase orders, approvals, receiving, invoices, supplier returns, carriers, tracking and delivery events.
 
+**Status after TASK-055** (`docs/tasks/TASK-055-purchasing-shipping-dashboard.md`, ADR-0058): real routes `/staff/suppliers` (+ `/[id]` balance, ledger, payments), `/staff/purchases` (+ `/[id]` actions, receiving, receipts, invoices; `/returns` list, submit, settle) and `/staff/shipping` (orders queue, `/orders/[orderId]` carrier, handoff, tracking, delivery status, shipping cancellation, return inspection; `/carriers`; `/contact-tasks`) use the existing TASK-021..036 API only. Texts in `_lib/purchasing-i18n.ts`; status labels and conflict reasons were added to `_lib/catalog-i18n.ts`; `Tabs` is in `catalog-ui.tsx`. The `purchases` and `shipping` sections now also show to receiving and shipment staff. Open: no API returns goods receipt line ids, so supplier returns cannot be created from the dashboard; no single-supplier read and no shipment list endpoint.
+
 ### TASK-056 — Wallet, Marketing & Notifications Dashboard
 **Depends on:** TASK-041 → TASK-049
 
@@ -578,6 +584,8 @@ Connect the Next.js website in this repository to the backend without rewriting 
 **Depends on:** TASK-058
 
 Products, search, product detail, cart, checkout, account, addresses, wishlist and reviews.
+
+**Status after TASK-059** (`docs/tasks/TASK-059-shopping-experience.md`, ADR-0059): the public catalog endpoints `GET /products` (search, category with subcategories, brand, sort newest/price, max 48 per page), `GET /products/{id or slug}`, `GET /categories` and `GET /brands` are implemented (published products only, current prices, `AVAILABLE`/`OUT_OF_STOCK`, no costs or quantities). The storefront has `/products`, `/products/[slug]` (variants, add to bag, wishlist, Notify Me, reviews), `/cart`, `/checkout` (guest or customer, quote then idempotent order, confirmation), `/account`, `/account/addresses` and `/wishlist`; the client sends `X-Anonymous-Id` and records product views and checkout starts. Left for TASK-060: order screens and writing reviews (customer order items need an `id`); email/phone/password change and deactivation screens remain open (see the task's Open Items).
 
 ### TASK-060 — Order Tracking & Returns Integration
 **Depends on:** TASK-058, TASK-034 → TASK-041

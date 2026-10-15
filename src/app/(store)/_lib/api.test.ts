@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GUEST_CART_KEY, getGuestCartToken, safeNextPath, storeApi, storePost } from "./api";
+import {
+  ANONYMOUS_ID_KEY,
+  GUEST_CART_KEY,
+  getGuestCartToken,
+  safeNextPath,
+  storeApi,
+  storePage,
+  storePost,
+  storeSend,
+} from "./api";
 
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -90,6 +99,34 @@ describe("storeApi", () => {
       details: { retryAfterSeconds: 30 },
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends one stable anonymous id per browser", async () => {
+    const fetchMock = vi.fn(async () => json(200, { data: {} }));
+    vi.stubGlobal("fetch", fetchMock);
+    await storeApi("/a");
+    await storeApi("/b");
+    const first = headersOf(fetchMock.mock.calls[0] as unknown[])["x-anonymous-id"];
+    expect(first).toMatch(/^[0-9a-f-]{36}$/);
+    expect(headersOf(fetchMock.mock.calls[1] as unknown[])["x-anonymous-id"]).toBe(first);
+    expect(storage.get(ANONYMOUS_ID_KEY)).toBe(first);
+  });
+
+  it("returns a list with its pagination", async () => {
+    const pagination = { page: 2, pageSize: 24, total: 30, totalPages: 2 };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, { data: [1, 2], meta: { pagination } })),
+    );
+    await expect(storePage("/a")).resolves.toEqual({ data: [1, 2], pagination });
+  });
+
+  it("returns undefined for 204 and sends other methods with a JSON body", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(storeSend("PATCH", "/a", { x: 1 })).resolves.toBeUndefined();
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init).toMatchObject({ method: "PATCH", body: '{"x":1}' });
   });
 
   it("reports a network failure as NETWORK_ERROR", async () => {

@@ -1991,6 +1991,13 @@ Added by TASK-037 (`docs/tasks/TASK-037-return-requests.md`, ADR-0049). Migrated
 - `return_evidence` (§12): `id`, `return_id` (FK), `media_asset_id` (FK, unique: a file belongs to one return), `uploaded_by_type` (`audit_actor_type`), `uploaded_by_id`, `created_at`. `evidence_type` is not created (photos only). Index `(return_id, created_at)`. Append-only (trigger `return_evidence_append_only`).
 - `media_assets`: enum `media_purpose` gains `RETURN_EVIDENCE`; new `created_by_customer_id` nullable (FK `customers`, `RESTRICT`; index `(created_by_customer_id, created_at)`) for customer uploads; check `media_assets_one_creator_check`: not both creators.
 
+## v1.2 TASK-038 Amendments
+
+Added by TASK-038 (`docs/tasks/TASK-038-return-approval.md`, ADR-0056). Migrated in `prisma/migrations/20261015038000_return_approval`.
+
+- `returns` (§12): `approved_by_employee_id` (FK `employees`) and `approved_at` (documented; check: set together), plus `rejected_at` and `rejection_reason` (new; check: set exactly when `REJECTED`, reason not blank), and the carrier pickup (new, Q93): `pickup_shipping_company_id` (FK `shipping_companies`), `pickup_tracking_number` nullable, `pickup_fee_payer` (enum `return_pickup_fee_payer` = `CUSTOMER` | `BEAUTYFITS`, who pays the carrier, C2), `pickup_requested_at`. Check `returns_pickup_check`: company, payer and time set together, only after approval; a tracking number only with a pickup. All FKs `RESTRICT`. `final_responsibility`, `return_shipping_fee`, `refund_total`, `received_at`, `completed_at` still come with TASK-039–041.
+- `return_status_history` (new, like `order_status_history`): `id`, `return_id` (FK `RESTRICT`), `from_status` (nullable: the request itself), `to_status` (`return_status`), `changed_by_type` (`audit_actor_type`), `changed_by_id` nullable, `reason` nullable, `created_at`. Index `(return_id, created_at)`. Append-only (trigger `return_status_history_append_only`). One row per status change, written in the same transaction; the migration backfills the request and withdrawal rows of earlier returns.
+
 ## v1.2 TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Migrated in `prisma/migrations/20261008042000_wishlist`.

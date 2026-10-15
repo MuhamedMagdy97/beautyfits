@@ -1,20 +1,30 @@
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient, ReturnStatus } from "@/generated/prisma/client";
 import { getDb } from "@/server/db/client";
 import { runInTransaction, type Db } from "@/server/db/transaction";
 import { AppError } from "@/server/errors/app-error";
 import type { Pagination } from "@/server/http/response";
 import type { Logger } from "@/server/logging/logger";
-import { AUDIT_ENTITY_TYPES, recordAudit, type AuditActor } from "@/server/modules/audit/audit";
+import {
+  AUDIT_ENTITY_TYPES,
+  employeeActor,
+  recordAudit,
+  type AuditAction,
+  type AuditActor,
+} from "@/server/modules/audit/audit";
 import { conflict, validationError } from "@/server/modules/catalog/errors";
 import { CUSTOMER_UPLOAD_PURPOSE, mediaContentUrl } from "@/server/modules/media/uploads-service";
 import {
   checkReturnQuantities,
   RELEASED_RETURN_STATUSES,
+  requiredStatusFor,
   returnWindowEndsAt,
 } from "@/server/modules/returns/returns";
 import {
   MAX_RETURN_EVIDENCE,
+  type ApproveReturnInput,
   type CreateReturnInput,
+  type RejectReturnInput,
+  type RequestReturnPickupInput,
   type ListReturnsQuery,
 } from "@/server/modules/returns/schemas";
 import { systemClock, type Clock } from "@/server/time/time";
@@ -31,6 +41,10 @@ import { systemClock, type Clock } from "@/server/time/time";
  *   customer may add photos or withdraw it until then.
  * - A rejected request is never rewritten; the customer submits a new one
  *   (Q92), linked to the rejected one when sent through `resubmit`.
+ * - Staff approve or reject a waiting request (`APPROVE_RETURN`, Q91, R18),
+ *   then ask a carrier to collect the parcel (`MANAGE_RETURNS`, Q93;
+ *   TASK-038, ADR-0056). Every status change is kept in
+ *   `return_status_history`.
  */
 
 interface Ctx {
@@ -60,12 +74,30 @@ export interface ReturnView {
   }[];
   evidence: { mediaAssetId: string; url: string; createdAt: string }[];
   cancelledAt: string | null;
+  approvedAt: string | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+  pickup: {
+    shippingCompany: { id: string; code: string; name: string };
+    trackingNumber: string | null;
+    feePayer: string;
+    requestedAt: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface AdminReturnView extends ReturnView {
   customerId: string | null;
+  approvedByEmployeeId: string | null;
+  statusHistory: {
+    fromStatus: string | null;
+    toStatus: string;
+    changedByType: string;
+    changedById: string | null;
+    reason: string | null;
+    createdAt: string;
+  }[];
 }
 
 const RETURN_INCLUDE = {
@@ -86,6 +118,8 @@ const RETURN_INCLUDE = {
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
   evidence: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
+  pickupShippingCompany: { select: { id: true, code: true, name: true } },
+  statusHistory: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
 } as const satisfies Prisma.ReturnInclude;
 
 type ReturnRow = Prisma.ReturnGetPayload<{ include: typeof RETURN_INCLUDE }>;
@@ -117,13 +151,37 @@ function toView(row: ReturnRow): ReturnView {
       createdAt: e.createdAt.toISOString(),
     })),
     cancelledAt: row.cancelledAt?.toISOString() ?? null,
+    approvedAt: row.approvedAt?.toISOString() ?? null,
+    rejectedAt: row.rejectedAt?.toISOString() ?? null,
+    rejectionReason: row.rejectionReason,
+    pickup:
+      row.pickupShippingCompany && row.pickupFeePayer && row.pickupRequestedAt
+        ? {
+            shippingCompany: row.pickupShippingCompany,
+            trackingNumber: row.pickupTrackingNumber,
+            feePayer: row.pickupFeePayer,
+            requestedAt: row.pickupRequestedAt.toISOString(),
+          }
+        : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
 function toAdminView(row: ReturnRow): AdminReturnView {
-  return { ...toView(row), customerId: row.customerId };
+  return {
+    ...toView(row),
+    customerId: row.customerId,
+    approvedByEmployeeId: row.approvedById,
+    statusHistory: row.statusHistory.map((h) => ({
+      fromStatus: h.fromStatus,
+      toStatus: h.toStatus,
+      changedByType: h.changedByType,
+      changedById: h.changedById,
+      reason: h.reason,
+      createdAt: h.createdAt.toISOString(),
+    })),
+  };
 }
 
 function returnNotFound(): AppError {
@@ -147,13 +205,23 @@ function pagination(query: { page: number; pageSize: number }, total: number): P
 async function lockReturn(
   tx: Db,
   returnId: string,
-): Promise<{ customerId: string | null; status: string; orderId: string } | null> {
+): Promise<{ customerId: string | null; status: ReturnStatus; orderId: string } | null> {
   const rows = await tx.$queryRaw<
-    { customer_id: string | null; status: string; order_id: string }[]
+    { customer_id: string | null; status: ReturnStatus; order_id: string }[]
   >`
     SELECT customer_id, status::text, order_id FROM returns WHERE id = ${returnId}::uuid FOR UPDATE`;
   const row = rows[0];
   return row ? { customerId: row.customer_id, status: row.status, orderId: row.order_id } : null;
+}
+
+/** Refuses a status move the return's current status does not allow. */
+function requireTransition(status: ReturnStatus, to: ReturnStatus): void {
+  const required = requiredStatusFor(status, to);
+  if (required) {
+    throw new AppError("RETURN_STATE_INVALID", "The return cannot make this move now.", {
+      details: { status, required },
+    });
+  }
 }
 
 function requirePending(status: string): void {
@@ -316,6 +384,16 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
             createdAt: now,
           })),
         },
+        statusHistory: {
+          create: [
+            {
+              toStatus: "PENDING_APPROVAL",
+              changedByType: "CUSTOMER",
+              changedById: customerId,
+              createdAt: now,
+            },
+          ],
+        },
       },
       select: { id: true, returnNumber: true },
     });
@@ -447,10 +525,25 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
         if (!current || current.customerId !== customerId) {
           throw returnNotFound();
         }
-        requirePending(current.status);
+        requireTransition(current.status, "CANCELLED");
         await tx.return.update({
           where: { id: returnId },
-          data: { status: "CANCELLED", cancelledAt: now, updatedAt: now },
+          data: {
+            status: "CANCELLED",
+            cancelledAt: now,
+            updatedAt: now,
+            statusHistory: {
+              create: [
+                {
+                  fromStatus: current.status,
+                  toStatus: "CANCELLED",
+                  changedByType: "CUSTOMER",
+                  changedById: customerId,
+                  createdAt: now,
+                },
+              ],
+            },
+          },
         });
         await recordAudit(tx, {
           actor: customerActor(customerId),
@@ -529,7 +622,191 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
     return toAdminView(row);
   }
 
+  /**
+   * One staff status move under the return row lock: checks the move, runs
+   * `apply` (extra checks and columns), then records the status history and
+   * the audit entry in the same transaction.
+   */
+  async function staffTransition(
+    employeeId: string,
+    returnId: string,
+    to: ReturnStatus,
+    step: {
+      action: AuditAction;
+      reason: string | null;
+      apply: (
+        tx: Db,
+        current: { orderId: string; customerId: string | null },
+        now: Date,
+      ) => Promise<{ data: Prisma.ReturnUpdateInput; audit?: Record<string, unknown> }>;
+    },
+    ctx: Ctx,
+  ): Promise<AdminReturnView> {
+    const now = clock.now();
+    await runInTransaction(
+      async (tx) => {
+        const current = await lockReturn(tx, returnId);
+        if (!current) {
+          throw returnNotFound();
+        }
+        requireTransition(current.status, to);
+        const { data, audit } = await step.apply(tx, current, now);
+        await tx.return.update({
+          where: { id: returnId },
+          data: {
+            ...data,
+            status: to,
+            updatedAt: now,
+            statusHistory: {
+              create: [
+                {
+                  fromStatus: current.status,
+                  toStatus: to,
+                  changedByType: "EMPLOYEE",
+                  changedById: employeeId,
+                  reason: step.reason,
+                  createdAt: now,
+                },
+              ],
+            },
+          },
+        });
+        await recordAudit(tx, {
+          actor: employeeActor(employeeId),
+          action: step.action,
+          entityType: AUDIT_ENTITY_TYPES.return,
+          entityId: returnId,
+          previous: { status: current.status },
+          next: { status: to, ...audit },
+          reason: step.reason,
+          correlationId: ctx.correlationId,
+          createdAt: now,
+        });
+      },
+      {},
+      db,
+    );
+    ctx.logger.info("return status changed", { returnId, status: to });
+    return getReturn(returnId);
+  }
+
+  /** `POST /admin/returns/{returnId}/approve` (`APPROVE_RETURN`, Q91). */
+  function approveReturn(
+    employeeId: string,
+    returnId: string,
+    input: ApproveReturnInput,
+    ctx: Ctx,
+  ): Promise<AdminReturnView> {
+    return staffTransition(
+      employeeId,
+      returnId,
+      "APPROVED",
+      {
+        action: "RETURN_APPROVED",
+        reason: input.note ?? null,
+        apply: async (tx, current, now) => {
+          // After commit, workers may tell the customer (API §31).
+          await tx.outboxEvent.create({
+            data: {
+              eventType: "RETURN_APPROVED",
+              aggregateType: "RETURN",
+              aggregateId: returnId,
+              payload: {
+                returnId,
+                orderId: current.orderId,
+                customerId: current.customerId,
+                correlationId: ctx.correlationId,
+              },
+              availableAt: now,
+              createdAt: now,
+            },
+          });
+          return { data: { approvedBy: { connect: { id: employeeId } }, approvedAt: now } };
+        },
+      },
+      ctx,
+    );
+  }
+
+  /**
+   * `POST /admin/returns/{returnId}/reject` (`APPROVE_RETURN`, Q92): final;
+   * the customer may submit a new request.
+   */
+  function rejectReturn(
+    employeeId: string,
+    returnId: string,
+    input: RejectReturnInput,
+    ctx: Ctx,
+  ): Promise<AdminReturnView> {
+    return staffTransition(
+      employeeId,
+      returnId,
+      "REJECTED",
+      {
+        action: "RETURN_REJECTED",
+        reason: input.reason,
+        apply: async (_tx, _current, now) => ({
+          data: { rejectedAt: now, rejectionReason: input.reason },
+        }),
+      },
+      ctx,
+    );
+  }
+
+  /**
+   * `POST /admin/returns/{returnId}/pickup` (`MANAGE_RETURNS`, Q93): BeautyFits
+   * asks an active carrier to collect the parcel from the customer.
+   * `feePayer` records who pays that carrier (C2); the final responsibility
+   * is assessed after inspection (Q99, TASK-040).
+   */
+  function requestPickup(
+    employeeId: string,
+    returnId: string,
+    input: RequestReturnPickupInput,
+    ctx: Ctx,
+  ): Promise<AdminReturnView> {
+    return staffTransition(
+      employeeId,
+      returnId,
+      "PICKUP_SCHEDULED",
+      {
+        action: "RETURN_PICKUP_REQUESTED",
+        reason: input.notes ?? null,
+        apply: async (tx, _current, now) => {
+          const company = await tx.shippingCompany.findUnique({
+            where: { id: input.shippingCompanyId },
+            select: { status: true },
+          });
+          if (!company) {
+            throw validationError("shippingCompanyId", "not_found", "Unknown shipping company.");
+          }
+          if (company.status !== "ACTIVE") {
+            throw validationError("shippingCompanyId", "inactive", "This company is inactive.");
+          }
+          const trackingNumber = input.trackingNumber ?? null;
+          return {
+            data: {
+              pickupShippingCompany: { connect: { id: input.shippingCompanyId } },
+              pickupTrackingNumber: trackingNumber,
+              pickupFeePayer: input.feePayer,
+              pickupRequestedAt: now,
+            },
+            audit: {
+              shippingCompanyId: input.shippingCompanyId,
+              trackingNumber,
+              feePayer: input.feePayer,
+            },
+          };
+        },
+      },
+      ctx,
+    );
+  }
+
   return {
+    approveReturn,
+    rejectReturn,
+    requestPickup,
     createReturn,
     resubmitReturn,
     addEvidence,

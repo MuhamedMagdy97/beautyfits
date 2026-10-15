@@ -263,7 +263,7 @@ A matching phone number alone is not sufficient proof of control. The claim OTP 
 | Method | Endpoint | Purpose | Auth |
 |---|---|---|---|
 | GET | `/products` | Browse/search products | Public |
-| GET | `/products/{productId}` | Product details | Public |
+| GET | `/products/{productId}` | Product details (id or slug, "TASK-059 Amendments") | Public |
 | GET | `/categories` | Categories | Public |
 | GET | `/brands` | Brands | Public |
 
@@ -1859,6 +1859,28 @@ Added by TASK-037 (`docs/tasks/TASK-037-return-requests.md`, ADR-0049). Business
 | Evidence/cancel when not `PENDING_APPROVAL`; resubmit when not `REJECTED` | `409 RETURN_STATE_INVALID`, `details = { status, required }` |
 | Missing `RETURNS_VIEW` | `403 PERMISSION_DENIED` |
 
+## TASK-038 Amendments
+
+Added by TASK-038 (`docs/tasks/TASK-038-return-approval.md`, ADR-0056). Business rules: Q5, Q91–Q93, Q99, C2, R18; User Flows §11.2–§11.3. Implements `approve`, `reject` and `pickup` of §17 (admin) and the return status history.
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `POST /admin/returns/{returnId}/approve` | `APPROVE_RETURN` | optional `{ note? }` (1–1000) | `200` `adminReturn`, `status = APPROVED` |
+| `POST /admin/returns/{returnId}/reject` | `APPROVE_RETURN` | `{ reason }` (1–1000, required) | `200` `adminReturn`, `status = REJECTED` |
+| `POST /admin/returns/{returnId}/pickup` | `MANAGE_RETURNS` | `{ shippingCompanyId, trackingNumber?, feePayer?: "CUSTOMER" \| "BEAUTYFITS", notes? }` | `200` `adminReturn`, `status = PICKUP_SCHEDULED` |
+
+- Moves: `PENDING_APPROVAL → APPROVED | REJECTED` (Q91, Q92) and `APPROVED → PICKUP_SCHEDULED` (Q93: BeautyFits asks the carrier to collect from the customer). The order is never changed (Q90). `REJECTED` is final; the customer resubmits (Q92). The customer can no longer withdraw once approved.
+- `pickup`: `shippingCompanyId` must be an active company; `trackingNumber` as for shipments (1–100 letters, digits, `- _ . /`). `feePayer` is who pays the carrier for the pickup (C2), default `CUSTOMER` (User Flows §11.3); the final responsibility is assessed after inspection (Q99, TASK-040).
+- `return` gains `approvedAt`, `rejectedAt`, `rejectionReason` (shown to the customer so the new request can correct it) and `pickup` (`{ shippingCompany: { id, code, name }, trackingNumber, feePayer, requestedAt }` or `null`). `adminReturn` also gains `approvedByEmployeeId` and `statusHistory` (`[{ fromStatus, toStatus, changedByType, changedById, reason, createdAt }]`, oldest first; the approve note, reject reason and pickup notes are its `reason`).
+- Audit actions added (entity `RETURN`, actor: the employee): `RETURN_APPROVED`, `RETURN_REJECTED`, `RETURN_PICKUP_REQUESTED`. Approval writes the outbox event `RETURN_APPROVED` (§31; payload `returnId`, `orderId`, `customerId`). No customer notification template exists yet.
+
+| Situation | Response |
+|---|---|
+| Unknown return | `404 NOT_FOUND` |
+| Approve/reject when not `PENDING_APPROVAL`; pickup when not `APPROVED` | `409 RETURN_STATE_INVALID`, `details = { status, required }` |
+| Missing/blank reject reason; unknown or inactive company; bad `feePayer` | `400 VALIDATION_ERROR` |
+| Missing permission | `403 PERMISSION_DENIED` |
+
 ## TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules: Q4, Q47, Q48, Q51. Implements the wishlist endpoints of §19; the restock subscription endpoints come with TASK-043.
@@ -2003,6 +2025,29 @@ Added by TASK-046 (`docs/tasks/TASK-046-marketing-consent-ledger.md`, ADR-0051).
 | Empty body, unknown-only fields or a non-boolean value | `400 VALIDATION_ERROR` |
 | No session / wrong session type | `401 UNAUTHENTICATED` / `403 FORBIDDEN` |
 
+## TASK-047 Amendments
+
+Added by TASK-047 (`docs/tasks/TASK-047-customer-segmentation.md`, ADR-0057). Business rules: Q59, Q140, Q141. Adds a read-only segment preview to §24; campaigns (TASK-048) store the same definition.
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `POST /admin/segments/preview` | `MARKETING_VIEW` | `segment` | `200` `{ segment, customerCount }` |
+
+- `segment`: `{ type, channel, … }`, `channel` = `EMAIL` \| `WHATSAPP`, and by `type`:
+  - `ALL_OPTED_IN`; `PREVIOUS_BUYERS`;
+  - `PRODUCT_BUYERS` `{ productIds }`, `BRAND_BUYERS` `{ brandIds }`, `CATEGORY_BUYERS` `{ categoryIds }` (1–500 UUIDs; a category includes its subcategories);
+  - `INACTIVE` `{ inactiveDays }` (1–3650): bought before, no buying order in the last `inactiveDays` × 24 h;
+  - `HIGH_SPENDING` `{ minSpent }` (integer piastres ≥ 1): lifetime order line totals (after discounts, shipping excluded) ≥ `minSpent`.
+- Every segment counts only customers whose current consent for `channel` is opted in (Q140, latest row of the consent ledger); anonymized customers never count. Consent is never inferred from orders, an email or a phone (Q59).
+- A buying order is one in the provisional revenue statuses of TASK-051 (`NEW` … `DELIVERED`; pending business decision, TASK-047). Unknown ids simply match nobody.
+- Only the count is returned, no customer data.
+
+| Situation | Response |
+|---|---|
+| Unknown `type`/`channel`, missing or bad fields (e.g. fractional `minSpent`) | `400 VALIDATION_ERROR` |
+| No session / wrong session type | `401 UNAUTHENTICATED` / `403 FORBIDDEN` |
+| Missing `MARKETING_VIEW` | `403 PERMISSION_DENIED` |
+
 ## TASK-051 Amendments
 
 Added by TASK-051 (`docs/tasks/TASK-051-analytics-aggregation.md`, ADR-0052). Business rules: Q103, Q149, Q150, R20. Implements the §27 admin reports except `/admin/analytics/inventory` (low stock stays `GET /admin/inventory/low-stock`).
@@ -2049,3 +2094,24 @@ Added by TASK-057 (`docs/tasks/TASK-057-settings-dashboard.md`, ADR-0054). Busin
 | A change of this critical setting is already waiting | `409 CONFLICT`, `details.reason = APPROVAL_PENDING` (+ `approvalRequestId`) |
 | Approving when the value in effect changed since the request | `409 CONFLICT`, `details.reason = SETTING_CHANGED_SINCE`; the request stays `PENDING` |
 | Manager/Employee calling `PATCH` | `403 PERMISSION_DENIED` |
+
+## TASK-059 Amendments
+
+Added by TASK-059 (`docs/tasks/TASK-059-shopping-experience.md`, ADR-0059). Business rules: Q20, Q47, Q138, R14, C1. Implements the Public table of §13. No session; names and descriptions in the `Accept-Language` language.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /products` | Public | query `page`, `pageSize` (default 24, max 48), `search` (product or brand name, 1–100), `categoryId` (the category and its subcategories), `brandId`, `sort` = `newest` (default, by first publication) \| `price_asc` \| `price_desc` (by the lowest variant price) | `200` `[productSummary]` + `meta.pagination` |
+| `GET /products/{productId}` | Public | `productId` is the product id **or its slug** | `200` `product` |
+| `GET /categories` | Public | — | `200` `[{ id, slug, name, parentId, depth }]`, active categories in tree order (each followed by its subcategories, siblings by English name) |
+| `GET /brands` | Public | — | `200` `[{ id, slug, name, description }]`, active brands by English name |
+
+- Only `PUBLISHED` products with at least one active, priced variant are listed; only those variants are shown. A brand or category that is inactive is left out of the product (and filtering by an inactive category returns nothing).
+- `productSummary`: `{ id, slug, name, brand: { id, slug, name } | null, image: { url, width, height, alt } | null, minPrice, maxPrice, currency: "EGP", variantCount, status }`. `image` is the main image.
+- `product`: `productSummary` without `image`/`variantCount`, plus `description`, `categories: [{ id, slug, name }]`, `images: [{ url, width, height, alt, variantId }]` (main image first), `variants: [{ id, sku, name, attributes, isDefault, price, status }]`.
+- Prices are the current selling prices (tax-inclusive, piastres). `status` is `AVAILABLE` or `OUT_OF_STOCK` (Q20: sold-out products stay visible); stock quantities, costs and margins are never returned. Discounts are not applied to catalog prices (the shopper chooses one in the cart, Q138).
+
+| Situation | Response |
+|---|---|
+| Bad query (`pageSize` above 48, unknown `sort`, malformed `categoryId`/`brandId`) | `400 VALIDATION_ERROR` |
+| Unknown product or slug, or a product that is not `PUBLISHED` | `404 NOT_FOUND` |

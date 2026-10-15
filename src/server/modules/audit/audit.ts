@@ -138,6 +138,10 @@ export const AUDIT_ACTIONS = [
   "RETURN_REQUESTED",
   "RETURN_EVIDENCE_ADDED",
   "RETURN_CANCELLED",
+  // Return approval and pickup (TASK-038)
+  "RETURN_APPROVED",
+  "RETURN_REJECTED",
+  "RETURN_PICKUP_REQUESTED",
   // Settings (TASK-057)
   "SETTING_CHANGED",
 ] as const;

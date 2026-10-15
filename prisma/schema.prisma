@@ -345,35 +345,36 @@ model Employee {
   createdBy Employee?  @relation("EmployeeCreatedBy", fields: [createdByEmployeeId], references: [id])
   created   Employee[] @relation("EmployeeCreatedBy")
 
-  roles                 EmployeeRole[]          @relation("EmployeeRoleHolder")
-  rolesAssigned         EmployeeRole[]          @relation("EmployeeRoleAssigner")
-  rolesCreated          Role[]                  @relation("RoleCreatedBy")
-  invitationsSent       EmployeeInvitation[]    @relation("InvitationInvitedBy")
-  invitationsRevoked    EmployeeInvitation[]    @relation("InvitationRevokedBy")
-  invitation            EmployeeInvitation?     @relation("InvitationAcceptedAs")
-  settingsUpdated       Setting[]               @relation("SettingUpdatedBy")
-  settingChanges        SettingHistory[]        @relation("SettingChangedBy")
-  settingApprovals      SettingHistory[]        @relation("SettingApprovedBy")
-  approvalsRequested    ApprovalRequest[]       @relation("ApprovalRequestedBy")
-  approvalsResolved     ApprovalRequest[]       @relation("ApprovalResolvedBy")
-  mediaUploaded         MediaAsset[]            @relation("MediaAssetCreatedBy")
-  purchasesCreated      PurchaseOrder[]         @relation("PurchaseOrderCreatedBy")
-  purchasesApproved     PurchaseOrder[]         @relation("PurchaseOrderApprovedBy")
-  purchasesCancelled    PurchaseOrder[]         @relation("PurchaseOrderCancelledBy")
-  purchasesClosed       PurchaseOrder[]         @relation("PurchaseOrderClosedBy")
-  goodsReceipts         GoodsReceipt[]          @relation("GoodsReceiptReceivedBy")
-  invoicesRecorded      PurchaseInvoice[]       @relation("PurchaseInvoiceRecordedBy")
-  returnsCreated        SupplierReturn[]        @relation("SupplierReturnCreatedBy")
-  returnsApproved       SupplierReturn[]        @relation("SupplierReturnApprovedBy")
-  returnsSettled        SupplierReturn[]        @relation("SupplierReturnSettledBy")
-  paymentsRecorded      SupplierPayment[]       @relation("SupplierPaymentRecordedBy")
-  ledgerEntries         SupplierLedgerEntry[]   @relation("SupplierLedgerEntryCreatedBy")
-  discountsCreated      Discount[]              @relation("DiscountCreatedBy")
-  codPhoneConfirmations Order[]                 @relation("OrderCodConfirmationRecordedBy")
-  reviewModerations     ReviewModerationEvent[]
-  notifications         Notification[]
-  contactTasksAssigned  CustomerContactTask[]   @relation("ContactTaskAssignedTo")
-  contactTasksResolved  CustomerContactTask[]   @relation("ContactTaskResolvedBy")
+  roles                   EmployeeRole[]          @relation("EmployeeRoleHolder")
+  rolesAssigned           EmployeeRole[]          @relation("EmployeeRoleAssigner")
+  rolesCreated            Role[]                  @relation("RoleCreatedBy")
+  invitationsSent         EmployeeInvitation[]    @relation("InvitationInvitedBy")
+  invitationsRevoked      EmployeeInvitation[]    @relation("InvitationRevokedBy")
+  invitation              EmployeeInvitation?     @relation("InvitationAcceptedAs")
+  settingsUpdated         Setting[]               @relation("SettingUpdatedBy")
+  settingChanges          SettingHistory[]        @relation("SettingChangedBy")
+  settingApprovals        SettingHistory[]        @relation("SettingApprovedBy")
+  approvalsRequested      ApprovalRequest[]       @relation("ApprovalRequestedBy")
+  approvalsResolved       ApprovalRequest[]       @relation("ApprovalResolvedBy")
+  mediaUploaded           MediaAsset[]            @relation("MediaAssetCreatedBy")
+  purchasesCreated        PurchaseOrder[]         @relation("PurchaseOrderCreatedBy")
+  purchasesApproved       PurchaseOrder[]         @relation("PurchaseOrderApprovedBy")
+  purchasesCancelled      PurchaseOrder[]         @relation("PurchaseOrderCancelledBy")
+  purchasesClosed         PurchaseOrder[]         @relation("PurchaseOrderClosedBy")
+  goodsReceipts           GoodsReceipt[]          @relation("GoodsReceiptReceivedBy")
+  invoicesRecorded        PurchaseInvoice[]       @relation("PurchaseInvoiceRecordedBy")
+  returnsCreated          SupplierReturn[]        @relation("SupplierReturnCreatedBy")
+  returnsApproved         SupplierReturn[]        @relation("SupplierReturnApprovedBy")
+  returnsSettled          SupplierReturn[]        @relation("SupplierReturnSettledBy")
+  paymentsRecorded        SupplierPayment[]       @relation("SupplierPaymentRecordedBy")
+  ledgerEntries           SupplierLedgerEntry[]   @relation("SupplierLedgerEntryCreatedBy")
+  discountsCreated        Discount[]              @relation("DiscountCreatedBy")
+  codPhoneConfirmations   Order[]                 @relation("OrderCodConfirmationRecordedBy")
+  reviewModerations       ReviewModerationEvent[]
+  notifications           Notification[]
+  contactTasksAssigned    CustomerContactTask[]   @relation("ContactTaskAssignedTo")
+  contactTasksResolved    CustomerContactTask[]   @relation("ContactTaskResolvedBy")
+  customerReturnsApproved Return[]                @relation("ReturnApprovedBy")
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -1733,9 +1734,10 @@ model ShippingCompany {
   createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
 
-  rules     ShippingRule[]
-  orders    Order[]
-  shipments Shipment[]
+  rules         ShippingRule[]
+  orders        Order[]
+  shipments     Shipment[]
+  returnPickups Return[]
 
   @@map("shipping_companies")
 }
@@ -2551,27 +2553,42 @@ enum ReturnClaimType {
 /// A customer's return request for items of one delivered order. Never
 /// deleted; a rejected request is not rewritten, a new one is created (Q92).
 model Return {
-  id                 String          @id @default(uuid(7)) @db.Uuid
+  id                      String                @id @default(uuid(7)) @db.Uuid
   /// "RT-000001", from the sequence `return_number_seq`.
-  returnNumber       String          @unique @default(dbgenerated("('RT-'::text || lpad((nextval('return_number_seq'::regclass))::text, 6, '0'::text))")) @map("return_number")
-  orderId            String          @map("order_id") @db.Uuid
-  customerId         String?         @map("customer_id") @db.Uuid
-  status             ReturnStatus    @default(PENDING_APPROVAL)
-  claimType          ReturnClaimType @map("claim_type")
+  returnNumber            String                @unique @default(dbgenerated("('RT-'::text || lpad((nextval('return_number_seq'::regclass))::text, 6, '0'::text))")) @map("return_number")
+  orderId                 String                @map("order_id") @db.Uuid
+  customerId              String?               @map("customer_id") @db.Uuid
+  status                  ReturnStatus          @default(PENDING_APPROVAL)
+  claimType               ReturnClaimType       @map("claim_type")
   /// The customer's own words (Q14, Q99).
-  customerReasonText String          @map("customer_reason_text")
+  customerReasonText      String                @map("customer_reason_text")
   /// The rejected return this one corrects (Q92).
-  resubmittedFromId  String?         @map("resubmitted_from_return_id") @db.Uuid
-  cancelledAt        DateTime?       @map("cancelled_at") @db.Timestamptz(3)
-  createdAt          DateTime        @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime        @map("updated_at") @db.Timestamptz(3)
+  resubmittedFromId       String?               @map("resubmitted_from_return_id") @db.Uuid
+  cancelledAt             DateTime?             @map("cancelled_at") @db.Timestamptz(3)
+  /// Staff review (TASK-038, Q91): who approved and when.
+  approvedById            String?               @map("approved_by_employee_id") @db.Uuid
+  approvedAt              DateTime?             @map("approved_at") @db.Timestamptz(3)
+  /// Set exactly when `REJECTED`; the reason is shown to the customer (Q92).
+  rejectedAt              DateTime?             @map("rejected_at") @db.Timestamptz(3)
+  rejectionReason         String?               @map("rejection_reason")
+  /// Carrier pickup (TASK-038, Q93), set together by `pickup`.
+  pickupShippingCompanyId String?               @map("pickup_shipping_company_id") @db.Uuid
+  pickupTrackingNumber    String?               @map("pickup_tracking_number")
+  /// Who pays the carrier for the pickup (C2); provisional until inspection.
+  pickupFeePayer          ReturnPickupFeePayer? @map("pickup_fee_payer")
+  pickupRequestedAt       DateTime?             @map("pickup_requested_at") @db.Timestamptz(3)
+  createdAt               DateTime              @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime              @map("updated_at") @db.Timestamptz(3)
 
-  order           Order            @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  customer        Customer?        @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  resubmittedFrom Return?          @relation("ReturnResubmission", fields: [resubmittedFromId], references: [id], onDelete: Restrict)
-  resubmissions   Return[]         @relation("ReturnResubmission")
-  items           ReturnItem[]
-  evidence        ReturnEvidence[]
+  order                 Order                 @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  customer              Customer?             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  approvedBy            Employee?             @relation("ReturnApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  pickupShippingCompany ShippingCompany?      @relation(fields: [pickupShippingCompanyId], references: [id], onDelete: Restrict)
+  resubmittedFrom       Return?               @relation("ReturnResubmission", fields: [resubmittedFromId], references: [id], onDelete: Restrict)
+  resubmissions         Return[]              @relation("ReturnResubmission")
+  items                 ReturnItem[]
+  evidence              ReturnEvidence[]
+  statusHistory         ReturnStatusHistory[]
 
   @@index([customerId, createdAt(sort: Desc)])
   @@index([status, createdAt])
@@ -2596,6 +2613,32 @@ model ReturnItem {
 }
 
 /// A checked photo attached to a return (Q100). Append-only.
+/// Who pays the carrier for the return pickup (Business Spec C2).
+enum ReturnPickupFeePayer {
+  CUSTOMER
+  BEAUTYFITS
+
+  @@map("return_pickup_fee_payer")
+}
+
+/// Every status change of a return (TASK-038). Append-only.
+model ReturnStatusHistory {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  returnId      String         @map("return_id") @db.Uuid
+  /// Null for the request itself.
+  fromStatus    ReturnStatus?  @map("from_status")
+  toStatus      ReturnStatus   @map("to_status")
+  changedByType AuditActorType @map("changed_by_type")
+  changedById   String?        @map("changed_by_id") @db.Uuid
+  reason        String?
+  createdAt     DateTime       @map("created_at") @db.Timestamptz(3)
+
+  return Return @relation(fields: [returnId], references: [id], onDelete: Restrict)
+
+  @@index([returnId, createdAt])
+  @@map("return_status_history")
+}
+
 model ReturnEvidence {
   id             String         @id @default(uuid(7)) @db.Uuid
   returnId       String         @map("return_id") @db.Uuid

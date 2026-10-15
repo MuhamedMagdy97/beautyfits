@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { checkReturnQuantities, returnWindowEndsAt } from "@/server/modules/returns/returns";
+import {
+  checkReturnQuantities,
+  requiredStatusFor,
+  returnWindowEndsAt,
+} from "@/server/modules/returns/returns";
 
 describe("returnWindowEndsAt (R21)", () => {
   it("ends at Cairo midnight after the 14th calendar day; the delivery day is day 0", () => {
@@ -32,5 +36,22 @@ describe("checkReturnQuantities (Q34)", () => {
         { orderItemId: "x", quantity: 1 },
       ]),
     ).toEqual({ kind: "UNKNOWN_ITEM", index: 1, orderItemId: "x" });
+  });
+});
+
+describe("requiredStatusFor (User Flows §11.2)", () => {
+  it("allows review of a waiting request and pickup of an approved one", () => {
+    expect(requiredStatusFor("PENDING_APPROVAL", "APPROVED")).toBeNull();
+    expect(requiredStatusFor("PENDING_APPROVAL", "REJECTED")).toBeNull();
+    expect(requiredStatusFor("PENDING_APPROVAL", "CANCELLED")).toBeNull();
+    expect(requiredStatusFor("APPROVED", "PICKUP_SCHEDULED")).toBeNull();
+  });
+
+  it("names the status a move needs", () => {
+    expect(requiredStatusFor("APPROVED", "REJECTED")).toBe("PENDING_APPROVAL");
+    expect(requiredStatusFor("REJECTED", "APPROVED")).toBe("PENDING_APPROVAL");
+    expect(requiredStatusFor("APPROVED", "CANCELLED")).toBe("PENDING_APPROVAL");
+    expect(requiredStatusFor("PENDING_APPROVAL", "PICKUP_SCHEDULED")).toBe("APPROVED");
+    expect(requiredStatusFor("PICKUP_SCHEDULED", "PICKUP_SCHEDULED")).toBe("APPROVED");
   });
 });

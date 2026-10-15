@@ -368,3 +368,18 @@ export const variantCostSchema = z
     (value) => value.latestPurchaseCost !== undefined || value.weightedAverageCost !== undefined,
     { message: "Provide at least one cost to change." },
   );
+
+// ---------------------------------------------------------------------------
+// Public catalog (TASK-059, ADR-0059)
+// ---------------------------------------------------------------------------
+
+export const publicProductsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(48).default(24),
+  /** Matches either product name or the brand name. */
+  search: z.string().trim().min(1).max(100).optional(),
+  /** Products in this category or its subcategories. */
+  categoryId: z.uuid().optional(),
+  brandId: z.uuid().optional(),
+  sort: z.enum(["newest", "price_asc", "price_desc"]).default("newest"),
+});

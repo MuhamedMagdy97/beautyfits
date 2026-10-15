@@ -18,9 +18,20 @@ import { criticalSettingApprovalHandler } from "@/server/modules/settings/settin
  * Approving a request whose type has no handler fails, so a request can only
  * be approved once its feature knows how to apply it.
  */
+// Getters: the feature modules import `approvals.ts`, which imports this file, so
+// reading their handlers while this module is evaluated can hit a binding that is
+// not initialized yet (import cycle; seen in the production build). Read on use.
 export const APPROVAL_HANDLERS: ApprovalHandlers = {
-  PURCHASE_ORDER: purchaseOrderApprovalHandler,
-  PURCHASE_OVER_DELIVERY: overDeliveryApprovalHandler,
-  SUPPLIER_RETURN: supplierReturnApprovalHandler,
-  CRITICAL_SETTING: criticalSettingApprovalHandler,
+  get PURCHASE_ORDER() {
+    return purchaseOrderApprovalHandler;
+  },
+  get PURCHASE_OVER_DELIVERY() {
+    return overDeliveryApprovalHandler;
+  },
+  get SUPPLIER_RETURN() {
+    return supplierReturnApprovalHandler;
+  },
+  get CRITICAL_SETTING() {
+    return criticalSettingApprovalHandler;
+  },
 };
