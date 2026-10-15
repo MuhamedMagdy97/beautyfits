@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pageQuery, uuidParam } from "@/server/modules/rbac/schemas";
+import { trackingNumber } from "@/server/modules/shipping/schemas";
 
 /** Customer return requests (TASK-037, ADR-0049; API §17, "TASK-037 Amendments"). */
 
@@ -76,5 +77,29 @@ export const listReturnsQuerySchema = z.object({
   customerId: uuidParam.optional(),
 });
 
+// Staff review and pickup (TASK-038, ADR-0056)
+
+/** `POST /admin/returns/{returnId}/approve`: an optional note for the history. */
+export const approveReturnSchema = z.object({
+  note: z.string().trim().min(1).max(1000).optional(),
+});
+
+/** `POST /admin/returns/{returnId}/reject`: the reason is required and shown to the customer (Q92). */
+export const rejectReturnSchema = z.object({ reason: z.string().trim().min(1).max(1000) });
+
+/**
+ * `POST /admin/returns/{returnId}/pickup` (Q93): the carrier asked to collect
+ * the parcel. `feePayer` defaults to the customer (User Flows §11.3, C2).
+ */
+export const requestReturnPickupSchema = z.object({
+  shippingCompanyId: z.uuid().transform((id) => id.toLowerCase()),
+  trackingNumber: trackingNumber.optional(),
+  feePayer: z.enum(["CUSTOMER", "BEAUTYFITS"]).default("CUSTOMER"),
+  notes: z.string().trim().min(1).max(1000).optional(),
+});
+
 export type CreateReturnInput = z.infer<typeof createReturnSchema>;
+export type ApproveReturnInput = z.output<typeof approveReturnSchema>;
+export type RejectReturnInput = z.output<typeof rejectReturnSchema>;
+export type RequestReturnPickupInput = z.output<typeof requestReturnPickupSchema>;
 export type ListReturnsQuery = z.infer<typeof listReturnsQuerySchema>;

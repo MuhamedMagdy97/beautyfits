@@ -26,6 +26,25 @@ export const OPEN_RETURN_STATUSES: readonly ReturnStatus[] = [
   "PARTIALLY_COMPLETED",
 ];
 
+/**
+ * Allowed status moves so far (User Flows §11.2): the customer withdraws or
+ * staff approve/reject a waiting request (TASK-037/038, Q91, Q92); an
+ * approved return gets its carrier pickup (Q93). TASK-039+ add the rest.
+ */
+const RETURN_TRANSITIONS: Partial<Record<ReturnStatus, readonly ReturnStatus[]>> = {
+  PENDING_APPROVAL: ["APPROVED", "REJECTED", "CANCELLED"],
+  APPROVED: ["PICKUP_SCHEDULED"],
+};
+
+/** The status a return must be in to move to `to`, or null when `from` may move there. */
+export function requiredStatusFor(from: ReturnStatus, to: ReturnStatus): ReturnStatus | null {
+  if (RETURN_TRANSITIONS[from]?.includes(to)) {
+    return null;
+  }
+  const source = Object.entries(RETURN_TRANSITIONS).find(([, targets]) => targets.includes(to));
+  return (source?.[0] as ReturnStatus | undefined) ?? from;
+}
+
 export type QuantityProblem =
   | { kind: "UNKNOWN_ITEM"; index: number; orderItemId: string }
   | { kind: "TOO_MANY"; orderItemId: string; requested: number; returnable: number };

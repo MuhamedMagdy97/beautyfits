@@ -1859,6 +1859,28 @@ Added by TASK-037 (`docs/tasks/TASK-037-return-requests.md`, ADR-0049). Business
 | Evidence/cancel when not `PENDING_APPROVAL`; resubmit when not `REJECTED` | `409 RETURN_STATE_INVALID`, `details = { status, required }` |
 | Missing `RETURNS_VIEW` | `403 PERMISSION_DENIED` |
 
+## TASK-038 Amendments
+
+Added by TASK-038 (`docs/tasks/TASK-038-return-approval.md`, ADR-0056). Business rules: Q5, Q91–Q93, Q99, C2, R18; User Flows §11.2–§11.3. Implements `approve`, `reject` and `pickup` of §17 (admin) and the return status history.
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `POST /admin/returns/{returnId}/approve` | `APPROVE_RETURN` | optional `{ note? }` (1–1000) | `200` `adminReturn`, `status = APPROVED` |
+| `POST /admin/returns/{returnId}/reject` | `APPROVE_RETURN` | `{ reason }` (1–1000, required) | `200` `adminReturn`, `status = REJECTED` |
+| `POST /admin/returns/{returnId}/pickup` | `MANAGE_RETURNS` | `{ shippingCompanyId, trackingNumber?, feePayer?: "CUSTOMER" \| "BEAUTYFITS", notes? }` | `200` `adminReturn`, `status = PICKUP_SCHEDULED` |
+
+- Moves: `PENDING_APPROVAL → APPROVED | REJECTED` (Q91, Q92) and `APPROVED → PICKUP_SCHEDULED` (Q93: BeautyFits asks the carrier to collect from the customer). The order is never changed (Q90). `REJECTED` is final; the customer resubmits (Q92). The customer can no longer withdraw once approved.
+- `pickup`: `shippingCompanyId` must be an active company; `trackingNumber` as for shipments (1–100 letters, digits, `- _ . /`). `feePayer` is who pays the carrier for the pickup (C2), default `CUSTOMER` (User Flows §11.3); the final responsibility is assessed after inspection (Q99, TASK-040).
+- `return` gains `approvedAt`, `rejectedAt`, `rejectionReason` (shown to the customer so the new request can correct it) and `pickup` (`{ shippingCompany: { id, code, name }, trackingNumber, feePayer, requestedAt }` or `null`). `adminReturn` also gains `approvedByEmployeeId` and `statusHistory` (`[{ fromStatus, toStatus, changedByType, changedById, reason, createdAt }]`, oldest first; the approve note, reject reason and pickup notes are its `reason`).
+- Audit actions added (entity `RETURN`, actor: the employee): `RETURN_APPROVED`, `RETURN_REJECTED`, `RETURN_PICKUP_REQUESTED`. Approval writes the outbox event `RETURN_APPROVED` (§31; payload `returnId`, `orderId`, `customerId`). No customer notification template exists yet.
+
+| Situation | Response |
+|---|---|
+| Unknown return | `404 NOT_FOUND` |
+| Approve/reject when not `PENDING_APPROVAL`; pickup when not `APPROVED` | `409 RETURN_STATE_INVALID`, `details = { status, required }` |
+| Missing/blank reject reason; unknown or inactive company; bad `feePayer` | `400 VALIDATION_ERROR` |
+| Missing permission | `403 PERMISSION_DENIED` |
+
 ## TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules: Q4, Q47, Q48, Q51. Implements the wishlist endpoints of §19; the restock subscription endpoints come with TASK-043.

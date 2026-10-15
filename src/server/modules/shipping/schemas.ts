@@ -91,7 +91,7 @@ export type ListShippingRulesQuery = z.output<typeof listShippingRulesQuerySchem
 // Shipments (TASK-034, API §16, ADR-0040)
 
 /** Letters, digits and `- _ . /`, as carriers print them. */
-const trackingNumber = z
+export const trackingNumber = z
   .string()
   .trim()
   .regex(/^[A-Za-z0-9._/-]{1,100}$/, { message: "Use 1–100 letters, digits, - _ . or /." });
