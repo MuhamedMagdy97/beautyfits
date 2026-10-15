@@ -44,6 +44,21 @@ function BagIcon() {
   );
 }
 
+// On phones the account text does not fit beside the other header links.
+function PersonIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="h-6 w-6 sm:hidden"
+      fill="none"
+      stroke="currentColor"
+    >
+      <path strokeWidth="1.5" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0" />
+    </svg>
+  );
+}
+
 function AccountArea() {
   const t = useT();
   const { shopper, signOut } = useShopper();
@@ -53,14 +68,18 @@ function AccountArea() {
   if (shopper.status === "guest") {
     return (
       <Link href="/login" className="text-sm text-ink hover:text-plum">
-        {t.signIn}
+        <PersonIcon />
+        <span className="sr-only sm:not-sr-only">{t.signIn}</span>
       </Link>
     );
   }
   return (
     <details className="relative">
       <summary className="cursor-pointer list-none text-sm text-ink hover:text-plum">
-        {t.hello.replace("{name}", shopper.session.customer.fullName)}
+        <PersonIcon />
+        <span className="sr-only sm:not-sr-only">
+          {t.hello.replace("{name}", shopper.session.customer.fullName)}
+        </span>
       </summary>
       <div className="absolute end-0 z-10 mt-2 w-56 rounded-md border border-line bg-white p-2 shadow-sm">
         <Link href="/account" className="block rounded px-3 py-2 text-sm hover:bg-velvet-low">
@@ -93,7 +112,7 @@ export function StoreHeader() {
   const { cartCount } = useShopper();
   return (
     <header className="border-b border-line bg-velvet">
-      <div className="mx-auto flex h-20 max-w-[1360px] items-center justify-between gap-4 px-4 md:px-8">
+      <div className="mx-auto flex h-20 max-w-[1360px] items-center justify-between gap-2 px-4 sm:gap-4 md:px-8">
         <BrandLink />
         <form action="/products" role="search" className="hidden max-w-md flex-1 md:block">
           <input
@@ -105,7 +124,7 @@ export function StoreHeader() {
             className="w-full rounded-full border border-line bg-white px-4 py-2 text-sm outline-none focus:border-plum"
           />
         </form>
-        <nav aria-label={t.mainNav} className="flex items-center gap-4">
+        <nav aria-label={t.mainNav} className="flex items-center gap-2 sm:gap-4">
           <Link href="/products" className="text-sm text-ink hover:text-plum">
             {t.shop.title}
           </Link>
