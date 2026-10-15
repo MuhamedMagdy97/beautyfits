@@ -67,8 +67,8 @@ Every endpoint checks its permission server-side; `PATCH` is Owner/Admin only. C
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] Which other settings are critical (staff session lengths, image limit, minimum margin, guest cart expiry, COD reminder interval/count, COD channel and the delivery-failure contact threshold (TASK-035) are non-critical for now; ADR-0023 left the minimum margin to this task).
-- [BUSINESS DECISION REQUIRED] A store with one Owner and no Admin cannot change a critical setting (no self-approval). Should the Owner's own change skip approval, or must an Admin exist?
+- Resolved (owner decision 2026-10-15): minimum margin is critical; the other settings stay non-critical.
+- Resolved (owner decision 2026-10-15): an Owner's critical change applies at once when no other active Owner or Admin exists, audited as `approvalSkipped: "SOLE_OWNER"`.
 - [BUSINESS DECISION REQUIRED] Minimum and maximum of the staff session settings (ADR-0017 §5 item 3).
 - No Stitch design exists for these screens; the layout is a proposal.
 
