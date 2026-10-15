@@ -550,6 +550,7 @@ export function createShipmentsService(deps: {
           select: {
             customerId: true,
             walletAmountCaptured: true,
+            shippingFee: true,
             items: { select: { id: true, productVariantId: true, quantity: true } },
           },
         });
@@ -619,7 +620,12 @@ export function createShipmentsService(deps: {
           data: { cancelledAt: now },
         });
         await releaseOrderHolds(tx, { orderId, actor: who, now, reason: "ORDER_CANCELLED" });
-        const refund = order.walletAmountCaptured;
+        // A change-of-mind cancellation keeps the shipping fee; a parcel returned
+        // after failed delivery refunds everything (owner decision 2026-10-15).
+        const shippingFeeKept = shipment.cancellationRequestedAt
+          ? minBigInt(order.shippingFee, order.walletAmountCaptured)
+          : BigInt(0);
+        const refund = order.walletAmountCaptured - shippingFeeKept;
         if (refund > BigInt(0) && order.customerId) {
           await creditWallet(tx, {
             customerId: order.customerId,
@@ -650,7 +656,12 @@ export function createShipmentsService(deps: {
             entityType: AUDIT_ENTITY_TYPES.order,
             entityId: orderId,
             previous: { status: "SHIPPED" },
-            next: { status: "CANCELLED", shipmentId, walletRefunded: toJsonNumber(refund) },
+            next: {
+              status: "CANCELLED",
+              shipmentId,
+              walletRefunded: toJsonNumber(refund),
+              shippingFeeKept: toJsonNumber(shippingFeeKept),
+            },
             reason,
             correlationId: ctx.correlationId,
             createdAt: now,
@@ -679,6 +690,10 @@ export function createShipmentsService(deps: {
     requestShippingCancellation,
     inspectReturn,
   };
+}
+
+function minBigInt(a: bigint, b: bigint): bigint {
+  return a < b ? a : b;
 }
 
 export type ShipmentsService = ReturnType<typeof createShipmentsService>;

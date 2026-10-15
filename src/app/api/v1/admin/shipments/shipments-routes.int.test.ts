@@ -752,7 +752,7 @@ describe("delivery failures and contact tasks (TASK-035, Q19, Q128, Q129)", () =
 
 describe("shipping cancellation and return to sender (TASK-036, Q89, Q130, R3, R11)", () => {
   it("records the customer's request, brings the parcel back and cancels after inspection", async () => {
-    const { order, sara, variantId, shipmentId } = await shippedOrder(10000, 5000);
+    const { order, sara, variantId, shipmentId } = await shippedOrder(10000, 8000);
     const params = { orderId: order.id };
     const warehouse = await staff(["INSPECT_RETURN"]);
 
@@ -868,15 +868,19 @@ describe("shipping cancellation and return to sender (TASK-036, Q89, Q130, R3, R
         select: { movementType: true, availableDelta: true, damagedDelta: true },
       }),
     ).toEqual([{ movementType: "SHIPMENT_RETURN", availableDelta: 1, damagedDelta: 1 }]);
-    // The captured wallet credit comes back (Audit Correction 5).
+    // The captured wallet credit comes back minus the 50.00 shipping fee: the
+    // customer changed their mind after pickup (owner decision 2026-10-15).
     const wallet = await db.wallet.findUniqueOrThrow({ where: { customerId: sara.customerId } });
-    expect(wallet.balance).toBe(BigInt(10000));
+    expect(wallet.balance).toBe(BigInt(10000 - 8000 + 3000));
     expect(
       await db.walletTransaction.findMany({
         where: { referenceId: order.id, transactionType: "ORDER_CANCELLATION_REFUND" },
         select: { direction: true, amount: true },
       }),
-    ).toEqual([{ direction: "CREDIT", amount: BigInt(5000) }]);
+    ).toEqual([{ direction: "CREDIT", amount: BigInt(3000) }]);
+    expect(
+      (await db.auditLog.findFirstOrThrow({ where: { action: "ORDER_CANCELLED" } })).newDataJson,
+    ).toMatchObject({ walletRefunded: 3000, shippingFeeKept: 5000 });
     expect(
       await db.outboxEvent.count({
         where: {
@@ -921,7 +925,7 @@ describe("shipping cancellation and return to sender (TASK-036, Q89, Q130, R3, R
   });
 
   it("returns a parcel after failed delivery without a request, but not before", async () => {
-    const { order, variantId, shipmentId } = await shippedOrder();
+    const { order, variantId, shipmentId } = await shippedOrder(10000, 8000);
     const warehouse = await staff(["INSPECT_RETURN"]);
 
     expect(await errorOf(await move(shipmentId, "RETURN_TO_SENDER"), 409)).toMatchObject({
@@ -941,7 +945,13 @@ describe("shipping cancellation and return to sender (TASK-036, Q89, Q130, R3, R
       where: { productVariantId: variantId },
     });
     expect([balance.availableQuantity, balance.damagedQuantity]).toEqual([10, 0]);
-    expect(await db.walletTransaction.count({ where: { referenceId: order.id } })).toBe(0);
+    // Failed delivery, not a change of mind: the whole wallet amount comes back.
+    expect(
+      await db.walletTransaction.findMany({
+        where: { referenceId: order.id, transactionType: "ORDER_CANCELLATION_REFUND" },
+        select: { amount: true },
+      }),
+    ).toEqual([{ amount: BigInt(8000) }]);
   });
 
   it("refuses a request before shipping or after delivery", async () => {

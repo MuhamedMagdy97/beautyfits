@@ -52,7 +52,7 @@ Migration `20261014036000_shipping_cancellation`; DB Design "v1.2 TASK-036 Amend
 
 ## Security / Authorization
 
-Customer: own orders only (404 otherwise). Staff endpoints need their permission; inspection `INSPECT_RETURN` (provisional, see open items). Order then shipment rows are locked; every step is one transaction. Customers never see staff notes (request reason, inspection notes). Audited; logs carry ids only.
+Customer: own orders only (404 otherwise). Staff endpoints need their permission; inspection `INSPECT_RETURN` (confirmed by the owner, 2026-10-15). Order then shipment rows are locked; every step is one transaction. Customers never see staff notes (request reason, inspection notes). Audited; logs carry ids only.
 
 ## Acceptance Criteria
 
@@ -79,8 +79,8 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Permission for the inspection that cancels a shipped order: documents say "Authorized ops" (User Flows §8.3) without a code. Implemented with `INSPECT_RETURN` (warehouse inspection, Q94) provisionally; alternatives: `CANCEL_ORDER`, a new code, or both.
-- [BUSINESS DECISION REQUIRED] Money on a shipping cancellation: the full captured wallet credit is refunded (outbound shipping fee included when it was paid from the wallet). Should a change-of-mind cancellation after pickup deduct the outbound/return shipping fee (compare Q15 for customer returns: change of mind is the customer's cost)? Nothing is deducted now.
+- Resolved (owner decision 2026-10-15): the inspection that cancels a shipped order uses `INSPECT_RETURN`.
+- Resolved (owner decision 2026-10-15): a change-of-mind cancellation after pickup (a shipping cancellation was requested) keeps the order's shipping fee and refunds the rest of the captured wallet credit, as Q15 does for returns; a parcel returned after failed delivery is refunded in full.
 - [BUSINESS DECISION REQUIRED] Shipping damage: damaged units go to Damaged stock. Should a carrier damage claim or a carrier charge be recorded?
 - [BUSINESS DECISION REQUIRED] Lost or missing units in a returned parcel are not modelled (every unit is either intact or damaged).
 - Documentation conflict (reported, not resolved silently): User Flows §8.3 allows `Shipped → Cancelled` "only after a shipping cancellation request", while Business Spec Q130 and User Flows §10 cancel the order after a failed-delivery return too. Implemented per Q130 (higher source): inspection cancels in both paths.
