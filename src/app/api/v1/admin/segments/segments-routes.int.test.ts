@@ -188,7 +188,7 @@ beforeEach(async () => {
     gina: await customer([["EMAIL", true]], true),
   };
   await order(ids.alice, "DELIVERED", p1, 30000);
-  await order(ids.bob, "NEW", p2, 50000, new Date(Date.now() - 100 * MS_PER_DAY));
+  await order(ids.bob, "CONFIRMED", p2, 50000, new Date(Date.now() - 100 * MS_PER_DAY));
   await order(ids.carol, "DELIVERED", p1, 90000);
   await order(ids.dave, "DELIVERED", p1, 90000);
   await order(ids.frank, "CANCELLED", p1, 90000);

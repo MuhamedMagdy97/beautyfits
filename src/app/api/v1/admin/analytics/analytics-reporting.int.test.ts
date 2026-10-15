@@ -185,17 +185,18 @@ beforeEach(async () => {
 
   // Revenue orders today: 2 × 150.00 (cost 90.00) + shipping 50.00; 1 × 200.00 without cost.
   await order(
-    "NEW",
+    "CONFIRMED",
     { ...a, quantity: 2, unitPrice: 15000 },
     { customerId, cost: 9000, shipping: 5000 },
   );
   await order("DELIVERED", { ...b, quantity: 1, unitPrice: 20000 });
-  // Not revenue (provisional REVENUE_ORDER_STATUSES).
+  // Not revenue (REVENUE_ORDER_STATUSES, owner decision 2026-10-15).
+  await order("NEW", { ...a, quantity: 1, unitPrice: 15000 }, { cost: 9000 });
   await order("CANCELLED", { ...a, quantity: 1, unitPrice: 15000 }, { cost: 9000 });
   await order("PENDING_CONFIRMATION", { ...a, quantity: 1, unitPrice: 15000 }, { cost: 9000 });
   // Three days ago: only in 7D.
   await order(
-    "NEW",
+    "CONFIRMED",
     { ...a, quantity: 1, unitPrice: 15000 },
     { cost: 9000, at: new Date(Date.now() - 3 * MS_PER_DAY) },
   );
@@ -237,7 +238,7 @@ describe("overview", () => {
     expect(data.period.timeZone).toBe("Africa/Cairo");
     expect(data.orders).toEqual({
       count: 2,
-      byStatus: { NEW: 1, DELIVERED: 1, CANCELLED: 1, PENDING_CONFIRMATION: 1 },
+      byStatus: { CONFIRMED: 1, NEW: 1, DELIVERED: 1, CANCELLED: 1, PENDING_CONFIRMATION: 1 },
     });
     expect(data.revenue).toBe(50000);
     expect(data.shippingFees).toBe(5000);

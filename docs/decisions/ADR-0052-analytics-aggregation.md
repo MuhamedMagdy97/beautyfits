@@ -16,7 +16,7 @@ Reports are computed by SQL at request time from `orders`, `order_items`, `custo
 ## 3. Revenue, COGS and estimated gross profit
 
 - **Revenue** = sum of `order_items.line_total` (selling price × quantity minus the line's share of the discount), tax-inclusive (C1). Shipping fees are reported separately, not in revenue.
-- **Revenue orders**: provisionally `NEW`, `CONFIRMED`, `PREPARING`, `READY_FOR_SHIPMENT`, `SHIPPED`, `DELIVERED`, dated by order creation in Africa/Cairo (`REVENUE_ORDER_STATUSES`). This is a business decision that was not made; it is one constant and listed as `[BUSINESS DECISION REQUIRED]` in the task file.
+- **Revenue orders**: `CONFIRMED`, `PREPARING`, `READY_FOR_SHIPMENT`, `SHIPPED`, `DELIVERED`, dated by order creation in Africa/Cairo (`REVENUE_ORDER_STATUSES`). Owner decision 2026-10-15: `PENDING_CONFIRMATION`, `NEW`, `CANCELLED` and `EXPIRED` do not count; shipping fees are reported separately, never as revenue.
 - **COGS** = `unit_cost_at_sale × quantity` (Q103: weighted average cost stored at sale), so profit history never changes with later purchases.
 - **Estimated gross profit** (Q150) = revenue − COGS over the lines that have a cost. Lines without `unit_cost_at_sale` are reported as `revenueWithoutCost` / `linesWithoutCost` rather than counted as zero-cost profit.
 - **AOV** = revenue ÷ revenue orders, rounded HALF-UP to a piastre. All amounts are integer piastres.

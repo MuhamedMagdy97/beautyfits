@@ -2039,7 +2039,7 @@ Added by TASK-047 (`docs/tasks/TASK-047-customer-segmentation.md`, ADR-0057). Bu
   - `INACTIVE` `{ inactiveDays }` (1–3650): bought before, no buying order in the last `inactiveDays` × 24 h;
   - `HIGH_SPENDING` `{ minSpent }` (integer piastres ≥ 1): lifetime order line totals (after discounts, shipping excluded) ≥ `minSpent`.
 - Every segment counts only customers whose current consent for `channel` is opted in (Q140, latest row of the consent ledger); anonymized customers never count. Consent is never inferred from orders, an email or a phone (Q59).
-- A buying order is one in the provisional revenue statuses of TASK-051 (`NEW` … `DELIVERED`; pending business decision, TASK-047). Unknown ids simply match nobody.
+- A buying order is one in the revenue statuses of TASK-051 (`CONFIRMED` … `DELIVERED`). Unknown ids simply match nobody.
 - Only the count is returned, no customer data.
 
 | Situation | Response |
@@ -2061,7 +2061,7 @@ All take `?range=TODAY|YESTERDAY|7D|30D|90D|CUSTOM` (default `30D`) and, for `CU
 | `GET /admin/analytics/products` | `ANALYTICS_VIEW` | `200` `{ period, items: [{ productId, name: { ar, en }, views, addToCart, unitsSold, revenue }] }` + `meta.pagination` (`page`, `pageSize` ≤ 100); best revenue first; with `VIEW_PROFIT` items add `cogs`, `estimatedGrossProfit`, `revenueWithoutCost`, `linesWithoutCost` |
 | `GET /admin/analytics/profit` | `VIEW_PROFIT` | `200` `{ period, orders, revenue, cogs, estimatedGrossProfit, revenueWithoutCost, linesWithoutCost, daily: [{ date, orders, revenue, cogs, estimatedGrossProfit, revenueWithoutCost, linesWithoutCost }] }` |
 
-- Sales come from orders, never from analytics events. `orders.count`, revenue, AOV, costs and product sales cover revenue orders only: provisionally `NEW`, `CONFIRMED`, `PREPARING`, `READY_FOR_SHIPMENT`, `SHIPPED`, `DELIVERED`, by creation date (pending business decision, TASK-051). `orders.byStatus` counts every order created in the period.
+- Sales come from orders, never from analytics events. `orders.count`, revenue, AOV, costs and product sales cover revenue orders only: `CONFIRMED`, `PREPARING`, `READY_FOR_SHIPMENT`, `SHIPPED`, `DELIVERED`, by creation date (owner decision 2026-10-15). `orders.byStatus` counts every order created in the period.
 - `revenue` = sum of order line totals (after discounts, tax-inclusive); shipping fees are separate. `averageOrderValue` = revenue ÷ revenue orders, HALF-UP.
 - `cogs` = `unit_cost_at_sale × quantity` (Q103). `estimatedGrossProfit` = revenue − COGS for lines that have a cost (Q150); lines without one are `revenueWithoutCost` / `linesWithoutCost`. Returns are not deducted yet.
 - Funnel steps count visitors (customer or anonymous id) and events in the period, each step independently. `customers.new` = customer accounts created in the period; `ordering` = distinct customers with revenue orders.

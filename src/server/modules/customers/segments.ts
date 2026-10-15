@@ -17,7 +17,7 @@ import { addMilliseconds, MS_PER_DAY, systemClock, type Clock } from "@/server/t
  *   requested channel in the consent ledger (Q140, ADR-0051): the latest row
  *   per customer and channel is `OPTED_IN`. Nothing is inferred from orders,
  *   an email or a phone (Q59, Q155). Anonymized customers are never included.
- * - Buyer segments count orders in the provisional `REVENUE_ORDER_STATUSES`
+ * - Buyer segments count orders in `REVENUE_ORDER_STATUSES`
  *   (TASK-051), so a segment and the analytics revenue agree.
  *   [BUSINESS DECISION REQUIRED] which order statuses make a buyer; see
  *   TASK-047 open items.
