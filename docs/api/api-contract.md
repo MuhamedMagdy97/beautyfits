@@ -2172,3 +2172,10 @@ Added by TASK-048 (`docs/tasks/TASK-048-campaigns.md`, ADR-0061). Business rules
 | Approving one's own submission | `403 PERMISSION_DENIED`, `details.reason = SELF_APPROVAL` |
 | Missing permission (Managers and Employees never hold `MARKETING_APPROVE`) | `403 PERMISSION_DENIED` |
 | Unknown or malformed campaign id | `404 NOT_FOUND` |
+
+## TASK-060 Amendments
+
+Added by TASK-060 (`docs/tasks/TASK-060-account-orders-returns.md`, ADR-0062). Additive; no endpoint added.
+
+- `customerOrder.items[]` ("TASK-030 Amendments") gains `id`: the order line. It is the `orderItemId` of `POST /orders/{orderId}/returns` ("TASK-037 Amendments") and `POST /orders/{orderId}/items/{orderItemId}/review` ("TASK-044 Amendments"). It appears wherever `customerOrder` is returned (`GET /orders/{orderId}`, `POST /orders/{orderId}/cancel`, `POST /orders/{orderId}/revisions/{revisionId}/confirm`). The checkout `order` response ("TASK-029 Amendments") is unchanged.
+- The website page for the WhatsApp COD link ("TASK-045 Amendments") is `/orders/{orderId}/confirm-cod#token=bfo_…`; it posts the token to `confirm-cod` only after the customer clicks *Confirm*.

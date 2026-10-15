@@ -85,6 +85,12 @@ function AccountArea() {
         <Link href="/account" className="block rounded px-3 py-2 text-sm hover:bg-velvet-low">
           {t.account}
         </Link>
+        <Link
+          href="/account/orders"
+          className="block rounded px-3 py-2 text-sm hover:bg-velvet-low"
+        >
+          {t.my.orders}
+        </Link>
         <Link href="/wishlist" className="block rounded px-3 py-2 text-sm hover:bg-velvet-low">
           {t.wishlistPage.title}
         </Link>
@@ -185,6 +191,8 @@ export function StoreFooter() {
           title={t.homePage.footerAccount}
           links={[
             ["/account", t.account],
+            ["/account/orders", t.my.orders],
+            ["/account/returns", t.my.returns],
             ["/wishlist", t.wishlistPage.title],
             ["/cart", t.cart],
           ]}

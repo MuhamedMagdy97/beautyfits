@@ -596,6 +596,8 @@ Products, search, product detail, cart, checkout, account, addresses, wishlist a
 
 Customer order timeline, cancellation rules, shipping tracking, return request, return status and wallet.
 
+**Status after TASK-060** (`docs/tasks/TASK-060-account-orders-returns.md`, ADR-0062): the storefront has `/account/orders` (list, detail with status history, delivery tracking, cancel or stop-delivery request, change request and revision confirmation, reviews of delivered lines), `/account/returns` (request with photos from a delivered order, list, detail with status, rejection reason and pickup, add photos, withdraw, resubmit), `/account/wallet`, `/account/notifications` and `/account/settings` (email, mobile and password change, marketing consent, closing the account), plus `/orders/[orderId]/confirm-cod` for the WhatsApp COD link. `customerOrder.items[]` gains `id` (API "TASK-060 Amendments"). Refund amounts wait for TASK-040/041; open decisions are in the task file.
+
 ---
 
 # Phase 13 — Hardening & Production

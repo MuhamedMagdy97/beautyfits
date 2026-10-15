@@ -280,6 +280,8 @@ describe("customer orders", () => {
       statusHistory: [{ status: "PENDING_CONFIRMATION", at: expect.any(String) }],
     });
     expect(detail.items[0]).toMatchObject({ name, unitPrice: 15000 });
+    const line = await db.orderItem.findFirstOrThrow({ where: { orderId: placed.id } });
+    expect(detail.items[0].id).toBe(line.id);
     expect(detail.items[0]).not.toHaveProperty("unitCostAtSale");
 
     const foreign = await call(myOrder, `/orders/${placed.id}`, {
