@@ -98,7 +98,14 @@ function AssignForm({
       })}
     >
       <div className="min-w-56 flex-1">
-        <Select label={p.carrier} name="shippingCompanyId" required defaultValue={current ?? ""}>
+        {/* Remount once the carriers load: a default value only selects an option that already exists. */}
+        <Select
+          key={carriers.state.status}
+          label={p.carrier}
+          name="shippingCompanyId"
+          required
+          defaultValue={current ?? ""}
+        >
           <option value="" disabled>
             {p.noCarrier}
           </option>
