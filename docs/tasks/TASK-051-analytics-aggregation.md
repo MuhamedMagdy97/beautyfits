@@ -83,8 +83,8 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Which orders count as revenue, and on which date? Implemented provisionally as `REVENUE_ORDER_STATUSES` = `NEW`, `CONFIRMED`, `PREPARING`, `READY_FOR_SHIPMENT`, `SHIPPED`, `DELIVERED` (excluding `PENDING_CONFIRMATION`, `CANCELLED`, `EXPIRED`), dated by order creation. Alternatives: only `DELIVERED` by delivery date, or include unconfirmed COD orders.
-- [BUSINESS DECISION REQUIRED] Does revenue (and AOV) include the shipping fee? Implemented: revenue = line totals after discounts, shipping fees reported separately.
+- Resolved (owner decision 2026-10-15): revenue orders are `CONFIRMED`, `PREPARING`, `READY_FOR_SHIPMENT`, `SHIPPED` and `DELIVERED`, dated by order creation (`REVENUE_ORDER_STATUSES`). `PENDING_CONFIRMATION`, `NEW`, `CANCELLED` and `EXPIRED` do not count.
+- Resolved (owner decision 2026-10-15): revenue and AOV exclude the shipping fee; shipping fees are reported separately.
 - [BUSINESS DECISION REQUIRED] How returns/refunds reduce revenue, COGS and profit once the returns domain exists (Q150 lists returns under "later").
 - To confirm (technical, ADR-0052 §4): `7D`/`30D`/`90D` include today; custom range limit 366 days.
 
