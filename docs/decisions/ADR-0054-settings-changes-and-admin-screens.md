@@ -15,7 +15,7 @@ Until now settings could only be read (ADR-0017): the bootstrap inserted default
 - **Critical setting (Q180):** a `CRITICAL_SETTING` approval request is opened (entity `SETTING`, entity id = key, `metadata = { key, previousValue, newValue }`); the stored value does not change (`outcome: PENDING_APPROVAL`). One pending request per key (ADR-0018 §4 item 3, `409 APPROVAL_PENDING`).
 - **Approval handler** (`criticalSettingApprovalHandler`, registered in `approvals/handlers.ts`): when another Owner/Admin approves, it re-checks under the key lock that the value in effect is still `previousValue` (otherwise `409 SETTING_CHANGED_SINCE` and the request stays pending) and that the new value is still valid, then applies it. A rejection changes nothing.
 - Every applied change writes, in the same transaction: the `settings` row (`updated_by_employee_id` = whoever asked for the change), one `setting_history` row (old value in effect, new value, changed by, approved by or null, time; Q181) and one `SETTING_CHANGED` audit entry (actor = the employee who applied it: the requester for a direct change, the approver for a critical one).
-- Nobody approves their own request (ADR-0018 §4 item 1), the Owner included. See §5 item 2.
+- Nobody approves their own request (ADR-0018 §4 item 1), the Owner included. Exception (owner decision 2026-10-15, §5 item 2): when the requester is an Owner and no other active Owner or Admin exists, a critical change applies at once (`outcome: APPLIED`, `approved_by` null) and its `SETTING_CHANGED` audit entry records `approvalSkipped: "SOLE_OWNER"`.
 
 ## 2. Which settings are critical
 
@@ -25,8 +25,9 @@ Only settings the documents name as critical are marked `critical`:
 |---|---|
 | `shipping.free_shipping_threshold` | Q180 example "shipping threshold", R37.2 |
 | `cod.confirmation_timeout_hours` | Q180 example "COD timeout" |
+| `pricing.min_margin_basis_points` | Owner decision 2026-10-15 (§5 item 1; ADR-0023 left it to this task) |
 
-Q180's other examples (return period, refund policy) and R7's 25% are not settings yet; the returns tasks add them with `critical: true`. All other current keys are non-critical until the product owner decides otherwise (§5 item 1). Changing the flag is one line in `settings.ts`.
+Q180's other examples (return period, refund policy) and R7's 25% are not settings yet; the returns tasks add them with `critical: true`. All other current keys are non-critical (owner decision 2026-10-15, §5 item 1). Changing the flag is one line in `settings.ts`.
 
 ## 3. `setting_history`
 
@@ -38,8 +39,8 @@ Real routes under `/staff` replace the TASK-052 placeholders: `/staff/settings`,
 
 ## 5. Open business decisions
 
-1. **[BUSINESS DECISION REQUIRED] Which other settings are critical.** Staff session lengths, image limit, minimum margin, guest cart expiry, COD reminder interval/count, COD channel and the delivery-failure contact threshold (TASK-035) are treated as non-critical (still Owner/Admin only, history and audit). ADR-0023 left the minimum margin to this task; the documents do not decide it.
-2. **[BUSINESS DECISION REQUIRED] A store with a single Owner and no Admin cannot change a critical setting**, because nobody approves their own request (ADR-0018 §4 item 1). ADR-0018 allows a feature to let the Owner's own change skip approval; this task does not, because Q180 would then never apply (only Owner/Admin may change settings).
+1. **Resolved (owner decision 2026-10-15): which other settings are critical.** Minimum margin is critical. Staff session lengths, image limit, guest cart expiry, COD reminder interval/count, COD channel and the delivery-failure contact threshold (TASK-035) stay non-critical (still Owner/Admin only, history and audit).
+2. **Resolved (owner decision 2026-10-15): a single Owner.** When the requester is an Owner and no other active Owner or Admin exists, nobody could approve, so the change applies at once and is audited with `approvalSkipped: "SOLE_OWNER"` (ADR-0018 allows this). With a second Owner or an Admin, approval is required as before.
 3. **[BUSINESS DECISION REQUIRED] Limits of the staff session settings** (ADR-0017 §5 item 3): still any whole number of minutes above zero.
 
 ## Consequences

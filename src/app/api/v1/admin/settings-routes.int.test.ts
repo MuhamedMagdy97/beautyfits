@@ -161,6 +161,9 @@ describe("non-critical settings", () => {
       pendingApproval: null,
     });
     expect(await settingOf(owner.token, CART_DAYS)).toMatchObject({ critical: false });
+    expect(await settingOf(owner.token, SETTING_KEYS.pricingMinMarginBasisPoints)).toMatchObject({
+      critical: true,
+    });
   });
 
   it("applies at once with history and an audit entry", async () => {
@@ -262,6 +265,34 @@ describe("critical settings", () => {
     expect(audit).toHaveLength(1);
     expect(audit[0]).toMatchObject({ actorId: admin.employee.id, entityId: THRESHOLD });
     expect((await settingOf(owner.token, THRESHOLD)).pendingApproval).toBeNull();
+  });
+
+  it("applies at once for a sole Owner, recording that approval was skipped", async () => {
+    const owner = await staff("OWNER");
+    const formerAdmin = await staff("ADMIN");
+    await db.employee.update({
+      where: { id: formerAdmin.employee.id },
+      data: { status: "DEACTIVATED" },
+    });
+    const res = await patch(owner.token, THRESHOLD, { value: 300_000, reason: "Only owner" });
+    expect(res.status).toBe(200);
+    expect((await res.json()).data).toMatchObject({ outcome: "APPLIED", approvalRequestId: null });
+    expect(await readFreeShippingThreshold(db)).toBe(BigInt(300_000));
+    expect(await db.approvalRequest.count()).toBe(0);
+    const history = await db.settingHistory.findFirstOrThrow();
+    expect(history).toMatchObject({
+      changedByEmployeeId: owner.employee.id,
+      approvedByEmployeeId: null,
+    });
+    const audit = await db.auditLog.findFirstOrThrow({ where: { action: "SETTING_CHANGED" } });
+    expect(audit.newDataJson).toMatchObject({ critical: true, approvalSkipped: "SOLE_OWNER" });
+  });
+
+  it("still needs approval when the requester is an Admin, even with one Owner", async () => {
+    await staff("OWNER");
+    const admin = await staff("ADMIN");
+    const res = await patch(admin.token, THRESHOLD, { value: 300_000 });
+    expect((await res.json()).data.outcome).toBe("PENDING_APPROVAL");
   });
 
   it("changes nothing when rejected", async () => {
