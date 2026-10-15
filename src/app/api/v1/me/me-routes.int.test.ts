@@ -514,7 +514,11 @@ describe("guest order claim (Q43, Q44, R31, TASK-010)", () => {
       }),
       401,
     );
-    await errorOf(await call(claim, "/guest/orders/claim", { method: "POST", token }), 404);
+    const nothingLeft = await errorOf(
+      await call(claim, "/guest/orders/claim", { method: "POST", token }),
+      404,
+    );
+    expect(nothingLeft.details).toEqual({ hint: "CONTACT_SUPPORT" });
   });
 
   it("never sends a code for a phone match alone", async () => {
@@ -526,6 +530,8 @@ describe("guest order claim (Q43, Q44, R31, TASK-010)", () => {
       404,
     );
     expect(missing.code).toBe("NOT_FOUND");
+    // The same general hint as when nothing exists: other orders are not revealed.
+    expect(missing.details).toEqual({ hint: "CONTACT_SUPPORT" });
     expect(await mailsTo(EMAIL)).toEqual([]);
     expect(await mailsTo("someone@example.com")).toEqual([]);
   });
