@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import { StaffApiError } from "./api";
 import { CATALOG_DICTIONARIES } from "./catalog-i18n";
 import { DICTIONARIES } from "./i18n";
-import { inspectionOutcomes, orderStep, returnStep, snapshotPlace } from "./orders";
+import {
+  allInspected,
+  inspectionOutcomes,
+  needsResolution,
+  orderStep,
+  returnStep,
+  snapshotPlace,
+} from "./orders";
 import { accountLabel, ORDERS_DICTIONARIES, ordersError } from "./orders-i18n";
 
 const en = { t: DICTIONARIES.en, c: CATALOG_DICTIONARIES.en, o: ORDERS_DICTIONARIES.en };
@@ -57,6 +64,28 @@ describe("inspection outcomes", () => {
     expect(inspectionOutcomes([row("3"), row("0")], 3)).toEqual({ mismatch: 3 });
     expect(inspectionOutcomes([row("1.5"), row("1.5")], 3)).toEqual({ mismatch: 3 });
     expect(inspectionOutcomes([row("")], 1)).toEqual({ mismatch: 1 });
+  });
+});
+
+describe("assessment and R7 (TASK-054A)", () => {
+  const inspected = (...results: string[]) => ({
+    outcomes: results.map((result) => ({ result })),
+  });
+
+  it("offers the assessment only once every line is inspected", () => {
+    expect(allInspected([{ inspection: inspected("RESTOCK") }])).toBe(true);
+    expect(allInspected([{ inspection: inspected("RESTOCK") }, { inspection: null }])).toBe(false);
+  });
+
+  it("asks for an R7 decision on damaged lines of customer-caused returns only", () => {
+    const damaged = { inspection: inspected("RESTOCK", "DAMAGED"), resolution: null };
+    expect(needsResolution(damaged, "CUSTOMER")).toBe(true);
+    expect(needsResolution(damaged, "BEAUTYFITS")).toBe(false);
+    expect(needsResolution(damaged, undefined)).toBe(false);
+    expect(needsResolution({ ...damaged, resolution: {} }, "CUSTOMER")).toBe(false);
+    const rejected = { inspection: inspected("RESTOCK", "REJECTED"), resolution: null };
+    expect(needsResolution(rejected, "CUSTOMER")).toBe(false);
+    expect(needsResolution({ inspection: null, resolution: null }, "CUSTOMER")).toBe(false);
   });
 });
 

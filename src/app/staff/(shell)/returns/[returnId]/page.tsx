@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useRef } from "react";
-import type { AdminReturnView } from "@/server/modules/returns/returns-service";
+import type { AdminReturnView, RefundView } from "@/server/modules/returns/returns-service";
 import type { ShippingCompanyView } from "@/server/modules/shipping/shipping-service";
 import {
   Button,
@@ -23,8 +23,8 @@ import {
 import { submit } from "../../../_components/ui";
 import { staffApi, staffPost } from "../../../_lib/api";
 import { field } from "../../../_lib/forms";
-import { formatPiastres } from "../../../_lib/money";
-import { returnStep } from "../../../_lib/orders";
+import { formatPiastres, parsePounds } from "../../../_lib/money";
+import { allInspected, needsResolution, returnStep } from "../../../_lib/orders";
 import { snapshotName } from "../../../_lib/purchasing";
 import { ordersError, useOrdersT } from "../../../_lib/orders-i18n";
 import { InspectionForm } from "./inspection";
@@ -33,8 +33,9 @@ import { InspectionForm } from "./inspection";
  * One return (TASK-054): the customer's claim and photos, lines with their
  * inspection, status history, and the staff step of its status (approve or
  * reject, carrier pickup, receive, start inspection, inspect each line) and
- * completion with the wallet refund (TASK-041). The assessment and R7
- * decision (TASK-040) have no screen yet.
+ * completion with the wallet refund (TASK-041). Once inspected: the
+ * responsibility assessment, the R7 decision per damaged line and the refund
+ * preview (TASK-040 API, TASK-054A).
  */
 export default function ReturnPage() {
   return (
@@ -64,7 +65,13 @@ function Return() {
           {item.status === "PENDING_APPROVAL" ? <ReviewCard item={item} onChange={reload} /> : null}
           {item.status === "APPROVED" ? <PickupCard item={item} onChange={reload} /> : null}
           <StepCard key={item.status} item={item} onChange={reload} />
-          {item.status === "INSPECTING" ? <CompleteCard item={item} onChange={reload} /> : null}
+          {item.status === "INSPECTING" ? (
+            <>
+              <AssessCard item={item} onChange={reload} />
+              <RefundCard key={item.updatedAt} returnId={item.id} />
+              <CompleteCard item={item} onChange={reload} />
+            </>
+          ) : null}
           <Lines item={item} onChange={reload} />
           <Evidence item={item} />
           <History item={item} />
@@ -124,6 +131,23 @@ function Summary({ item }: { item: AdminReturnView }) {
               {formatDate(value!)}
             </Row>
           ))}
+        {item.assessment ? (
+          <Row label={o.assessment}>
+            {o.responsibilities[item.assessment.finalResponsibility] ??
+              item.assessment.finalResponsibility}
+            {item.assessment.returnShippingFee !== null ? (
+              <span className="block font-normal">
+                {o.returnShippingFee}: {formatPiastres(item.assessment.returnShippingFee)}
+              </span>
+            ) : null}
+            {item.assessment.notes ? (
+              <span className="block font-normal">{item.assessment.notes}</span>
+            ) : null}
+            <span className="block font-normal text-ink-soft">
+              {o.assessedAt}: {formatDate(item.assessment.assessedAt)}
+            </span>
+          </Row>
+        ) : null}
         {item.refundTotal !== null ? (
           <Row label={o.refundTotal}>{formatPiastres(item.refundTotal)}</Row>
         ) : null}
@@ -307,6 +331,158 @@ function StepCard({ item, onChange }: { item: AdminReturnView; onChange: () => v
 }
 
 /**
+ * The final responsibility (`COMPLETE_RETURN`, provisional per ADR-0066):
+ * once, while inspecting, after every line is inspected. The optional return
+ * shipping fee is typed in pounds and sent in piastres.
+ */
+function AssessCard({ item, onChange }: { item: AdminReturnView; onChange: () => void }) {
+  const { t, c, o } = useOrdersT();
+  const can = useCan();
+  const { run, pending, notice, fail } = useAction(onChange, (error) =>
+    ordersError(t, c, o, error),
+  );
+  if (item.assessment || !allInspected(item.items) || !can("COMPLETE_RETURN")) {
+    return null;
+  }
+  return (
+    <Card title={o.assessment}>
+      {notice}
+      <form
+        className="grid gap-3 sm:grid-cols-2"
+        onSubmit={submit((form) => {
+          const feeText = field(form, "returnShippingFee");
+          const returnShippingFee = feeText === undefined ? undefined : parsePounds(feeText);
+          if (returnShippingFee === null) {
+            fail(o.invalidFee);
+            return;
+          }
+          if (!window.confirm(o.assessConfirm)) return;
+          void run(() =>
+            staffPost(`/api/v1/admin/returns/${item.id}/assessment`, {
+              finalResponsibility: field(form, "finalResponsibility"),
+              returnShippingFee,
+              notes: field(form, "notes"),
+            }),
+          );
+        })}
+      >
+        <Select label={o.finalResponsibility} name="finalResponsibility" required defaultValue="">
+          <option value="" disabled>
+            {o.chooseResponsibility}
+          </option>
+          {Object.entries(o.responsibilities).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </Select>
+        <Input
+          label={o.returnShippingFeeOptional}
+          name="returnShippingFee"
+          inputMode="decimal"
+          dir="ltr"
+        />
+        <div className="sm:col-span-2">
+          <Input label={o.notesOptional} name="notes" maxLength={2000} />
+        </div>
+        <div>
+          <Button type="submit" disabled={pending}>
+            {o.assess}
+          </Button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+/** The refund as it stands (`GET …/refund`, `RETURNS_VIEW`); refetched when the return changes. */
+function RefundCard({ returnId }: { returnId: string }) {
+  const { o } = useOrdersT();
+  const { state, reload } = useApiData<RefundView>(`/api/v1/admin/returns/${returnId}/refund`);
+  return (
+    <Card title={o.refundPreview}>
+      <Loaded load={state} reload={reload}>
+        {(refund) => (
+          <div className="text-sm">
+            <p className="mb-3">{o.refundStatuses[refund.status] ?? refund.status}</p>
+            {refund.totalRefund !== null ? (
+              <dl className="grid gap-4 sm:grid-cols-3">
+                <Row label={o.productRefund}>{formatPiastres(refund.productRefund)}</Row>
+                <Row label={o.deliveryFeeRefund}>{formatPiastres(refund.deliveryFeeRefund)}</Row>
+                <Row label={o.totalRefund}>{formatPiastres(refund.totalRefund)}</Row>
+              </dl>
+            ) : null}
+            {refund.pickupFee.finalPayer ? (
+              <p className="mt-3 text-ink-soft">
+                {o.pickupFinalPayer}:{" "}
+                <span className="font-semibold text-ink">
+                  {o.feePayers[refund.pickupFee.finalPayer] ?? refund.pickupFee.finalPayer}
+                </span>
+                {refund.pickupFee.payerChanged ? ` (${o.payerChanged})` : null}
+              </p>
+            ) : null}
+          </div>
+        )}
+      </Loaded>
+    </Card>
+  );
+}
+
+/**
+ * The R7 decision of one line (`RESOLVE_CUSTOMER_CAUSED_RETURN`): its
+ * damaged units go back to the customer, or are kept for the configured
+ * partial refund. Once per line.
+ */
+function ResolutionForm({
+  line,
+  onChange,
+}: {
+  line: AdminReturnView["items"][number];
+  onChange: () => void;
+}) {
+  const { t, c, o } = useOrdersT();
+  const { run, pending, notice } = useAction(onChange, (error) => ordersError(t, c, o, error));
+  return (
+    <form
+      className="mt-3 rounded-lg border border-line bg-velvet-low p-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        // The clicked button carries the resolution.
+        const { submitter } = event.nativeEvent as SubmitEvent;
+        const form = new FormData(event.currentTarget, submitter);
+        if (!window.confirm(o.resolveConfirm)) return;
+        void run(() =>
+          staffPost(`/api/v1/admin/return-items/${line.id}/resolution`, {
+            resolution: field(form, "resolution"),
+            notes: field(form, "notes"),
+          }),
+        );
+      }}
+    >
+      <p className="mb-2 font-semibold">{o.resolution}</p>
+      {notice}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-56 flex-1">
+          <Input label={o.notesOptional} name="notes" maxLength={2000} />
+        </div>
+        {Object.entries(o.resolutions).map(([value, label]) => (
+          <Button
+            key={value}
+            type="submit"
+            name="resolution"
+            value={value}
+            variant="plain"
+            disabled={pending}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
+    </form>
+  );
+}
+
+/**
  * Completion (TASK-041, `COMPLETE_RETURN`): the API checks the refund is
  * ready, computes it and credits the wallet. One Idempotency-Key per card,
  * so a retried click after a lost answer cannot credit twice.
@@ -344,6 +520,7 @@ function Lines({ item, onChange }: { item: AdminReturnView; onChange: () => void
   const { o, english } = useOrdersT();
   const can = useCan();
   const inspecting = item.status === "INSPECTING" && can("INSPECT_RETURN");
+  const resolving = item.status === "INSPECTING" && can("RESOLVE_CUSTOMER_CAUSED_RETURN");
   return (
     <Card title={o.items}>
       <ul className="divide-y divide-line">
@@ -384,6 +561,15 @@ function Lines({ item, onChange }: { item: AdminReturnView; onChange: () => void
                   ))}
                 </ul>
                 <Photos photos={line.inspection.evidence} />
+                {line.resolution ? (
+                  <p className="mt-1">
+                    {o.resolution}:{" "}
+                    {o.resolutions[line.resolution.resolution] ?? line.resolution.resolution}
+                    {line.resolution.notes ? (
+                      <span className="text-ink-soft"> — {line.resolution.notes}</span>
+                    ) : null}
+                  </p>
+                ) : null}
                 {line.refundAmount !== null ? (
                   <p className="mt-1">
                     {o.lineRefund}: {formatPiastres(line.refundAmount)}
@@ -396,7 +582,11 @@ function Lines({ item, onChange }: { item: AdminReturnView; onChange: () => void
                   </p>
                 ) : null}
               </div>
-            ) : inspecting ? (
+            ) : null}
+            {resolving && needsResolution(line, item.assessment?.finalResponsibility) ? (
+              <ResolutionForm line={line} onChange={onChange} />
+            ) : null}
+            {line.inspection ? null : inspecting ? (
               <InspectionForm line={line} onChange={onChange} />
             ) : (
               <p className="mt-1 text-xs text-ink-soft">{o.notInspected}</p>
