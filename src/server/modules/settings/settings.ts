@@ -57,7 +57,14 @@ export const SETTING_KEYS = {
   codReminderMaxCount: "cod.reminder_max_count",
   codConfirmationChannel: "cod.confirmation_channel",
   shippingDeliveryFailureContactThreshold: "shipping.delivery_failure_contact_threshold",
+  returnsCustomerCausedRefundBasisPoints: "returns.customer_caused_refund_basis_points",
 } as const;
+
+/**
+ * R7: when BeautyFits keeps a customer-caused opened/used unit, it refunds
+ * 25% of what was paid for it. A critical setting (R7, Q180).
+ */
+export const DEFAULT_CUSTOMER_CAUSED_REFUND_BASIS_POINTS = 2500;
 
 /**
  * Failed delivery attempts after which a customer-contact task is created
@@ -193,6 +200,15 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     source:
       "Business Spec Q19, Q129 (configurable); default 2, owner decision 2026-10-15 (ADR-0047)",
   },
+  {
+    key: SETTING_KEYS.returnsCustomerCausedRefundBasisPoints,
+    dataType: "INTEGER",
+    defaultValue: DEFAULT_CUSTOMER_CAUSED_REFUND_BASIS_POINTS,
+    isValid: (value) => isPositiveInteger(value) && value <= 10_000,
+    critical: true, // R7: changing it needs Owner/Admin approval (Q180, Q181)
+    unit: "BASIS_POINTS",
+    source: "Business Spec R7 (25% of the amount paid, configurable; ADR-0066)",
+  },
 ];
 
 export const DEFINITIONS_BY_KEY = new Map(SETTING_DEFINITIONS.map((d) => [d.key, d]));
@@ -269,6 +285,14 @@ export async function readFreeShippingThreshold(
   log: Logger = defaultLogger,
 ): Promise<bigint> {
   return BigInt(await readIntegerSetting(db, SETTING_KEYS.shippingFreeShippingThreshold, log));
+}
+
+/** The R7 partial refund rate, in basis points (TASK-040, ADR-0066). */
+export async function readCustomerCausedRefundBasisPoints(
+  db: Db,
+  log: Logger = defaultLogger,
+): Promise<number> {
+  return readIntegerSetting(db, SETTING_KEYS.returnsCustomerCausedRefundBasisPoints, log);
 }
 
 /** Failed delivery attempts that create a customer-contact task (Q19, Q129). */

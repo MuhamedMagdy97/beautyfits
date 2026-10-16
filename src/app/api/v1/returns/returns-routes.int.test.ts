@@ -2,6 +2,9 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { POST as approveReturn } from "@/app/api/v1/admin/returns/[returnId]/approve/route";
 import { POST as requestPickup } from "@/app/api/v1/admin/returns/[returnId]/pickup/route";
 import { POST as inspectItem } from "@/app/api/v1/admin/return-items/[returnItemId]/inspection/route";
+import { POST as resolveItem } from "@/app/api/v1/admin/return-items/[returnItemId]/resolution/route";
+import { POST as assessReturn } from "@/app/api/v1/admin/returns/[returnId]/assessment/route";
+import { GET as getRefund } from "@/app/api/v1/admin/returns/[returnId]/refund/route";
 import { POST as receiveReturn } from "@/app/api/v1/admin/returns/[returnId]/receive/route";
 import { POST as rejectReturn } from "@/app/api/v1/admin/returns/[returnId]/reject/route";
 import { POST as startInspection } from "@/app/api/v1/admin/returns/[returnId]/start-inspection/route";
@@ -654,9 +657,14 @@ describe("admin view", () => {
     expect(listed.data).toEqual([
       {
         ...created,
-        items: created.items.map((item: object) => ({ ...item, inspection: null })),
+        items: created.items.map((item: object) => ({
+          ...item,
+          inspection: null,
+          resolution: null,
+        })),
         customerId: sara.customerId,
         approvedByEmployeeId: null,
+        assessment: null,
         statusHistory: [
           {
             fromStatus: null,
@@ -1238,5 +1246,232 @@ describe("receiving and inspection (TASK-039)", () => {
     expect((await inspect(sara.token, items[1].id, body)).status).toBe(403);
     expect((await errorOf(await inspect(viewer, UNKNOWN_ID, body), 404)).code).toBe("NOT_FOUND");
     expect((await admin(receiveReturn, "receive", receiver, UNKNOWN_ID)).status).toBe(404);
+  });
+
+  describe("refund rules (TASK-040)", () => {
+    function refundOf(token: string, returnId: string) {
+      return call(getRefund, `/admin/returns/${returnId}/refund`, {
+        token,
+        params: { returnId },
+      });
+    }
+
+    function resolve(token: string, returnItemId: string, body: unknown) {
+      return call(resolveItem, `/admin/return-items/${returnItemId}/resolution`, {
+        method: "POST",
+        token,
+        body,
+        params: { returnItemId },
+      });
+    }
+
+    /** Picked up, received and being inspected; line A = 2 × 150 EGP, line B = 1 × 90 EGP. */
+    async function inspecting(claimType: string) {
+      const picked = await pickedUp(claimType);
+      await data(
+        await admin(receiveReturn, "receive", await staff(["RECEIVE_RETURN"]), picked.returnId),
+      );
+      const inspector = await staff(["INSPECT_RETURN"]);
+      await data(await admin(startInspection, "start-inspection", inspector, picked.returnId));
+      return { ...picked, inspector };
+    }
+
+    it("refunds damage by the carrier in full with the delivery fee (C3, User Flows §11.6)", async () => {
+      const { returnId, items, inspector } = await inspecting("DAMAGED");
+      const owner = await staff(["COMPLETE_RETURN", "RESOLVE_CUSTOMER_CAUSED_RETURN"]);
+      const viewer = await staff(["RETURNS_VIEW"]);
+
+      await data(
+        await inspect(inspector, items[0].id, {
+          outcomes: [{ result: "RESTOCK", condition: "SELLABLE", quantity: 2 }],
+        }),
+      );
+      expect(await data(await refundOf(viewer, returnId))).toMatchObject({
+        status: "INSPECTION_REQUIRED",
+        totalRefund: null,
+      });
+      const early = await errorOf(
+        await admin(assessReturn, "assessment", owner, returnId, {
+          finalResponsibility: "CARRIER",
+        }),
+        409,
+      );
+      expect(early.details).toEqual({
+        reason: "INSPECTION_INCOMPLETE",
+        returnItemIds: [items[1].id],
+      });
+      await data(
+        await inspect(inspector, items[1].id, {
+          outcomes: [{ result: "DAMAGED", condition: "DAMAGED", quantity: 1 }],
+        }),
+      );
+      expect((await data(await refundOf(viewer, returnId))).status).toBe("ASSESSMENT_REQUIRED");
+
+      const assessed = await data(
+        await admin(assessReturn, "assessment", owner, returnId, {
+          finalResponsibility: "CARRIER",
+          returnShippingFee: 3000,
+          notes: "Crushed in transit.",
+        }),
+      );
+      expect(assessed.assessment).toMatchObject({
+        finalResponsibility: "CARRIER",
+        returnShippingFee: 3000,
+        notes: "Crushed in transit.",
+        assessedAt: expect.any(String),
+      });
+      expect(assessed.status).toBe("INSPECTING");
+
+      const refund = await data(await refundOf(viewer, returnId));
+      expect(refund).toMatchObject({
+        status: "READY",
+        finalResponsibility: "CARRIER",
+        productRefund: 39000,
+        deliveryFeeRefund: 5000,
+        totalRefund: 44000,
+        // The customer was told to pay the carrier; BeautyFits bears it (C2).
+        pickupFee: {
+          provisionalPayer: "CUSTOMER",
+          finalPayer: "BEAUTYFITS",
+          amount: 3000,
+          payerChanged: true,
+        },
+      });
+      expect(refund.lines[1]).toMatchObject({
+        paidAmount: 9000,
+        damagedQuantity: 1,
+        customerCausedQuantity: 0,
+        refundAmount: 9000,
+      });
+
+      const again = await errorOf(
+        await admin(assessReturn, "assessment", owner, returnId, {
+          finalResponsibility: "CUSTOMER",
+        }),
+        409,
+      );
+      expect(again.details.reason).toBe("RETURN_ALREADY_ASSESSED");
+      const notCustomer = await errorOf(
+        await resolve(owner, items[1].id, { resolution: "RETURN_TO_CUSTOMER" }),
+        409,
+      );
+      expect(notCustomer.details).toEqual({
+        reason: "RESPONSIBILITY_NOT_CUSTOMER",
+        finalResponsibility: "CARRIER",
+      });
+      expect(
+        await db.auditLog.count({
+          where: { entityId: returnId, action: "RETURN_RESPONSIBILITY_ASSESSED" },
+        }),
+      ).toBe(1);
+    });
+
+    it("needs the R7 decision for customer-caused units and refunds 25% of the kept ones", async () => {
+      const { returnId, items, inspector } = await inspecting("DEFECTIVE");
+      const assessor = await staff(["COMPLETE_RETURN"]);
+      const resolver = await staff(["RESOLVE_CUSTOMER_CAUSED_RETURN"]);
+      const viewer = await staff(["RETURNS_VIEW"]);
+      await data(
+        await inspect(inspector, items[0].id, {
+          outcomes: [
+            { result: "RESTOCK", condition: "SELLABLE", quantity: 1 },
+            { result: "DAMAGED", condition: "OPENED_USED", quantity: 1, notes: "Used." },
+          ],
+        }),
+      );
+      await data(
+        await inspect(inspector, items[1].id, {
+          outcomes: [{ result: "DAMAGED", condition: "OPENED_USED", quantity: 1 }],
+        }),
+      );
+      const early = await errorOf(
+        await resolve(resolver, items[0].id, { resolution: "KEEP_PARTIAL_REFUND" }),
+        409,
+      );
+      expect(early.details).toEqual({
+        reason: "RESPONSIBILITY_NOT_CUSTOMER",
+        finalResponsibility: "UNDETERMINED",
+      });
+      expect(
+        (
+          await errorOf(
+            await admin(assessReturn, "assessment", resolver, returnId, {
+              finalResponsibility: "CUSTOMER",
+            }),
+            403,
+          )
+        ).code,
+      ).toBe("PERMISSION_DENIED");
+      await data(
+        await admin(assessReturn, "assessment", assessor, returnId, {
+          finalResponsibility: "CUSTOMER",
+        }),
+      );
+      expect(await data(await refundOf(viewer, returnId))).toMatchObject({
+        status: "RESOLUTION_REQUIRED",
+        totalRefund: null,
+      });
+
+      expect(
+        (
+          await errorOf(
+            await resolve(assessor, items[0].id, { resolution: "KEEP_PARTIAL_REFUND" }),
+            403,
+          )
+        ).code,
+      ).toBe("PERMISSION_DENIED");
+      const kept = await data(
+        await resolve(resolver, items[0].id, {
+          resolution: "KEEP_PARTIAL_REFUND",
+          notes: "Opened; kept.",
+        }),
+      );
+      expect(kept.items[0].resolution).toMatchObject({
+        resolution: "KEEP_PARTIAL_REFUND",
+        basisPoints: 2500,
+        notes: "Opened; kept.",
+        resolvedAt: expect.any(String),
+      });
+      await data(await resolve(resolver, items[1].id, { resolution: "RETURN_TO_CUSTOMER" }));
+      const twice = await errorOf(
+        await resolve(resolver, items[1].id, { resolution: "KEEP_PARTIAL_REFUND" }),
+        409,
+      );
+      expect(twice.details.reason).toBe("RETURN_ITEM_ALREADY_RESOLVED");
+
+      const refund = await data(await refundOf(viewer, returnId));
+      expect(refund).toMatchObject({
+        status: "READY",
+        // Line A: 150 EGP restocked + 25% of 150 EGP kept; line B sent back.
+        productRefund: 18750,
+        deliveryFeeRefund: 0,
+        totalRefund: 18750,
+        pickupFee: { provisionalPayer: "CUSTOMER", finalPayer: "CUSTOMER", payerChanged: false },
+      });
+      expect(refund.lines[0]).toMatchObject({
+        paidAmount: 30000,
+        customerCausedQuantity: 1,
+        resolution: "KEEP_PARTIAL_REFUND",
+        refundAmount: 18750,
+        deductionAmount: 11250,
+      });
+      expect(refund.lines[1]).toMatchObject({ refundAmount: 0, resolution: "RETURN_TO_CUSTOMER" });
+
+      const audit = await db.auditLog.findFirstOrThrow({
+        where: { entityId: returnId, action: "RETURN_ITEM_RESOLVED" },
+        orderBy: { createdAt: "asc" },
+      });
+      expect(audit.newDataJson).toMatchObject({
+        returnItemId: items[0].id,
+        resolution: "KEEP_PARTIAL_REFUND",
+        basisPoints: 2500,
+        refundAmount: 18750,
+        deductionAmount: 11250,
+      });
+      expect((await errorOf(await refundOf(viewer, UNKNOWN_ID), 404)).code).toBe("NOT_FOUND");
+      expect(
+        (await resolve(resolver, UNKNOWN_ID, { resolution: "RETURN_TO_CUSTOMER" })).status,
+      ).toBe(404);
+    });
   });
 });

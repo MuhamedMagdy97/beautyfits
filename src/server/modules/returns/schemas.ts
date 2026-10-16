@@ -147,6 +147,27 @@ export const inspectReturnItemSchema = z.object({
   evidenceMediaAssetIds: mediaAssetIds.default([]),
 });
 
+// Refund rules (TASK-040, ADR-0066)
+
+/**
+ * `POST /admin/returns/{returnId}/assessment` (Q99, C2, C3): the final
+ * responsibility after inspection and, when known, what the carrier charged
+ * for the pickup (piastres).
+ */
+export const assessReturnSchema = z.object({
+  finalResponsibility: z.enum(["CUSTOMER", "BEAUTYFITS", "CARRIER"]),
+  returnShippingFee: z.int().min(0).max(1_000_000_000).transform(BigInt).optional(),
+  notes: z.string().trim().min(1).max(2000).optional(),
+});
+
+/** `POST /admin/return-items/{returnItemId}/resolution` (R7). */
+export const resolveReturnItemSchema = z.object({
+  resolution: z.enum(["RETURN_TO_CUSTOMER", "KEEP_PARTIAL_REFUND"]),
+  notes: z.string().trim().min(1).max(2000).optional(),
+});
+
+export type AssessReturnInput = z.output<typeof assessReturnSchema>;
+export type ResolveReturnItemInput = z.output<typeof resolveReturnItemSchema>;
 export type ReturnStepInput = z.output<typeof returnStepSchema>;
 export type InspectReturnItemInput = z.output<typeof inspectReturnItemSchema>;
 export type CreateReturnInput = z.infer<typeof createReturnSchema>;

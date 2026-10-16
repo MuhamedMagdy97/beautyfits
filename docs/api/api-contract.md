@@ -1906,6 +1906,35 @@ Added by TASK-039 (`docs/tasks/TASK-039-return-inspection.md`, ADR-0060). Busine
 | Quantities not equal to the returned quantity (`quantity_mismatch`); `RESTOCK` without `SELLABLE` (`restock_not_sellable`); unknown values; a file that is not a `RETURN_INSPECTION` upload | `400 VALIDATION_ERROR` |
 | Missing permission | `403 PERMISSION_DENIED` |
 
+## TASK-040 Amendments
+
+Added by TASK-040 (`docs/tasks/TASK-040-refund-rules.md`, ADR-0066). Business rules: Q29, Q96–Q99, C2, C3, R7, R9, R18; User Flows §11.5–§11.6. Implements the item `resolution` of §17, the responsibility assessment and the refund calculation. Completion and the wallet refund (`complete`) come with TASK-041.
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `POST /admin/returns/{returnId}/assessment` | `COMPLETE_RETURN` (provisional) | `{ finalResponsibility: "CUSTOMER" \| "BEAUTYFITS" \| "CARRIER", returnShippingFee?: int (piastres, 0–10^9), notes? (1–2000) }` | `200` `adminReturn` |
+| `POST /admin/return-items/{returnItemId}/resolution` | `RESOLVE_CUSTOMER_CAUSED_RETURN` | `{ resolution: "RETURN_TO_CUSTOMER" \| "KEEP_PARTIAL_REFUND", notes? (1–2000) }` | `200` `adminReturn` |
+| `GET /admin/returns/{returnId}/refund` | `RETURNS_VIEW` | — | `200` `refund` |
+
+- Assessment (Q99): while `INSPECTING`, after every line is inspected, once. `returnShippingFee` is what the carrier charged for the pickup; it is recorded, not refunded or deducted (open item). The status does not change.
+- Resolution (R7, Q97): while `INSPECTING`, for a return assessed `CUSTOMER`, on a line with `DAMAGED` units, once per line; it covers all of the line's damaged units. `KEEP_PARTIAL_REFUND` stores the current value of the critical setting `returns.customer_caused_refund_basis_points` (default 2500 = 25%, Q180).
+- `adminReturn` gains `assessment`: `null` or `{ finalResponsibility, returnShippingFee, notes, assessedAt, assessedByEmployeeId }`; `items[]` gains `resolution`: `null` or `{ resolution, basisPoints, notes, resolvedAt, resolvedByEmployeeId }`. The customer `return` is unchanged.
+- `refund`: `{ returnId, status, finalResponsibility, lines: [{ returnItemId, orderItemId, quantity, paidAmount, restockQuantity, damagedQuantity, rejectedQuantity, customerCausedQuantity, resolution, refundAmount, deductionAmount }], productRefund, deliveryFeeRefund, totalRefund, pickupFee: { provisionalPayer, finalPayer, amount, payerChanged } }`. `status` = `INSPECTION_REQUIRED` | `ASSESSMENT_REQUIRED` | `RESOLUTION_REQUIRED` | `READY`; the three totals are `null` until `READY`, a line's `refundAmount` until it is known. Amounts in piastres:
+  - `paidAmount`: the units' share of the order line total (net of its discount share), cumulative HALF-UP over the line's returns (R9).
+  - Restocked units refund in full; rejected units refund nothing; damaged units refund in full when `BEAUTYFITS` / `CARRIER` is responsible, otherwise per the R7 resolution (`RETURN_TO_CUSTOMER`: 0; `KEEP_PARTIAL_REFUND`: the stored rate, HALF-UP, the rest is `deductionAmount`).
+  - `deliveryFeeRefund` (C3): the order's shipping fee when `BEAUTYFITS` / `CARRIER` is responsible, for the first such return assessed on the order; otherwise 0.
+  - `pickupFee` (C2): `finalPayer` is `CUSTOMER` for customer-caused returns, `BEAUTYFITS` otherwise (`null` before assessment); `payerChanged` when it differs from the payer recorded at pickup. Not part of `totalRefund`.
+- Audit actions (entity `RETURN`, actor: the employee): `RETURN_RESPONSIBILITY_ASSESSED` (`next`: `finalResponsibility`, `returnShippingFee`; reason: the notes), `RETURN_ITEM_RESOLVED` (`next`: `returnItemId`, `resolution`, `customerCausedQuantity`, `basisPoints`, `refundAmount`, `deductionAmount`).
+
+| Situation | Response |
+|---|---|
+| Unknown return or return item | `404 NOT_FOUND` |
+| Not `INSPECTING` | `409 RETURN_STATE_INVALID`, `details = { status, required: "INSPECTING" }` |
+| Assessment: a line not inspected / already assessed | `409 CONFLICT`, `details.reason = INSPECTION_INCOMPLETE` (+ `returnItemIds`) / `RETURN_ALREADY_ASSESSED` |
+| Resolution: return not assessed `CUSTOMER` / no damaged units / already resolved | `409 CONFLICT`, `details.reason = RESPONSIBILITY_NOT_CUSTOMER` (+ `finalResponsibility`) / `NO_CUSTOMER_CAUSED_UNITS` / `RETURN_ITEM_ALREADY_RESOLVED` |
+| Unknown values, blank notes, fee out of range | `400 VALIDATION_ERROR` |
+| Missing permission | `403 PERMISSION_DENIED` |
+
 ## TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules: Q4, Q47, Q48, Q51. Implements the wishlist endpoints of §19; the restock subscription endpoints come with TASK-043.
