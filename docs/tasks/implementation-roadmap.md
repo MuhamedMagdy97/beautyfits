@@ -623,6 +623,8 @@ Customer order timeline, cancellation rules, shipping tracking, return request, 
 
 Review authentication, authorization, rate limiting, OTP abuse, file uploads, secrets, PII logging, CORS/CSRF, session handling and sensitive permissions.
 
+**Status after TASK-061** (`docs/tasks/TASK-061-security-review.md`, ADR-0069): an audit checklist covers every `/api/v1` route and the abuse controls. Every route calls a session guard or is on the public list in `src/app/api/v1/route-guards.test.ts`; a new unguarded route fails that test. Every response now carries browser-security headers (`nosniff`, `X-Frame-Options: DENY`, Referrer-Policy, Permissions-Policy, HSTS), `x-powered-by` is off, and there is no CORS. Still open: rate limits and content filters for reviews, a CAPTCHA provider, a site-wide CSP (TASK-066), and a Next.js security patch (16.3.5 → 16.3.8) that needs approval.
+
 ### TASK-062 — Concurrency & Reliability Tests
 **Depends on:** TASK-029, TASK-020, TASK-028, TASK-040
 

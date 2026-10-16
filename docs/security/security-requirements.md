@@ -162,6 +162,7 @@ Items the source documents leave to implementation tasks (not business decisions
 - Session/token mechanism and auth library (Architecture §27). **Architecture decided in TASK-002** (ADR-0008): no auth library, first-party opaque server-side revocable sessions, and Bearer transport. **Customer token lifetimes, rotation and website cookies decided in TASK-007** (ADR-0013). **Staff sessions decided in TASK-011** (ADR-0015).
 - Password hashing parameters: **decided in TASK-007** (ADR-0013: scrypt N=2^16, r=8, p=2).
 - Log redaction is implemented by the shared logger (ADR-0006); callers must still avoid logging unnecessary personal data.
-- CSRF for cookie-authenticated requests: **Origin/Referer check decided in TASK-007** (ADR-0013). CORS and the remaining browser-security headers: TASK-061.
+- CSRF for cookie-authenticated requests: **Origin/Referer check decided in TASK-007** (ADR-0013). **CORS and browser-security headers decided in TASK-061** (ADR-0069): no CORS; `nosniff`, `X-Frame-Options: DENY`, Referrer-Policy, Permissions-Policy and HSTS on every response. A site-wide CSP comes with deployment (TASK-066).
+- Every `/api/v1` handler calls a session guard unless it is on the reviewed public list. `src/app/api/v1/route-guards.test.ts` enforces this (TASK-061, ADR-0069).
 - Malware scanning provider (TASK-016).
-- Rate-limit thresholds for login and registration: **decided in TASK-007** (R24, ADR-0013). Others (checkout, analytics, review/report): TASK-061 and their own tasks.
+- Rate-limit thresholds for login and registration: **decided in TASK-007** (R24, ADR-0013). Checkout, analytics, the COD link, uploads, discount codes and guest carts have per-IP limits set by their own tasks (audited in TASK-061). Limits for review/report and CAPTCHA wait for owner decisions (TASK-061 Open Items).
