@@ -35,7 +35,7 @@ npm run db:status           # show which migrations are applied
 npm run db:reset            # DEVELOPMENT ONLY: drop all local data and re-apply migrations
 npm run db:deploy           # apply committed migrations (CI / staging / production)
 npm run db:seed             # bootstrap: default settings, default roles, first Owner (safe to re-run)
-npm run db:seed:dev         # DEVELOPMENT ONLY: bootstrap + two sample staff + a sample catalog (safe to re-run)
+npm run db:seed:dev         # DEVELOPMENT ONLY: bootstrap + two sample staff + a sample catalog + sample delivery areas (safe to re-run)
 ```
 
 ### First Owner sign-in
@@ -52,6 +52,8 @@ The Owner then invites the other staff (`POST /api/v1/admin/employees`). The das
 ### Sample catalog (development only)
 
 `npm run db:seed:dev` also adds 4 brands, the home page categories (Makeup, Perfumes, Skincare, Beauty Essentials, each with subcategories) and 16 published products with prices, one image each and opening stock, so `/products` and the home page have content locally ([TASK-059A](docs/tasks/TASK-059A-dev-sample-catalog.md)). It goes through the catalog, media and inventory services as the Owner: images are uploaded from `prisma/fixtures/dev-catalog/` into `MEDIA_DIR` with the normal checks, and stock is added by `MANUAL_ADJUSTMENT` inventory movements. Re-running adds only what is missing and never changes existing data; SKUs start with `DEV-`. Run it with the same `MEDIA_DIR` as the dev server, or the images will not be found.
+
+It also adds sample delivery areas for Cairo, Giza and Alexandria and, only while no shipping rule exists, one catch-all shipping rule with a placeholder 60 EGP fee, so the checkout works locally ([TASK-059D](docs/tasks/TASK-059D-header-checkout-fixes.md)). Real areas and rules are managed by the Owner/Admin in the dashboard (R32, TASK-027).
 
 Uploaded files such as product images are stored in `.media/` (`MEDIA_DIR`) until a storage provider is chosen ([ADR-0021](docs/decisions/ADR-0021-product-media-and-uploads.md)). Include that folder in backups along with the database.
 

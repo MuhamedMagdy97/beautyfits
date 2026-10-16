@@ -8,6 +8,7 @@ import { createScryptHasher } from "@/server/modules/auth/password-hash";
 import { BootstrapError, runBootstrap } from "@/server/modules/bootstrap/bootstrap";
 import { devSeedPasswordFromEnv, ownerFromEnv } from "@/server/modules/bootstrap/cli";
 import { runDevCatalogSeed } from "@/server/modules/bootstrap/dev-catalog";
+import { runDevLocationsSeed } from "@/server/modules/bootstrap/dev-locations";
 import { runDevSeed, SAMPLE_STAFF } from "@/server/modules/bootstrap/dev-seed";
 import { getFileStorage } from "@/server/storage/storage";
 import { systemClock } from "@/server/time/time";
@@ -39,6 +40,14 @@ async function main(): Promise<void> {
     console.log(
       `Sample catalog: ${catalog.brandsCreated} brands, ${catalog.categoriesCreated} categories ` +
         `and ${catalog.productsCreated} products created; ${catalog.productsPublished} published.`,
+    );
+    const places = await runDevLocationsSeed(
+      { db, clock: systemClock, logger },
+      { nodeEnv: process.env.NODE_ENV ?? "development" },
+    );
+    console.log(
+      `Sample delivery areas: ${places.areasCreated} created; ` +
+        `sample shipping rules: ${places.shippingRulesCreated} created.`,
     );
   } catch (error) {
     console.error(error instanceof BootstrapError ? error.message : error);

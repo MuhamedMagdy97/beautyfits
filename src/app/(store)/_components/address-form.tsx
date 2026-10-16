@@ -114,16 +114,24 @@ export function AddressFields({
           name="areaId"
           required
           key={governorateId}
+          disabled={governorateId === "" || areas.length === 0}
           defaultValue={initial?.governorate.id === governorateId ? initial.area.id : ""}
-          className={selectClass}
+          className={`${selectClass} disabled:opacity-60`}
         >
-          <option value="">{t.address.choose}</option>
+          <option value="">
+            {governorateId === "" ? t.address.chooseGovernorateFirst : t.address.choose}
+          </option>
           {areas.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
             </option>
           ))}
         </select>
+        {governorateId !== "" && state.status === "ready" && areas.length === 0 ? (
+          <span role="status" className="mt-1.5 block text-xs text-danger">
+            {t.address.noAreas}
+          </span>
+        ) : null}
       </label>
       <TextInput label={t.address.city} name="city" defaultValue={initial?.city ?? ""} />
       <TextInput

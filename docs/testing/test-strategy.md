@@ -46,7 +46,7 @@ This document defines what must be tested and when. It introduces no business ru
 - Integration tests run against real PostgreSQL, not a substitute engine, because correctness depends on PostgreSQL transactions and locking.
 - Transaction boundaries must be testable (TASK-003); test that each atomic operation in DB Design §23 either fully commits or fully rolls back.
 - Isolation/reset: a dedicated `*_test` database recreated from migrations on every run, tables truncated between tests (TASK-003, ADR-0010). CI uses a disposable PostgreSQL 17 service container (TASK-006, ADR-0012).
-- Seeds: `npm run db:seed` (production bootstrap) and `npm run db:seed:dev` (sample staff and a sample catalog, TASK-059A) are covered by `bootstrap.int.test.ts` and `dev-catalog.int.test.ts`, including a second run that changes nothing.
+- Seeds: `npm run db:seed` (production bootstrap) and `npm run db:seed:dev` (sample staff, a sample catalog and sample delivery areas, TASK-059A/059D) are covered by `bootstrap.int.test.ts`, `dev-catalog.int.test.ts` and `dev-locations.int.test.ts`, including a second run that changes nothing.
 
 ## 5. Critical Invariants — Must Have Automated Tests
 
