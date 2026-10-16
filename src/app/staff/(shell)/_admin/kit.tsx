@@ -58,6 +58,7 @@ const en = {
     "cod.reminder_max_count": "COD reminders at most",
     "cod.confirmation_channel": "COD confirmation channel",
     "shipping.delivery_failure_contact_threshold": "Failed deliveries before a contact task",
+    "returns.customer_caused_refund_basis_points": "Refund share for kept customer-caused returns",
   } as Record<string, string>,
   units: {
     MINUTES: "minutes",
@@ -160,6 +161,8 @@ const ar: AdminDictionary = {
     "cod.reminder_max_count": "أقصى عدد لتذكيرات التأكيد",
     "cod.confirmation_channel": "قناة تأكيد الدفع عند الاستلام",
     "shipping.delivery_failure_contact_threshold": "عدد محاولات التوصيل الفاشلة قبل مهمة التواصل",
+    "returns.customer_caused_refund_basis_points":
+      "نسبة الاسترداد عند الاحتفاظ بمرتجع تسبب فيه العميل",
   },
   units: {
     MINUTES: "دقيقة",

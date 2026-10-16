@@ -26,8 +26,13 @@ import {
   restockQuantity,
   returnWindowEndsAt,
 } from "@/server/modules/returns/returns";
+import { loadReturnRefund, type ReturnRefund } from "@/server/modules/returns/refund-calculation";
+import { readCustomerCausedRefundBasisPoints } from "@/server/modules/settings/settings";
+import { toJsonNumber } from "@/server/money/money";
 import {
   MAX_RETURN_EVIDENCE,
+  type AssessReturnInput,
+  type ResolveReturnItemInput,
   type ApproveReturnInput,
   type CreateReturnInput,
   type InspectReturnItemInput,
@@ -107,10 +112,30 @@ export interface ReturnItemInspectionView {
   evidence: { mediaAssetId: string; url: string }[];
 }
 
+/** A line's R7 resolution (TASK-040): staff only. */
+export interface ReturnItemResolutionView {
+  resolution: string;
+  basisPoints: number | null;
+  notes: string | null;
+  resolvedAt: string;
+  resolvedByEmployeeId: string;
+}
+
 export interface AdminReturnView extends Omit<ReturnView, "items"> {
-  items: (ReturnView["items"][number] & { inspection: ReturnItemInspectionView | null })[];
+  items: (ReturnView["items"][number] & {
+    inspection: ReturnItemInspectionView | null;
+    resolution: ReturnItemResolutionView | null;
+  })[];
   customerId: string | null;
   approvedByEmployeeId: string | null;
+  /** The responsibility assessed after inspection (TASK-040, Q99), or null. */
+  assessment: {
+    finalResponsibility: string;
+    returnShippingFee: number | null;
+    notes: string | null;
+    assessedAt: string;
+    assessedByEmployeeId: string;
+  } | null;
   statusHistory: {
     fromStatus: string | null;
     toStatus: string;
@@ -217,12 +242,36 @@ function toAdminView(row: ReturnRow): AdminReturnView {
   const view = toView(row);
   return {
     ...view,
-    items: view.items.map((item, index) => ({
-      ...item,
-      inspection: toInspectionView(row.items[index]),
-    })),
+    items: view.items.map((item, index) => {
+      const line = row.items[index];
+      return {
+        ...item,
+        inspection: toInspectionView(line),
+        resolution:
+          line.customerCausedResolution && line.resolvedAt && line.resolvedById
+            ? {
+                resolution: line.customerCausedResolution,
+                basisPoints: line.resolutionBasisPoints,
+                notes: line.notes,
+                resolvedAt: line.resolvedAt.toISOString(),
+                resolvedByEmployeeId: line.resolvedById,
+              }
+            : null,
+      };
+    }),
     customerId: row.customerId,
     approvedByEmployeeId: row.approvedById,
+    assessment:
+      row.assessedAt && row.assessedById
+        ? {
+            finalResponsibility: row.finalResponsibility,
+            returnShippingFee:
+              row.returnShippingFee === null ? null : toJsonNumber(row.returnShippingFee),
+            notes: row.assessmentNotes,
+            assessedAt: row.assessedAt.toISOString(),
+            assessedByEmployeeId: row.assessedById,
+          }
+        : null,
     statusHistory: row.statusHistory.map((h) => ({
       fromStatus: h.fromStatus,
       toStatus: h.toStatus,
@@ -272,6 +321,72 @@ function requireTransition(status: ReturnStatus, to: ReturnStatus): void {
       details: { status, required },
     });
   }
+}
+
+function requireInspecting(status: string): void {
+  if (status !== "INSPECTING") {
+    throw new AppError("RETURN_STATE_INVALID", "The return is not being inspected.", {
+      details: { status, required: "INSPECTING" },
+    });
+  }
+}
+
+/** The refund of a return as JSON (TASK-040): amounts in piastres, null until known. */
+export interface RefundView {
+  returnId: string;
+  status: string;
+  finalResponsibility: string;
+  lines: {
+    returnItemId: string;
+    orderItemId: string;
+    quantity: number;
+    paidAmount: number;
+    restockQuantity: number;
+    damagedQuantity: number;
+    rejectedQuantity: number;
+    customerCausedQuantity: number;
+    resolution: string | null;
+    refundAmount: number | null;
+    deductionAmount: number;
+  }[];
+  productRefund: number | null;
+  deliveryFeeRefund: number | null;
+  totalRefund: number | null;
+  pickupFee: {
+    provisionalPayer: string | null;
+    finalPayer: string | null;
+    amount: number | null;
+    payerChanged: boolean;
+  };
+}
+
+function money(amount: bigint | null): number | null {
+  return amount === null ? null : toJsonNumber(amount);
+}
+
+function toRefundView(refund: ReturnRefund): RefundView {
+  return {
+    returnId: refund.returnId,
+    status: refund.status,
+    finalResponsibility: refund.finalResponsibility,
+    lines: refund.lines.map((line) => ({
+      returnItemId: line.returnItemId,
+      orderItemId: line.orderItemId,
+      quantity: line.quantity,
+      paidAmount: toJsonNumber(line.paidAmount),
+      restockQuantity: line.restockQuantity,
+      damagedQuantity: line.damagedQuantity,
+      rejectedQuantity: line.rejectedQuantity,
+      customerCausedQuantity: line.customerCausedQuantity,
+      resolution: line.resolution,
+      refundAmount: money(line.refundAmount),
+      deductionAmount: toJsonNumber(line.deductionAmount),
+    })),
+    productRefund: money(refund.productRefund),
+    deliveryFeeRefund: money(refund.deliveryFeeRefund),
+    totalRefund: money(refund.totalRefund),
+    pickupFee: { ...refund.pickupFee, amount: money(refund.pickupFee.amount) },
+  };
 }
 
 function requirePending(status: string): void {
@@ -956,11 +1071,7 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
         if (!current) {
           throw returnNotFound();
         }
-        if (current.status !== "INSPECTING") {
-          throw new AppError("RETURN_STATE_INVALID", "The return is not being inspected.", {
-            details: { status: current.status, required: "INSPECTING" },
-          });
-        }
+        requireInspecting(current.status);
         if ((await tx.returnInspection.count({ where: { returnItemId } })) > 0) {
           throw conflict("This item has already been inspected.", {
             reason: "RETURN_ITEM_ALREADY_INSPECTED",
@@ -1065,7 +1176,191 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
     return getReturn(returnId);
   }
 
+  /**
+   * `POST /admin/returns/{returnId}/assessment` (TASK-040; Q99, C2, C3): the
+   * final responsibility, once, after every line is inspected. It decides
+   * whether damaged units are the R7 exception, whether the delivery fee is
+   * refunded and who should have paid the pickup.
+   */
+  async function assessReturn(
+    employeeId: string,
+    returnId: string,
+    input: AssessReturnInput,
+    ctx: Ctx,
+  ): Promise<AdminReturnView> {
+    const now = clock.now();
+    await runInTransaction(
+      async (tx) => {
+        const current = await lockReturn(tx, returnId);
+        if (!current) {
+          throw returnNotFound();
+        }
+        requireInspecting(current.status);
+        const row = await tx.return.findUniqueOrThrow({
+          where: { id: returnId },
+          select: {
+            assessedAt: true,
+            items: { select: { id: true, _count: { select: { inspections: true } } } },
+          },
+        });
+        if (row.assessedAt) {
+          throw conflict("This return has already been assessed.", {
+            reason: "RETURN_ALREADY_ASSESSED",
+          });
+        }
+        const uninspected = row.items.filter((i) => i._count.inspections === 0).map((i) => i.id);
+        if (uninspected.length > 0) {
+          throw conflict("Every returned item must be inspected first.", {
+            reason: "INSPECTION_INCOMPLETE",
+            returnItemIds: uninspected,
+          });
+        }
+        const fee = input.returnShippingFee ?? null;
+        await tx.return.update({
+          where: { id: returnId },
+          data: {
+            finalResponsibility: input.finalResponsibility,
+            returnShippingFee: fee,
+            assessmentNotes: input.notes ?? null,
+            assessedBy: { connect: { id: employeeId } },
+            assessedAt: now,
+            updatedAt: now,
+          },
+        });
+        await recordAudit(tx, {
+          actor: employeeActor(employeeId),
+          action: "RETURN_RESPONSIBILITY_ASSESSED",
+          entityType: AUDIT_ENTITY_TYPES.return,
+          entityId: returnId,
+          previous: { finalResponsibility: "UNDETERMINED" },
+          next: {
+            finalResponsibility: input.finalResponsibility,
+            returnShippingFee: fee === null ? null : toJsonNumber(fee),
+          },
+          reason: input.notes ?? null,
+          correlationId: ctx.correlationId,
+          createdAt: now,
+        });
+      },
+      {},
+      db,
+    );
+    ctx.logger.info("return assessed", {
+      returnId,
+      finalResponsibility: input.finalResponsibility,
+    });
+    return getReturn(returnId);
+  }
+
+  /**
+   * `POST /admin/return-items/{returnItemId}/resolution`
+   * (`RESOLVE_CUSTOMER_CAUSED_RETURN`; R7, Q97): the human decision for a
+   * line's damaged units when the customer is responsible: send them back
+   * with no refund, or keep them and refund the configured share. Once per
+   * line; the rate in force is kept with the decision, and the decision and
+   * its deduction go to the audit trail.
+   */
+  async function resolveItem(
+    employeeId: string,
+    returnItemId: string,
+    input: ResolveReturnItemInput,
+    ctx: Ctx,
+  ): Promise<AdminReturnView> {
+    const now = clock.now();
+    const returnId = await runInTransaction(
+      async (tx) => {
+        const item = await tx.returnItem.findUnique({
+          where: { id: returnItemId },
+          select: { returnId: true },
+        });
+        if (!item) {
+          throw new AppError("NOT_FOUND", "Return item not found.");
+        }
+        const current = await lockReturn(tx, item.returnId);
+        if (!current) {
+          throw returnNotFound();
+        }
+        requireInspecting(current.status);
+        const line = await tx.returnItem.findUniqueOrThrow({
+          where: { id: returnItemId },
+          select: {
+            customerCausedResolution: true,
+            return: { select: { finalResponsibility: true } },
+            inspections: { where: { result: "DAMAGED" }, select: { quantity: true } },
+          },
+        });
+        if (line.return.finalResponsibility !== "CUSTOMER") {
+          throw conflict("Only returns assessed as customer-caused need this decision.", {
+            reason: "RESPONSIBILITY_NOT_CUSTOMER",
+            finalResponsibility: line.return.finalResponsibility,
+          });
+        }
+        if (line.inspections.length === 0) {
+          throw conflict("This item has no damaged units to decide on.", {
+            reason: "NO_CUSTOMER_CAUSED_UNITS",
+          });
+        }
+        if (line.customerCausedResolution) {
+          throw conflict("This item has already been resolved.", {
+            reason: "RETURN_ITEM_ALREADY_RESOLVED",
+          });
+        }
+        const basisPoints =
+          input.resolution === "KEEP_PARTIAL_REFUND"
+            ? await readCustomerCausedRefundBasisPoints(tx, ctx.logger)
+            : null;
+        await tx.returnItem.update({
+          where: { id: returnItemId },
+          data: {
+            customerCausedResolution: input.resolution,
+            resolutionBasisPoints: basisPoints,
+            notes: input.notes ?? null,
+            resolvedBy: { connect: { id: employeeId } },
+            resolvedAt: now,
+          },
+        });
+        await tx.return.update({ where: { id: item.returnId }, data: { updatedAt: now } });
+        const refund = await loadReturnRefund(tx, item.returnId);
+        const amounts = refund!.lines.find((l) => l.returnItemId === returnItemId)!;
+        await recordAudit(tx, {
+          actor: employeeActor(employeeId),
+          action: "RETURN_ITEM_RESOLVED",
+          entityType: AUDIT_ENTITY_TYPES.return,
+          entityId: item.returnId,
+          next: {
+            returnItemId,
+            resolution: input.resolution,
+            customerCausedQuantity: amounts.customerCausedQuantity,
+            basisPoints,
+            refundAmount: amounts.refundAmount === null ? null : toJsonNumber(amounts.refundAmount),
+            deductionAmount: toJsonNumber(amounts.deductionAmount),
+          },
+          reason: input.notes ?? null,
+          correlationId: ctx.correlationId,
+          createdAt: now,
+        });
+        return item.returnId;
+      },
+      {},
+      db,
+    );
+    ctx.logger.info("return item resolved", { returnId, returnItemId });
+    return getReturn(returnId);
+  }
+
+  /** `GET /admin/returns/{returnId}/refund` (`RETURNS_VIEW`): the refund as it stands. */
+  async function getReturnRefund(returnId: string): Promise<RefundView> {
+    const refund = await loadReturnRefund(db, returnId);
+    if (!refund) {
+      throw returnNotFound();
+    }
+    return toRefundView(refund);
+  }
+
   return {
+    assessReturn,
+    resolveItem,
+    getReturnRefund,
     approveReturn,
     rejectReturn,
     requestPickup,

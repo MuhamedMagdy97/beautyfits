@@ -70,5 +70,6 @@
 | [ADR-0063](ADR-0063-orders-customers-returns-dashboard.md) | Orders, customers & returns dashboard screens; admin customer reads | TASK-054 |
 | [ADR-0064](ADR-0064-wallet-marketing-dashboard.md) | Discounts, marketing, wallet & notification-log dashboard screens | TASK-056 |
 | [ADR-0065](ADR-0065-analytics-employees-home-screens.md) | Analytics, employees and dashboard home screens over existing endpoints | TASK-052A |
+| [ADR-0066](ADR-0066-refund-rules.md) | Return refund calculation, responsibility assessment and the R7 decision | TASK-040 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

@@ -381,6 +381,8 @@ model Employee {
   campaignsSent            Campaign[]                 @relation("CampaignSentBy")
   returnInspections        ReturnInspection[]
   returnInspectionEvidence ReturnInspectionEvidence[]
+  returnsAssessed          Return[]                   @relation("ReturnAssessedBy")
+  returnItemsResolved      ReturnItem[]               @relation("ReturnItemResolvedBy")
 
   @@index([status, employeeLevel])
   @@map("employees")
@@ -2595,12 +2597,20 @@ model Return {
   pickupRequestedAt       DateTime?             @map("pickup_requested_at") @db.Timestamptz(3)
   /// When BeautyFits got the parcel back (TASK-039, Q29).
   receivedAt              DateTime?             @map("received_at") @db.Timestamptz(3)
-  createdAt               DateTime              @map("created_at") @db.Timestamptz(3)
+  /// Assessed after inspection (TASK-040, Q99, C2, C3); set once, with `assessedAt`.
+  finalResponsibility     ReturnResponsibility  @default(UNDETERMINED) @map("final_responsibility")
+  /// What the carrier charged for the pickup (piastres), when known.
+  returnShippingFee       BigInt?               @map("return_shipping_fee")
+  assessedById            String?               @map("assessed_by_employee_id") @db.Uuid
+  assessedAt              DateTime?             @map("assessed_at") @db.Timestamptz(3)
+  assessmentNotes         String?               @map("assessment_notes")
+  createdAt              DateTime              @map("created_at") @db.Timestamptz(3)
   updatedAt               DateTime              @map("updated_at") @db.Timestamptz(3)
 
   order                 Order                 @relation(fields: [orderId], references: [id], onDelete: Restrict)
   customer              Customer?             @relation(fields: [customerId], references: [id], onDelete: Restrict)
   approvedBy            Employee?             @relation("ReturnApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  assessedBy            Employee?             @relation("ReturnAssessedBy", fields: [assessedById], references: [id], onDelete: Restrict)
   pickupShippingCompany ShippingCompany?      @relation(fields: [pickupShippingCompanyId], references: [id], onDelete: Restrict)
   resubmittedFrom       Return?               @relation("ReturnResubmission", fields: [resubmittedFromId], references: [id], onDelete: Restrict)
   resubmissions         Return[]              @relation("ReturnResubmission")
@@ -2621,8 +2631,16 @@ model ReturnItem {
   orderItemId       String   @map("order_item_id") @db.Uuid
   requestedQuantity Int      @map("requested_quantity")
   createdAt         DateTime @map("created_at") @db.Timestamptz(3)
+  /// The R7 outcome of the line's customer-caused damaged units (TASK-040), set once.
+  customerCausedResolution ReturnCustomerCausedResolution? @map("customer_caused_resolution")
+  /// The partial refund rate in force when resolved (basis points, R7).
+  resolutionBasisPoints    Int?                            @map("resolution_basis_points")
+  notes                    String?
+  resolvedById             String?                         @map("resolved_by_employee_id") @db.Uuid
+  resolvedAt               DateTime?                       @map("resolved_at") @db.Timestamptz(3)
 
   return             Return                     @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  resolvedBy         Employee?                  @relation("ReturnItemResolvedBy", fields: [resolvedById], references: [id], onDelete: Restrict)
   orderItem          OrderItem                  @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
   inspections        ReturnInspection[]
   inspectionEvidence ReturnInspectionEvidence[]
@@ -2729,6 +2747,25 @@ model ReturnInspectionEvidence {
 
   @@index([returnItemId])
   @@map("return_inspection_evidence")
+}
+
+/// DB design §12 `final_responsibility` (TASK-040, ADR-0066; Q99, C2, C3).
+enum ReturnResponsibility {
+  CUSTOMER
+  BEAUTYFITS
+  CARRIER
+  UNDETERMINED
+
+  @@map("return_responsibility")
+}
+
+/// Business Spec R7: send the customer-caused units back with no refund, or
+/// keep them and refund the configured share (TASK-040, ADR-0066).
+enum ReturnCustomerCausedResolution {
+  RETURN_TO_CUSTOMER
+  KEEP_PARTIAL_REFUND
+
+  @@map("return_customer_caused_resolution")
 }
 
 // ---------------------------------------------------------------------------

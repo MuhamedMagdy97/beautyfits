@@ -446,6 +446,8 @@ Implement Received → Inspecting and per-item outcomes: Restock/Damaged/Rejecte
 
 Implement full/partial refunds, customer-caused 25% wallet outcome (Business Spec R7), return shipping responsibility, original delivery fee rules and manual exception workflow.
 
+**Status after TASK-040** (`docs/tasks/TASK-040-refund-rules.md`, ADR-0066): `POST /admin/returns/{id}/assessment` (`COMPLETE_RETURN`, provisional) records the final responsibility (`CUSTOMER` / `BEAUTYFITS` / `CARRIER`, Q99) once all lines are inspected, plus the carrier's pickup fee; `POST /admin/return-items/{id}/resolution` (`RESOLVE_CUSTOMER_CAUSED_RETURN`) records the R7 decision for customer-caused damaged units (`RETURN_TO_CUSTOMER` or `KEEP_PARTIAL_REFUND` at the critical setting `returns.customer_caused_refund_basis_points`, default 25%); `GET /admin/returns/{id}/refund` returns the calculation (paid share net of discount, restock full, rejected nothing, R7 share HALF-UP, delivery fee once per order for store/carrier fault (C3), final pickup payer (C2)). `loadReturnRefund` (`src/server/modules/returns/refund-calculation.ts`) is the seam TASK-041 calls to complete the return and credit the wallet; amounts are stored at completion. Pickup fee settlement and who assesses are open items.
+
 ### TASK-041 — Wallet Refund Completion
 **Depends on:** TASK-040
 

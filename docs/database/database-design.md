@@ -2009,6 +2009,15 @@ Added by TASK-039 (`docs/tasks/TASK-039-return-inspection.md`, ADR-0060). Migrat
 - `media_purpose` gains `RETURN_INSPECTION`; `inventory_movement_type` gains `CUSTOMER_RETURN_RESTOCK` (documented §8): restocked units into Available, reference type `RETURN`, reference id the return, no unit cost.
 - Atomic operations, "Return completion": restocking moves to the item inspection (Business Spec Q36: stock is added once inspection confirms sellable condition). Inspecting a line atomically writes its outcomes, its photos, the restock movement and the audit entry. Completion (TASK-041) no longer adds stock.
 
+## v1.2 TASK-040 Amendments
+
+Added by TASK-040 (`docs/tasks/TASK-040-refund-rules.md`, ADR-0066). Migrated in `prisma/migrations/20261017040000_refund_rules`.
+
+- `returns` (§12): `final_responsibility` (documented; enum `return_responsibility` = `CUSTOMER` | `BEAUTYFITS` | `CARRIER` | `UNDETERMINED`, not null, default `UNDETERMINED`) and `return_shipping_fee` (documented; piastres ≥ 0, nullable: the carrier's pickup charge, recorded only), plus `assessed_by_employee_id` (FK `employees`, `RESTRICT`), `assessed_at`, `assessment_notes` (new). Check `returns_assessment_check`: who and when are set together, exactly when the responsibility is not `UNDETERMINED`; the fee and notes only with an assessment, notes not blank. `refund_total` and `completed_at` still come with TASK-041.
+- `return_items` (§12): `notes` (documented: the R7 decision's notes), plus `customer_caused_resolution` (new, enum `return_customer_caused_resolution` = `RETURN_TO_CUSTOMER` | `KEEP_PARTIAL_REFUND`: the R7 decision for the line's customer-caused damaged units, instead of the §12 `resolution` column and the `RETURN_TO_CUSTOMER` inspection result, because one line can have several outcomes, ADR-0060), `resolution_basis_points` (new: the R7 rate in force, 1–10000, set exactly for `KEEP_PARTIAL_REFUND`), `resolved_by_employee_id` (FK `employees`, `RESTRICT`), `resolved_at`. Check `return_items_resolution_check`: decision, who and when set together; notes only with a decision, not blank. `refund_eligible_amount` and `deduction_amount` are stored by TASK-041 at completion, when the amounts are final; until then they are calculated (`loadReturnRefund`).
+- `settings`: new critical key `returns.customer_caused_refund_basis_points` (INTEGER, default 2500 = 25%, R7, Q180).
+- "Return financials": original delivery fee (`orders.shipping_fee`), pickup fee (`return_shipping_fee`), fee responsibility (`final_responsibility`) are stored now; the eligible product refund, deduction and final wallet refund at completion (TASK-041).
+
 ## v1.2 TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Migrated in `prisma/migrations/20261008042000_wishlist`.
