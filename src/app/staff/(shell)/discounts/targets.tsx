@@ -42,7 +42,9 @@ export function TaxonomyPicker({
       {state.status === "loading" ? <p className="text-ink-soft">…</p> : null}
       {state.status === "error" ? <p className="text-danger">{fail(state.error)}</p> : null}
       {state.status === "ready" ? (
-        <div className="grid max-h-48 gap-1 overflow-y-auto rounded-md border border-line p-2 sm:grid-cols-2">
+        <div
+          className={`grid max-h-48 gap-1 overflow-y-auto rounded-md border border-line p-2 ${kind === "brands" ? "sm:grid-cols-2" : ""}`}
+        >
           {state.data.map((item) => (
             <label key={item.id} className="flex items-center gap-2 text-ink">
               <input
@@ -73,11 +75,16 @@ export function ProductPicker({
   const name = useLocalName();
   const [typed, setTyped] = useState("");
   const [search, setSearch] = useState("");
-  // Names of products chosen in this form; ids loaded from a saved record show as ids.
+  // Names of chosen products: picked in this form or in the current results, else a short id.
   const [names, setNames] = useState<Record<string, string>>({});
   const query = new URLSearchParams({ pageSize: "10" });
   if (search) query.set("search", search);
   const { state } = useApiData<ProductSummaryView[]>(`/api/v1/admin/products?${query}`);
+  const shown = state.status === "ready" ? state.data : [];
+  const label = (id: string) => {
+    const product = shown.find((p) => p.id === id);
+    return names[id] ?? (product ? name(product) : null);
+  };
   return (
     <fieldset className="text-sm">
       <legend className="mb-1 text-ink-soft">
@@ -89,10 +96,10 @@ export function ProductPicker({
             key={id}
             className="flex items-center gap-1 rounded-full border border-line px-2 py-0.5"
           >
-            <span dir={names[id] ? undefined : "ltr"}>{names[id] ?? id.slice(0, 8)}</span>
+            <span dir={label(id) ? undefined : "ltr"}>{label(id) ?? id.slice(0, 8)}</span>
             <button
               type="button"
-              aria-label={`${m.remove} ${names[id] ?? id}`}
+              aria-label={`${m.remove} ${label(id) ?? id}`}
               className="text-danger"
               onClick={() => onChange(value.filter((x) => x !== id))}
             >

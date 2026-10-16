@@ -159,7 +159,7 @@ function CustomerWallet({ customerId }: { customerId: string }) {
  * request changes or after it succeeded.
  */
 function AdjustForm({ path, onDone }: { path: string; onDone: () => void }) {
-  const { m } = useMarketingT();
+  const { m, fail } = useMarketingT();
   const [direction, setDirection] = useState<"CREDIT" | "DEBIT">("CREDIT");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
@@ -169,7 +169,7 @@ function AdjustForm({ path, onDone }: { path: string; onDone: () => void }) {
     setAmount("");
     setReason("");
     onDone();
-  });
+  }, fail);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -178,9 +178,7 @@ function AdjustForm({ path, onDone }: { path: string; onDone: () => void }) {
       action.fail(m.badAmount);
       return;
     }
-    const confirm = m.adjustConfirm
-      .replace("{direction}", m.directions[direction])
-      .replace("{amount}", formatPiastres(piastres) ?? "");
+    const confirm = m.adjustConfirm[direction].replace("{amount}", formatPiastres(piastres) ?? "");
     if (!window.confirm(confirm)) return;
     const body = { direction, amount: piastres, reason: reason.trim() };
     key.current = idempotencyKeyFor(key.current, body);

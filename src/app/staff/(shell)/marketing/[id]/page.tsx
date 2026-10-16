@@ -46,7 +46,7 @@ function Campaign() {
 }
 
 function CampaignDetail({ campaign, reload }: { campaign: CampaignView; reload: () => void }) {
-  const { m, date } = useMarketingT();
+  const { m, date, fail } = useMarketingT();
   const can = useCan();
   const { session } = useStaffSession();
   const [editing, setEditing] = useState(false);
@@ -54,7 +54,7 @@ function CampaignDetail({ campaign, reload }: { campaign: CampaignView; reload: 
   const action = useAction(() => {
     setReason("");
     reload();
-  });
+  }, fail);
   const { segment, status } = campaign;
   // The submitter of the pending request: the latest submission in the history.
   const submitter = campaign.history.findLast((h) => h.action === "CAMPAIGN_SUBMITTED")?.actor.id;
@@ -152,7 +152,10 @@ function CampaignDetail({ campaign, reload }: { campaign: CampaignView; reload: 
       <Card>
         {action.notice}
         <div className="flex flex-wrap items-end gap-3">
-          {status === "DRAFT" || status === "PENDING_APPROVAL" ? (
+          {(status === "DRAFT" && can("MARKETING_CREATE")) ||
+          (status === "PENDING_APPROVAL" &&
+            can("MARKETING_APPROVE") &&
+            submitter !== session.employee.id) ? (
             <div className="min-w-48 flex-1">
               <Input
                 label={m.reasonOptional}

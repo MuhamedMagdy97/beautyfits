@@ -137,7 +137,10 @@ const en = {
   adjust: "Adjust the wallet",
   direction: "Direction",
   directions: { CREDIT: "Credit (add)", DEBIT: "Debit (take away)" } as Record<string, string>,
-  adjustConfirm: "{direction} {amount} EGP to this wallet?",
+  adjustConfirm: {
+    CREDIT: "Add {amount} EGP to this wallet?",
+    DEBIT: "Take {amount} EGP from this wallet?",
+  } as Record<string, string>,
   adjusted: "Adjustment recorded.",
   // Notifications
   deliveriesIntro: "Email and WhatsApp delivery attempts and failures.",
@@ -291,7 +294,10 @@ const ar: MarketingDictionary = {
   adjust: "تعديل المحفظة",
   direction: "الاتجاه",
   directions: { CREDIT: "إضافة رصيد", DEBIT: "خصم رصيد" },
-  adjustConfirm: "{direction} {amount} جنيه لهذه المحفظة؟",
+  adjustConfirm: {
+    CREDIT: "إضافة {amount} جنيه إلى هذه المحفظة؟",
+    DEBIT: "خصم {amount} جنيه من هذه المحفظة؟",
+  },
   adjusted: "تم تسجيل التعديل.",
   deliveriesIntro: "محاولات إرسال البريد وواتساب وحالات الفشل.",
   orderId: "رقم الطلب",
