@@ -49,6 +49,7 @@ describe("requiredStatusFor (User Flows §11.2)", () => {
     expect(requiredStatusFor("PENDING_APPROVAL", "REJECTED")).toBeNull();
     expect(requiredStatusFor("PENDING_APPROVAL", "CANCELLED")).toBeNull();
     expect(requiredStatusFor("APPROVED", "PICKUP_SCHEDULED")).toBeNull();
+    expect(requiredStatusFor("INSPECTING", "COMPLETED")).toBeNull();
   });
 
   it("names the status a move needs", () => {
@@ -57,6 +58,8 @@ describe("requiredStatusFor (User Flows §11.2)", () => {
     expect(requiredStatusFor("APPROVED", "CANCELLED")).toBe("PENDING_APPROVAL");
     expect(requiredStatusFor("PENDING_APPROVAL", "PICKUP_SCHEDULED")).toBe("APPROVED");
     expect(requiredStatusFor("PICKUP_SCHEDULED", "PICKUP_SCHEDULED")).toBe("APPROVED");
+    expect(requiredStatusFor("RECEIVED", "COMPLETED")).toBe("INSPECTING");
+    expect(requiredStatusFor("COMPLETED", "COMPLETED")).toBe("INSPECTING");
   });
 
   it("receives a picked-up parcel, then inspects it (TASK-039)", () => {

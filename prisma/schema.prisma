@@ -2608,6 +2608,10 @@ model Return {
   assessedById            String?               @map("assessed_by_employee_id") @db.Uuid
   assessedAt              DateTime?             @map("assessed_at") @db.Timestamptz(3)
   assessmentNotes         String?               @map("assessment_notes")
+  /// The wallet refund credited at completion (TASK-041, piastres ≥ 0), set
+  /// exactly when `COMPLETED`, with `completedAt`.
+  refundTotal             BigInt?               @map("refund_total")
+  completedAt             DateTime?             @map("completed_at") @db.Timestamptz(3)
   createdAt              DateTime              @map("created_at") @db.Timestamptz(3)
   updatedAt               DateTime              @map("updated_at") @db.Timestamptz(3)
 
@@ -2642,6 +2646,9 @@ model ReturnItem {
   notes                    String?
   resolvedById             String?                         @map("resolved_by_employee_id") @db.Uuid
   resolvedAt               DateTime?                       @map("resolved_at") @db.Timestamptz(3)
+  /// Fixed at completion (TASK-041): the line's refund and its R7 deduction (piastres).
+  refundEligibleAmount     BigInt?                         @map("refund_eligible_amount")
+  deductionAmount          BigInt?                         @map("deduction_amount")
 
   return             Return                     @relation(fields: [returnId], references: [id], onDelete: Restrict)
   resolvedBy         Employee?                  @relation("ReturnItemResolvedBy", fields: [resolvedById], references: [id], onDelete: Restrict)

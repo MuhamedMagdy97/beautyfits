@@ -3,6 +3,7 @@ import {
   calculateRefund,
   finalPickupFeePayer,
   paidForUnits,
+  withFixedAmounts,
   type RefundLineInput,
 } from "@/server/modules/returns/refunds";
 
@@ -158,5 +159,25 @@ describe("finalPickupFeePayer (C2)", () => {
     expect(finalPickupFeePayer("BEAUTYFITS")).toBe("BEAUTYFITS");
     expect(finalPickupFeePayer("CARRIER")).toBe("BEAUTYFITS");
     expect(finalPickupFeePayer("UNDETERMINED")).toBeNull();
+  });
+});
+
+describe("withFixedAmounts (TASK-041)", () => {
+  it("reports the amounts stored at completion instead of a drifted calculation", () => {
+    // 2 of 3 units of a 100 EGP line: 66.67 EGP live; 66.66 EGP was fixed at completion.
+    const live = calc([
+      line({ lineTotal: B(10000), quantity: 2, outcomes: [{ result: "RESTOCK", quantity: 2 }] }),
+    ]);
+    expect(live.totalRefund).toBe(B(11667));
+    const fixed = withFixedAmounts(live, B(11666), [
+      { refundEligibleAmount: B(6666), deductionAmount: B(0) },
+    ]);
+    expect(fixed).toMatchObject({
+      status: "READY",
+      productRefund: B(6666),
+      deliveryFeeRefund: B(5000),
+      totalRefund: B(11666),
+    });
+    expect(fixed.lines[0]).toMatchObject({ refundAmount: B(6666), deductionAmount: B(0) });
   });
 });

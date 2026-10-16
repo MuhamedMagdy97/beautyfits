@@ -37,6 +37,8 @@ const RETURN_TRANSITIONS: Partial<Record<ReturnStatus, readonly ReturnStatus[]>>
   APPROVED: ["PICKUP_SCHEDULED"],
   PICKUP_SCHEDULED: ["RECEIVED"],
   RECEIVED: ["INSPECTING"],
+  // TASK-041: completion credits the wallet once the refund is READY.
+  INSPECTING: ["COMPLETED"],
 };
 
 /**

@@ -148,6 +148,8 @@ export const AUDIT_ACTIONS = [
   // Refund rules (TASK-040)
   "RETURN_RESPONSIBILITY_ASSESSED",
   "RETURN_ITEM_RESOLVED",
+  // Wallet refund completion (TASK-041)
+  "RETURN_COMPLETED",
   // Settings (TASK-057)
   "SETTING_CHANGED",
   // Marketing campaigns (TASK-048)

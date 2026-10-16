@@ -163,6 +163,32 @@ export function calculateRefund(input: RefundInput): RefundCalculation {
 }
 
 /**
+ * A completed return's refund as fixed at completion (TASK-041, ADR-0068):
+ * the stored line amounts and total replace the live calculation, which can
+ * still move by a piastre when an earlier return of the line is released.
+ * The delivery fee refund is the stored total minus the stored line refunds.
+ */
+export function withFixedAmounts(
+  calculation: RefundCalculation,
+  refundTotal: bigint,
+  stored: readonly { refundEligibleAmount: bigint | null; deductionAmount: bigint | null }[],
+): RefundCalculation {
+  const lines = calculation.lines.map((line, index) => ({
+    ...line,
+    refundAmount: stored[index].refundEligibleAmount ?? ZERO,
+    deductionAmount: stored[index].deductionAmount ?? ZERO,
+  }));
+  const productRefund = lines.reduce((sum, l) => sum + l.refundAmount, ZERO);
+  return {
+    status: "READY",
+    lines,
+    productRefund,
+    deliveryFeeRefund: refundTotal - productRefund,
+    totalRefund: refundTotal,
+  };
+}
+
+/**
  * Who should pay the carrier for the pickup (C2): the customer for
  * customer-caused returns, BeautyFits otherwise; null until assessed.
  */

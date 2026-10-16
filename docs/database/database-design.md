@@ -2018,6 +2018,15 @@ Added by TASK-040 (`docs/tasks/TASK-040-refund-rules.md`, ADR-0066). Migrated in
 - `settings`: new critical key `returns.customer_caused_refund_basis_points` (INTEGER, default 2500 = 25%, R7, Q180).
 - "Return financials": original delivery fee (`orders.shipping_fee`), pickup fee (`return_shipping_fee`), fee responsibility (`final_responsibility`) are stored now; the eligible product refund, deduction and final wallet refund at completion (TASK-041).
 
+## v1.2 TASK-041 Amendments
+
+Added by TASK-041 (`docs/tasks/TASK-041-wallet-refund-completion.md`, ADR-0068). Migrated in `prisma/migrations/20261017041000_wallet_refund_completion`.
+
+- `returns` (§12): `refund_total` (documented; piastres ≥ 0) and `completed_at` (documented). Check `returns_completion_check`: both set together, exactly when `status = COMPLETED`.
+- `return_items` (§12): `refund_eligible_amount` and `deduction_amount` (documented; piastres ≥ 0), set together at completion (check `return_items_refund_check`). `accepted_quantity` / `rejected_quantity` and the §12 `resolution` column are not added: the inspection outcomes (`return_inspections`) and `customer_caused_resolution` (TASK-040) hold them.
+- `wallet_transactions` (§13): partial unique index `wallet_transactions_one_return_refund_key` on `reference_id` where `transaction_type = 'RETURN_REFUND'`: a return is credited at most once.
+- "Return completion" (atomic operations): the inspection result and restock movement are written at item inspection (TASK-039); completion stores the amounts, writes the wallet refund transaction and finalizes the return state in one transaction under the return row lock. "Return financials" are now all stored: the eligible product refund and deduction per line, the final wallet refund on the return (the delivery fee refund = `refund_total` − Σ line refunds).
+
 ## v1.2 TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Migrated in `prisma/migrations/20261008042000_wishlist`.

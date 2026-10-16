@@ -159,6 +159,15 @@ const en = {
   rejectedAt: "Rejected",
   receivedAt: "Received",
   cancelledAt: "Cancelled",
+  // Completion (TASK-041)
+  completedAt: "Completed",
+  completion: "Completion",
+  completeReturn: "Complete and refund to wallet",
+  completeConfirm:
+    "Complete this return and credit its refund to the customer's wallet? This cannot be undone.",
+  refundTotal: "Wallet refund",
+  lineRefund: "Refund",
+  deduction: "Deduction",
   // Customers (TASK-054)
   customers: "Customers",
   searchCustomers: "Customer name",
@@ -202,6 +211,8 @@ const en = {
   cancellationNotAllowed: "This order can no longer be cancelled ({status}).",
   conflicts: {
     RETURN_ITEM_ALREADY_INSPECTED: "This line was already inspected.",
+    REFUND_NOT_READY:
+      "The refund is not ready: inspect every line, record the responsibility and decide any customer-caused units first.",
     MEDIA_ALREADY_ATTACHED: "A photo is already attached to an inspection.",
     CONFIRMATION_DEADLINE_PASSED: "The confirmation deadline has passed.",
   } as Record<string, string>,
@@ -350,6 +361,14 @@ const ar: OrdersDictionary = {
   rejectedAt: "تاريخ الرفض",
   receivedAt: "تاريخ الاستلام",
   cancelledAt: "تاريخ الإلغاء",
+  completedAt: "تاريخ الإكمال",
+  completion: "الإكمال",
+  completeReturn: "إكمال ورد المبلغ إلى المحفظة",
+  completeConfirm:
+    "إكمال هذا المرتجع وإضافة المبلغ المسترد إلى محفظة العميل؟ لا يمكن التراجع عن ذلك.",
+  refundTotal: "المبلغ المسترد إلى المحفظة",
+  lineRefund: "المسترد",
+  deduction: "الخصم",
   customers: "العملاء",
   searchCustomers: "اسم العميل",
   name: "الاسم",
@@ -391,6 +410,8 @@ const ar: OrdersDictionary = {
   cancellationNotAllowed: "لم يعد من الممكن إلغاء هذا الطلب ({status}).",
   conflicts: {
     RETURN_ITEM_ALREADY_INSPECTED: "تم فحص هذا البند من قبل.",
+    REFUND_NOT_READY:
+      "المبلغ المسترد غير جاهز: افحص كل البنود وسجّل المسؤولية وقرّر الوحدات المتضررة بسبب العميل أولًا.",
     MEDIA_ALREADY_ATTACHED: "الصورة مرفقة بالفعل بفحص آخر.",
     CONFIRMATION_DEADLINE_PASSED: "انتهى موعد التأكيد.",
   },

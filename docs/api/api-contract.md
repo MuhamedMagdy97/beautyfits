@@ -1935,6 +1935,30 @@ Added by TASK-040 (`docs/tasks/TASK-040-refund-rules.md`, ADR-0066). Business ru
 | Unknown values, blank notes, fee out of range | `400 VALIDATION_ERROR` |
 | Missing permission | `403 PERMISSION_DENIED` |
 
+## TASK-041 Amendments
+
+Added by TASK-041 (`docs/tasks/TASK-041-wallet-refund-completion.md`, ADR-0068). Business rules: Q16, Q26, Q29, Q97, R7, R34, R38.7; User Flows §11.6, §12.1. Implements `complete` of §17.
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `POST /admin/returns/{returnId}/complete` | `COMPLETE_RETURN` | No body; `Idempotency-Key` header required (§9) | `200` `adminReturn`, `status = COMPLETED` |
+
+- Move `INSPECTING → COMPLETED`, once the refund (`GET /admin/returns/{id}/refund`, TASK-040) is `READY`. One transaction: the line amounts and `totalRefund` are stored, `totalRefund` is credited to the customer's wallet (transaction `RETURN_REFUND`, `referenceType = RETURN`, `referenceId` = the return; none when the total is 0), the status history and audit are written, and the outbox event `RETURN_COMPLETED` (§31; payload `returnId`, `orderId`, `customerId`, `refundTotal`, `walletTransactionId`) is queued. No stock changes (restocked at inspection). Wallet reservations are not involved: the order's was captured when it shipped (R38.7).
+- Idempotency: the same key from the same employee replays `200` with the current return; the key used for another return is `409 IDEMPOTENCY_CONFLICT`. A completed return can never be credited again.
+- From completion on, `GET /admin/returns/{id}/refund` reports the stored amounts (`deliveryFeeRefund` = `totalRefund` − `productRefund`).
+- `return` gains `completedAt` and `refundTotal` (piastres; both `null` until `COMPLETED`). `adminReturn.items[]` gains `refundAmount` and `deductionAmount` (piastres, `null` until `COMPLETED`).
+- Audit action (entity `RETURN`, actor: the employee): `RETURN_COMPLETED` (`next`: `status`, `finalResponsibility`, `productRefund`, `deliveryFeeRefund`, `refundTotal`, `lines` [`returnItemId`, `refundAmount`, `deductionAmount`], `walletTransactionId`).
+
+| Situation | Response |
+|---|---|
+| Unknown return | `404 NOT_FOUND` |
+| Not `INSPECTING` (including already `COMPLETED`) | `409 RETURN_STATE_INVALID`, `details = { status, required: "INSPECTING" }` |
+| Refund not `READY` | `409 CONFLICT`, `details = { reason: "REFUND_NOT_READY", refundStatus }` |
+| Return without a customer | `409 CONFLICT`, `details.reason = RETURN_HAS_NO_CUSTOMER` |
+| Missing or malformed `Idempotency-Key` | `400 VALIDATION_ERROR` |
+| Key already used for another return | `409 IDEMPOTENCY_CONFLICT` |
+| Missing permission | `403 PERMISSION_DENIED` |
+
 ## TASK-042 Amendments
 
 Added by TASK-042 (`docs/tasks/TASK-042-wishlist.md`, ADR-0041). Business rules: Q4, Q47, Q48, Q51. Implements the wishlist endpoints of §19; the restock subscription endpoints come with TASK-043.
