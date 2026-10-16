@@ -2198,3 +2198,13 @@ Added by TASK-054 (`docs/tasks/TASK-054-orders-returns-dashboard.md`, ADR-0063).
 | Unknown or malformed customer id | `404 NOT_FOUND` |
 | Missing `CUSTOMER_VIEW`, or the `phone` filter without `VIEW_CUSTOMER_CONTACT` | `403 PERMISSION_DENIED` |
 | Invalid query | `400 VALIDATION_ERROR` |
+
+## TASK-059D Amendments
+
+Added by TASK-059D (`docs/tasks/TASK-059D-header-checkout-fixes.md`). Additive.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `GET /shipping/free-shipping-threshold` | Public | — | `200` `{ freeShippingThreshold, currency: "EGP" }` |
+
+- `freeShippingThreshold` is the setting `shipping.free_shipping_threshold` in piastres (R37, Q123), the same value `GET /shipping/options` and checkout use. The storefront announcement bar shows it; it is never hard-coded in the website.

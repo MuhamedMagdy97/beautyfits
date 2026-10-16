@@ -1,14 +1,91 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { formatMoney } from "../_lib/format";
+import { useLang, useSwitchLanguage, useT } from "../_lib/i18n";
 import { useShopper } from "../_lib/session";
-import { useSwitchLanguage, useT } from "../_lib/i18n";
+import { useStoreData } from "./shop";
 
 /**
  * Storefront header and footer (TASK-058), after the Stitch homepage header
  * (design-reference/google-stitch/beautyfits_luxury_beauty_homepage), with
- * the shop link, search box and account links of TASK-059.
+ * the shop link, search box and account links of TASK-059, and the Stitch
+ * announcement bar and category row.
  */
+
+interface NavCategory {
+  id: string;
+  name: string;
+  parentId: string | null;
+}
+
+/** "Free shipping over …" from the live threshold setting (R37) — never a hard-coded amount. */
+function AnnouncementBar() {
+  const t = useT();
+  const lang = useLang();
+  const { state } = useStoreData<{ freeShippingThreshold: number }>(
+    "/api/v1/shipping/free-shipping-threshold",
+  );
+  if (state.status !== "ready") {
+    return null;
+  }
+  return (
+    <p className="bg-plum px-4 py-2 text-center text-xs font-semibold tracking-wider text-white uppercase">
+      {t.announcement.replace("{amount}", formatMoney(state.data.freeShippingThreshold, lang))}
+    </p>
+  );
+}
+
+/** Home, Shop, the top-level categories (managed in the dashboard) and New arrivals. */
+function CategoryNav() {
+  const t = useT();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const { state } = useStoreData<NavCategory[]>("/api/v1/categories");
+  const tops = state.status === "ready" ? state.data.filter((c) => c.parentId === null) : [];
+  const currentCategory = pathname === "/products" ? params.get("categoryId") : null;
+  const links: { href: string; label: string; active: boolean }[] = [
+    { href: "/", label: t.navHome, active: pathname === "/" },
+    {
+      href: "/products",
+      label: t.shop.title,
+      active: pathname === "/products" && !currentCategory && !params.has("sort"),
+    },
+    ...tops.map((c) => ({
+      href: `/products?categoryId=${c.id}`,
+      label: c.name,
+      active: currentCategory === c.id,
+    })),
+    {
+      href: "/products?sort=newest",
+      label: t.shop.newArrivals,
+      active: pathname === "/products" && params.get("sort") === "newest",
+    },
+  ];
+  return (
+    <nav aria-label={t.categoryNav} className="border-t border-line">
+      <ul className="mx-auto flex max-w-[1360px] gap-6 overflow-x-auto px-4 text-sm whitespace-nowrap md:gap-8 md:px-8">
+        {links.map((link) => (
+          <li key={link.href}>
+            <Link
+              href={link.href}
+              aria-current={link.active ? "page" : undefined}
+              className={`block border-b-2 py-3 transition-colors ${
+                link.active
+                  ? "border-plum font-semibold text-plum"
+                  : "border-transparent text-ink-soft hover:text-plum"
+              }`}
+            >
+              {link.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
 
 export function BrandLink() {
   const t = useT();
@@ -33,6 +110,17 @@ export function LanguageButton() {
     >
       {t.switchLanguage}
     </button>
+  );
+}
+
+function HeartIcon() {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor">
+      <path
+        strokeWidth="1.5"
+        d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
+      />
+    </svg>
   );
 }
 
@@ -118,6 +206,7 @@ export function StoreHeader() {
   const { cartCount } = useShopper();
   return (
     <header className="border-b border-line bg-velvet">
+      <AnnouncementBar />
       <div className="mx-auto flex h-20 max-w-[1360px] items-center justify-between gap-2 px-4 sm:gap-4 md:px-8">
         <BrandLink />
         <form action="/products" role="search" className="hidden max-w-md flex-1 md:block">
@@ -131,11 +220,15 @@ export function StoreHeader() {
           />
         </form>
         <nav aria-label={t.mainNav} className="flex items-center gap-2 sm:gap-4">
-          <Link href="/products" className="text-sm text-ink hover:text-plum">
-            {t.shop.title}
-          </Link>
           <LanguageButton />
           <AccountArea />
+          <Link
+            href="/wishlist"
+            aria-label={t.wishlistPage.title}
+            className="p-2 text-ink hover:text-plum"
+          >
+            <HeartIcon />
+          </Link>
           <Link
             href="/cart"
             aria-label={t.cartItems.replace("{n}", String(cartCount))}
@@ -148,6 +241,10 @@ export function StoreHeader() {
           </Link>
         </nav>
       </div>
+      {/* useSearchParams needs a Suspense boundary on statically rendered pages. */}
+      <Suspense fallback={<div className="h-11 border-t border-line" />}>
+        <CategoryNav />
+      </Suspense>
     </header>
   );
 }

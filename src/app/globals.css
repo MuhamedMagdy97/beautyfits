@@ -36,3 +36,18 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Field validation messages (src/app/_components/form-validation.tsx). */
+[aria-invalid="true"] {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 2px var(--color-danger-soft);
+}
+
+[data-error]::after {
+  content: "⚠ " attr(data-error);
+  display: block;
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  color: var(--color-danger);
+}

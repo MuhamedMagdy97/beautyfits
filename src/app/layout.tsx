@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { parseLang, STORE_LANG_COOKIE } from "./(store)/_lib/lang";
+import { FormValidation } from "./_components/form-validation";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,7 +32,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       dir={lang === "ar" ? "rtl" : "ltr"}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <FormValidation />
+      </body>
     </html>
   );
 }
