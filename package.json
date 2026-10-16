@@ -29,7 +29,8 @@
     "jobs:dispatch-notifications": "tsx scripts/dispatch-notifications.ts",
     "jobs:notify-restocks": "tsx scripts/notify-restocks.ts",
     "jobs:send-wishlist-reminders": "tsx scripts/send-wishlist-reminders.ts",
-    "jobs:record-checkout-abandonments": "tsx scripts/record-checkout-abandonments.ts"
+    "jobs:record-checkout-abandonments": "tsx scripts/record-checkout-abandonments.ts",
+    "jobs:deliver-campaigns": "tsx scripts/deliver-campaigns.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

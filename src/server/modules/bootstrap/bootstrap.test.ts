@@ -108,8 +108,12 @@ describe("default settings", () => {
     expect(margin.isValid(0)).toBe(true);
     expect(margin.isValid(9999)).toBe(true);
     expect(margin.isValid(10_000)).toBe(false);
-    // 0 COD reminders is allowed: none are sent (R39).
-    const zeroAllowed = [margin.key, SETTING_KEYS.codReminderMaxCount] as string[];
+    // 0 COD reminders is allowed: none are sent (R39). 0 marketing messages = no limit (TASK-049).
+    const zeroAllowed = [
+      margin.key,
+      SETTING_KEYS.codReminderMaxCount,
+      SETTING_KEYS.marketingFrequencyMaxMessages,
+    ] as string[];
     for (const definition of SETTING_DEFINITIONS.filter((d) => !zeroAllowed.includes(d.key))) {
       expect(definition.isValid(0)).toBe(false);
     }

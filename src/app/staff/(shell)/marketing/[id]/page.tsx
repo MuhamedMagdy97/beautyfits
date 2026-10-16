@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import type { CampaignView } from "@/server/modules/marketing/campaigns-service";
+import type { CampaignDeliveryView } from "@/server/modules/marketing/delivery-service";
 import {
   Button,
   Card,
@@ -24,8 +25,8 @@ import { CampaignEditor } from "../editor";
 /**
  * One campaign (TASK-056 over TASK-048, ADR-0061): edit while a draft,
  * submit, approve or reject (Owner/Admin, never one's own), send once
- * approved. Delivery (TASK-049) is not built: only the fixed recipient count
- * is shown after sending.
+ * approved. After sending, the delivery results by recipient status
+ * (TASK-049).
  */
 export default function CampaignPage() {
   return (
@@ -41,6 +42,33 @@ function Campaign() {
   return (
     <Loaded load={state} reload={reload}>
       {(campaign) => <CampaignDetail campaign={campaign} reload={reload} />}
+    </Loaded>
+  );
+}
+
+/** Delivery results by recipient status (TASK-049, `GET /admin/campaigns/{id}/delivery`). */
+function DeliveryStats({ campaignId }: { campaignId: string }) {
+  const { m } = useMarketingT();
+  const { state, reload } = useApiData<CampaignDeliveryView>(
+    `/api/v1/admin/campaigns/${campaignId}/delivery?pageSize=1`,
+  );
+  return (
+    <Loaded load={state} reload={reload}>
+      {({ stats }) => (
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+          {(Object.keys(stats.byStatus) as (keyof typeof stats.byStatus)[]).map((s) => (
+            <Item key={s} label={m.recipientStatuses[s]}>
+              {stats.byStatus[s]}
+              {s === "SKIPPED" && stats.byStatus.SKIPPED > 0
+                ? ` (${(Object.keys(stats.skipped) as (keyof typeof stats.skipped)[])
+                    .filter((r) => stats.skipped[r] > 0)
+                    .map((r) => `${m.skipReasons[r]}: ${stats.skipped[r]}`)
+                    .join(", ")})`
+                : null}
+            </Item>
+          ))}
+        </dl>
+      )}
     </Loaded>
   );
 }
@@ -143,9 +171,10 @@ function CampaignDetail({ campaign, reload }: { campaign: CampaignView; reload: 
             <strong>
               {m.recipients}: {campaign.recipientCount}
             </strong>
-            <br />
-            <span className="text-ink-soft">{m.deliveryPending}</span>
           </p>
+        ) : null}
+        {["SENDING", "COMPLETED", "FAILED"].includes(status) ? (
+          <DeliveryStats campaignId={campaign.id} />
         ) : null}
       </Card>
 

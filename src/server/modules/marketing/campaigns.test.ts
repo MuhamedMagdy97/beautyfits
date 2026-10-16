@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { assertTransition, CAMPAIGN_TRANSITIONS } from "@/server/modules/marketing/campaigns";
 import {
+  assertTransition,
+  CAMPAIGN_TRANSITIONS,
+  campaignOutcome,
+} from "@/server/modules/marketing/campaigns";
+import {
+  campaignDeliveryQuerySchema,
   campaignStatusSchema,
   createCampaignSchema,
   updateCampaignSchema,
@@ -62,5 +67,22 @@ describe("campaign schemas", () => {
   it("needs at least one field to update", () => {
     expect(updateCampaignSchema.safeParse({}).success).toBe(false);
     expect(updateCampaignSchema.parse({ subject: null })).toEqual({ subject: null });
+  });
+});
+
+describe("campaign delivery (TASK-049)", () => {
+  it("fails a campaign only when nothing was delivered and something failed", () => {
+    expect(campaignOutcome({ delivered: 0, failed: 2 })).toBe("FAILED");
+    expect(campaignOutcome({ delivered: 1, failed: 2 })).toBe("COMPLETED");
+    // Every recipient skipped (opted out, limit, no address): nothing failed.
+    expect(campaignOutcome({ delivered: 0, failed: 0 })).toBe("COMPLETED");
+  });
+
+  it("filters the delivery log by recipient status", () => {
+    expect(campaignDeliveryQuerySchema.parse({ status: "SKIPPED" })).toMatchObject({
+      status: "SKIPPED",
+      page: 1,
+    });
+    expect(campaignDeliveryQuerySchema.safeParse({ status: "SENDING" }).success).toBe(false);
   });
 });

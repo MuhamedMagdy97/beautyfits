@@ -2417,26 +2417,30 @@ model Notification {
 /// and its result is logged. The message text is not stored (it may hold a
 /// secure link).
 model NotificationDelivery {
-  id                String                     @id @default(uuid(7)) @db.Uuid
-  notificationId    String?                    @map("notification_id") @db.Uuid
+  id                  String                     @id @default(uuid(7)) @db.Uuid
+  notificationId      String?                    @map("notification_id") @db.Uuid
   /// The outbox event being delivered; attempts are numbered per event.
-  sourceEventId     String?                    @map("source_event_id") @db.Uuid
-  orderId           String?                    @map("order_id") @db.Uuid
-  templateKey       String                     @map("template_key")
-  locale            Locale
-  channel           NotificationChannel
-  recipient         String
-  attemptNumber     Int                        @map("attempt_number")
-  status            NotificationDeliveryStatus
-  providerReference String?                    @map("provider_reference")
-  failureReason     String?                    @map("failure_reason")
-  createdAt         DateTime                   @map("created_at") @db.Timestamptz(3)
-  sentAt            DateTime?                  @map("sent_at") @db.Timestamptz(3)
+  sourceEventId       String?                    @map("source_event_id") @db.Uuid
+  orderId             String?                    @map("order_id") @db.Uuid
+  templateKey         String                     @map("template_key")
+  locale              Locale
+  channel             NotificationChannel
+  recipient           String
+  attemptNumber       Int                        @map("attempt_number")
+  status              NotificationDeliveryStatus
+  providerReference   String?                    @map("provider_reference")
+  failureReason       String?                    @map("failure_reason")
+  createdAt           DateTime                   @map("created_at") @db.Timestamptz(3)
+  sentAt              DateTime?                  @map("sent_at") @db.Timestamptz(3)
+  /// TASK-049: the campaign recipient being delivered; attempts are numbered per recipient.
+  campaignRecipientId String?                    @map("campaign_recipient_id") @db.Uuid
 
-  notification Notification? @relation(fields: [notificationId], references: [id], onDelete: Restrict)
-  order        Order?        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  notification      Notification?      @relation(fields: [notificationId], references: [id], onDelete: Restrict)
+  order             Order?             @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  campaignRecipient CampaignRecipient? @relation(fields: [campaignRecipientId], references: [id], onDelete: Restrict)
 
   @@unique([sourceEventId, attemptNumber])
+  @@unique([campaignRecipientId, attemptNumber])
   @@index([status, createdAt])
   @@index([orderId])
   @@index([notificationId])
@@ -2788,11 +2792,15 @@ enum CampaignStatus {
   @@map("campaign_status")
 }
 
-/// PENDING until TASK-049 delivers or fails the message.
+/// PENDING until TASK-049 delivers or fails the message. SKIPPED: not sent
+/// at delivery time (`skip_reason`); FALLBACK_SENT: sent by email after the
+/// WhatsApp attempts failed (Q143).
 enum CampaignRecipientStatus {
   PENDING
   SENT
   FAILED
+  SKIPPED
+  FALLBACK_SENT
 
   @@map("campaign_recipient_status")
 }
@@ -2841,12 +2849,32 @@ model CampaignRecipient {
   sentAt              DateTime?               @map("sent_at") @db.Timestamptz(3)
   failureReason       String?                 @map("failure_reason")
   createdAt           DateTime                @map("created_at") @db.Timestamptz(3)
+  /// TASK-049: delivery runs that claimed this recipient (primary channel tries).
+  attemptCount        Int                     @default(0) @map("attempt_count")
+  /// TASK-049: not before this (retry wait, or the claim lease of a running job).
+  nextAttemptAt       DateTime?               @map("next_attempt_at") @db.Timestamptz(3)
+  /// TASK-049: why a SKIPPED recipient got nothing.
+  skipReason          CampaignSkipReason?     @map("skip_reason")
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  campaign   Campaign               @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  customer   Customer               @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  deliveries NotificationDelivery[]
 
   @@unique([campaignId, customerId])
   @@index([campaignId, status])
   @@index([customerId, createdAt])
   @@map("campaign_recipients")
+}
+
+/// TASK-049 (ADR-0067): why a campaign recipient was not sent the message,
+/// decided at delivery time.
+enum CampaignSkipReason {
+  /// The customer opted out of the channel after sending started (User Flows §16.2).
+  CONSENT_WITHDRAWN
+  /// The customer reached the marketing frequency limit (Q144).
+  FREQUENCY_LIMIT
+  /// No deliverable address: no phone, an unverified email, or a deactivated profile.
+  NO_ADDRESS
+
+  @@map("campaign_skip_reason")
 }

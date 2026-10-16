@@ -58,6 +58,9 @@ export const SETTING_KEYS = {
   codConfirmationChannel: "cod.confirmation_channel",
   shippingDeliveryFailureContactThreshold: "shipping.delivery_failure_contact_threshold",
   returnsCustomerCausedRefundBasisPoints: "returns.customer_caused_refund_basis_points",
+  marketingFrequencyMaxMessages: "marketing.frequency_max_messages",
+  marketingFrequencyWindowDays: "marketing.frequency_window_days",
+  marketingDeliveryMaxAttempts: "marketing.delivery_max_attempts",
 } as const;
 
 /**
@@ -65,6 +68,23 @@ export const SETTING_KEYS = {
  * 25% of what was paid for it. A critical setting (R7, Q180).
  */
 export const DEFAULT_CUSTOMER_CAUSED_REFUND_BASIS_POINTS = 2500;
+
+/**
+ * Marketing frequency limit (Q144 "configurable"; User Flows §16.5): at most
+ * this many campaign messages per customer in the window. The numbers are not
+ * decided (TASK-049 open items, ADR-0067): 0 means no limit until the owner
+ * sets one; the 7-day window is provisional and only matters once a maximum
+ * is set.
+ */
+export const DEFAULT_MARKETING_FREQUENCY_MAX_MESSAGES = 0;
+export const DEFAULT_MARKETING_FREQUENCY_WINDOW_DAYS = 7;
+
+/**
+ * Tries on the campaign's channel before it fails or falls back to email
+ * (Q143 "retry then email fallback"). Not decided: 5 is provisional, the
+ * transactional dispatch's run limit (ADR-0043 §2).
+ */
+export const DEFAULT_MARKETING_DELIVERY_MAX_ATTEMPTS = 5;
 
 /**
  * Failed delivery attempts after which a customer-contact task is created
@@ -209,6 +229,33 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     unit: "BASIS_POINTS",
     source: "Business Spec R7 (25% of the amount paid, configurable; ADR-0066)",
   },
+  {
+    key: SETTING_KEYS.marketingFrequencyMaxMessages,
+    dataType: "INTEGER",
+    defaultValue: DEFAULT_MARKETING_FREQUENCY_MAX_MESSAGES,
+    isValid: (value) => value === 0 || isPositiveInteger(value),
+    critical: false,
+    unit: "COUNT",
+    source: "Business Spec Q144 (configurable); 0 = no limit until decided (ADR-0067)",
+  },
+  {
+    key: SETTING_KEYS.marketingFrequencyWindowDays,
+    dataType: "INTEGER",
+    defaultValue: DEFAULT_MARKETING_FREQUENCY_WINDOW_DAYS,
+    isValid: isPositiveInteger,
+    critical: false,
+    unit: "DAYS",
+    source: "Business Spec Q144 (configurable); 7 days provisional (ADR-0067)",
+  },
+  {
+    key: SETTING_KEYS.marketingDeliveryMaxAttempts,
+    dataType: "INTEGER",
+    defaultValue: DEFAULT_MARKETING_DELIVERY_MAX_ATTEMPTS,
+    isValid: isPositiveInteger,
+    critical: false,
+    unit: "COUNT",
+    source: "Business Spec Q143 (retry then email fallback); 5 provisional (ADR-0067)",
+  },
 ];
 
 export const DEFINITIONS_BY_KEY = new Map(SETTING_DEFINITIONS.map((d) => [d.key, d]));
@@ -301,6 +348,33 @@ export async function readDeliveryFailureContactThreshold(
   log: Logger = defaultLogger,
 ): Promise<number> {
   return readIntegerSetting(db, SETTING_KEYS.shippingDeliveryFailureContactThreshold, log);
+}
+
+export interface MarketingDeliverySettings {
+  /** 0 = no limit. */
+  frequencyMaxMessages: number;
+  frequencyWindowDays: number;
+  maxAttempts: number;
+}
+
+/** Frequency limit and retries of campaign delivery (Q143, Q144). */
+export async function readMarketingDeliverySettings(
+  db: Db,
+  log: Logger = defaultLogger,
+): Promise<MarketingDeliverySettings> {
+  return {
+    frequencyMaxMessages: await readIntegerSetting(
+      db,
+      SETTING_KEYS.marketingFrequencyMaxMessages,
+      log,
+    ),
+    frequencyWindowDays: await readIntegerSetting(
+      db,
+      SETTING_KEYS.marketingFrequencyWindowDays,
+      log,
+    ),
+    maxAttempts: await readIntegerSetting(db, SETTING_KEYS.marketingDeliveryMaxAttempts, log),
+  };
 }
 
 /**

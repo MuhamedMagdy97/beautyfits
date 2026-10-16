@@ -71,5 +71,6 @@
 | [ADR-0064](ADR-0064-wallet-marketing-dashboard.md) | Discounts, marketing, wallet & notification-log dashboard screens | TASK-056 |
 | [ADR-0065](ADR-0065-analytics-employees-home-screens.md) | Analytics, employees and dashboard home screens over existing endpoints | TASK-052A |
 | [ADR-0066](ADR-0066-refund-rules.md) | Return refund calculation, responsibility assessment and the R7 decision | TASK-040 |
+| [ADR-0067](ADR-0067-marketing-delivery.md) | Campaign delivery: consent recheck, frequency limit, retries and email fallback | TASK-049 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

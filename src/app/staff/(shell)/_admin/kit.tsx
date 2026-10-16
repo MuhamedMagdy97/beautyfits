@@ -59,6 +59,9 @@ const en = {
     "cod.confirmation_channel": "COD confirmation channel",
     "shipping.delivery_failure_contact_threshold": "Failed deliveries before a contact task",
     "returns.customer_caused_refund_basis_points": "Refund share for kept customer-caused returns",
+    "marketing.frequency_max_messages": "Marketing messages per customer at most (0 = no limit)",
+    "marketing.frequency_window_days": "Marketing frequency window",
+    "marketing.delivery_max_attempts": "Campaign send attempts before fallback",
   } as Record<string, string>,
   units: {
     MINUTES: "minutes",
@@ -163,6 +166,9 @@ const ar: AdminDictionary = {
     "shipping.delivery_failure_contact_threshold": "عدد محاولات التوصيل الفاشلة قبل مهمة التواصل",
     "returns.customer_caused_refund_basis_points":
       "نسبة الاسترداد عند الاحتفاظ بمرتجع تسبب فيه العميل",
+    "marketing.frequency_max_messages": "أقصى عدد للرسائل التسويقية لكل عميل (0 = بلا حد)",
+    "marketing.frequency_window_days": "فترة حد تكرار الرسائل التسويقية",
+    "marketing.delivery_max_attempts": "محاولات إرسال الحملة قبل البديل",
   },
   units: {
     MINUTES: "دقيقة",

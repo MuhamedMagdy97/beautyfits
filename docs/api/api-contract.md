@@ -2202,6 +2202,27 @@ Added by TASK-048 (`docs/tasks/TASK-048-campaigns.md`, ADR-0061). Business rules
 | Missing permission (Managers and Employees never hold `MARKETING_APPROVE`) | `403 PERMISSION_DENIED` |
 | Unknown or malformed campaign id | `404 NOT_FOUND` |
 
+## TASK-049 Amendments
+
+Added by TASK-049 (`docs/tasks/TASK-049-marketing-delivery.md`, ADR-0067). Business rules: Q140, Q143, Q144, v1.1 §9; User Flows §16.2, §16.5. Implements `GET /admin/campaigns/{id}/delivery` of §24 and the delivery of `SENDING` campaigns.
+
+| Endpoint | Permission | Request | Success |
+|---|---|---|---|
+| `GET /admin/campaigns/{id}/delivery` | `MARKETING_VIEW` | query `page`, `pageSize` (max 100), `status` (recipient status) | `200` `campaignDelivery` + `meta.pagination` (of `recipients`) |
+
+- `campaignDelivery`: `{ campaignId, status, stats: { recipients, byStatus: { PENDING, SENT, FALLBACK_SENT, FAILED, SKIPPED }, skipped: { CONSENT_WITHDRAWN, FREQUENCY_LIMIT, NO_ADDRESS }, attempts: { EMAIL: { sent, failed }, WHATSAPP: { sent, failed } } }, recipients: [{ id, customerId, channel, status, skipReason, failureReason, attemptCount, nextAttemptAt, sentAt, attempts: [{ attemptNumber, channel, status, failureReason, createdAt, sentAt }] }] }`. Recipients oldest first; no phone or email is returned. `stats` always covers the whole campaign.
+- Delivery is the job `npm run jobs:deliver-campaigns` (every few minutes, scheduled by TASK-066), after the send hand-off committed. Per recipient, at delivery time: consent to the channel is read again (an opt-out after send wins → `SKIPPED`, `CONSENT_WITHDRAWN`); the address must be deliverable (WhatsApp: the profile phone; email: the verified account email; never a deactivated profile → `SKIPPED`, `NO_ADDRESS`); the frequency limit applies (→ `SKIPPED`, `FREQUENCY_LIMIT`).
+- Frequency limit (Q144): at most setting `marketing.frequency_max_messages` campaign messages per customer within the last `marketing.frequency_window_days` days; `0` (the default until decided) means no limit.
+- Retries then fallback (Q143): one try per job run; a failed try waits `attempt × 5 minutes`. After `marketing.delivery_max_attempts` tries (provisional default 5) a WhatsApp campaign is sent once by email only if the customer is opted in to email marketing and has a verified email (`FALLBACK_SENT`, v1.1 §9); otherwise the recipient is `FAILED`. Email campaigns have no fallback.
+- Every try is a row of the delivery log (`GET /admin/notifications/deliveries`, "TASK-045 Amendments") with `templateKey = "MARKETING_CAMPAIGN"`, `orderId: null`, `notificationId: null`.
+- When no recipient is `PENDING`, the campaign becomes `FAILED` if nothing was delivered and at least one recipient failed, otherwise `COMPLETED`. Audit actions added (entity `CAMPAIGN`, actor `SYSTEM`): `CAMPAIGN_COMPLETED`, `CAMPAIGN_FAILED`, with the counts. The campaign `history` shows them.
+
+| Situation | Response |
+|---|---|
+| Invalid query (unknown `status`, `pageSize` above 100) | `400 VALIDATION_ERROR` |
+| Missing `MARKETING_VIEW` | `403 PERMISSION_DENIED` |
+| Unknown or malformed campaign id | `404 NOT_FOUND` |
+
 ## TASK-060 Amendments
 
 Added by TASK-060 (`docs/tasks/TASK-060-account-orders-returns.md`, ADR-0062). Additive; no endpoint added.

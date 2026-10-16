@@ -47,9 +47,16 @@ export const listCampaignsQuerySchema = z.object({
   channel: z.enum(["EMAIL", "WHATSAPP"]).optional(),
 });
 
+/** `GET /admin/campaigns/{id}/delivery` (TASK-049): recipients page and status filter. */
+export const campaignDeliveryQuerySchema = z.object({
+  ...pageQuery,
+  status: z.enum(["PENDING", "SENT", "FALLBACK_SENT", "FAILED", "SKIPPED"]).optional(),
+});
+
 export const optionalReasonSchema = z.object({ reason: reason.optional() });
 export const requiredReasonSchema = z.object({ reason });
 
 export type CreateCampaignInput = z.output<typeof createCampaignSchema>;
 export type UpdateCampaignInput = z.output<typeof updateCampaignSchema>;
 export type ListCampaignsQuery = z.output<typeof listCampaignsQuerySchema>;
+export type CampaignDeliveryQuery = z.output<typeof campaignDeliveryQuerySchema>;

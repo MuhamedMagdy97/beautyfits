@@ -54,6 +54,9 @@ describe("runBootstrap", () => {
         SETTING_KEYS.codConfirmationChannel,
         SETTING_KEYS.shippingDeliveryFailureContactThreshold,
         SETTING_KEYS.returnsCustomerCausedRefundBasisPoints,
+        SETTING_KEYS.marketingFrequencyMaxMessages,
+        SETTING_KEYS.marketingFrequencyWindowDays,
+        SETTING_KEYS.marketingDeliveryMaxAttempts,
       ].sort(),
     );
     expect(report.rolesCreated).toEqual(DEFAULT_ROLES.map((role) => role.name));

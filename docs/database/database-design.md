@@ -2092,3 +2092,12 @@ Added by TASK-048 (`docs/tasks/TASK-048-campaigns.md`, ADR-0061). Migrated in `p
 - `campaign_recipients` (§18): `id`, `campaign_id` (FK, `RESTRICT`), `customer_id` (FK, `RESTRICT`), `channel`, `status` enum `campaign_recipient_status` = `PENDING` | `SENT` | `FAILED` (default `PENDING`; TASK-049 may add values), `eligibility_snapshot_json` (`{ segmentType, consentId }`: the consent ledger row that made the customer eligible), `sent_at`, `failure_reason` (nullable), `created_at`. Unique `(campaign_id, customer_id)`; indexes `(campaign_id, status)`, `(customer_id, created_at)`. Rows are written once, when sending starts.
 - Triggers reject `DELETE` on both tables (campaigns and their recipients are history).
 - Pending approvals live in `approval_requests` (`MARKETING_CAMPAIGN`, entity `CAMPAIGN`, entity id = campaign id).
+
+## v1.2 TASK-049 Amendments
+
+Added by TASK-049 (`docs/tasks/TASK-049-marketing-delivery.md`, ADR-0067). Migrated in `prisma/migrations/20261017049000_marketing_delivery`.
+
+- `campaign_recipient_status` gains `SKIPPED` (not sent, see `skip_reason`) and `FALLBACK_SENT` (sent by email after the WhatsApp tries failed, Q143).
+- `campaign_recipients` gains `attempt_count` (int, default 0: delivery runs that claimed it), `next_attempt_at` (nullable timestamptz: retry wait or the claim lease of a running job), `skip_reason` (nullable enum `campaign_skip_reason` = `CONSENT_WITHDRAWN` | `FREQUENCY_LIMIT` | `NO_ADDRESS`). Rows are updated by the delivery job only; still never deleted.
+- `notification_deliveries` gains `campaign_recipient_id` (nullable FK → `campaign_recipients`, `RESTRICT`); unique `(campaign_recipient_id, attempt_number)`. Campaign tries are delivery rows with `template_key = 'MARKETING_CAMPAIGN'` and no `source_event_id`, `order_id` or `notification_id`.
+- Settings (§20, all `INTEGER`): `marketing.frequency_max_messages` (default 0 = no limit, pending a business decision), `marketing.frequency_window_days` (provisional default 7), `marketing.delivery_max_attempts` (provisional default 5).
