@@ -564,6 +564,8 @@ Order queues, status transitions, customer details, cancellation, return approva
 
 **Status after TASK-054** (`docs/tasks/TASK-054-orders-returns-dashboard.md`, ADR-0063): real routes `/staff/orders` (+ `/[orderId]` details, items, amounts, COD confirmation, history, status steps, cancel, carrier handoff and shipping-cancellation request), `/staff/returns` (+ `/[returnId]` approve/reject, pickup, receive, start inspection, per-line inspection with staff photos) and `/staff/customers` (+ `/[id]` profile, contact, addresses, latest orders, wallet) replace the placeholders. `GET /admin/customers[/{id}]` (contract "TASK-002A Amendments") is implemented (`admin-customers-service.ts`; contact data with `VIEW_CUSTOMER_CONTACT`). Texts in `_lib/orders-i18n.ts`; the TASK-055 carrier cards moved to `shipping/orders/[orderId]/handoff.tsx`. Open: refund and completion wait for TASK-040/041.
 
+**TASK-054A** (`docs/tasks/TASK-054A-return-assessment-ui.md`): on `/staff/returns/[returnId]` while `INSPECTING`, the responsibility assessment card, the R7 decision per damaged line of a customer-caused return and the refund preview (`GET …/refund`) above the TASK-041 completion card, over the existing TASK-040 endpoints. A return now goes inspected → assessed → resolved → completed in the dashboard.
+
 ### TASK-055 — Purchasing & Shipping Dashboard
 **Depends on:** TASK-021 → TASK-036
 

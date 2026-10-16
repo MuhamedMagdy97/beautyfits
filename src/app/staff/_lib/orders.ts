@@ -74,3 +74,26 @@ export function inspectionOutcomes(
   }
   return { outcomes };
 }
+
+/** Every line of the return has its inspection (assessment may be recorded, TASK-040). */
+export function allInspected(items: readonly { inspection: unknown }[]): boolean {
+  return items.every((item) => item.inspection !== null);
+}
+
+/**
+ * The line waits for its R7 decision (TASK-040): the return is assessed as
+ * customer-caused, the line has damaged units and no decision yet.
+ */
+export function needsResolution(
+  line: {
+    inspection: { outcomes: readonly { result: string }[] } | null;
+    resolution: unknown;
+  },
+  finalResponsibility: string | undefined,
+): boolean {
+  return (
+    finalResponsibility === "CUSTOMER" &&
+    line.resolution === null &&
+    (line.inspection?.outcomes.some((outcome) => outcome.result === "DAMAGED") ?? false)
+  );
+}
