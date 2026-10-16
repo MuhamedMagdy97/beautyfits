@@ -27,12 +27,12 @@ export function CampaignEditor({
   onSaved: (saved: CampaignView) => void;
   onCancel: () => void;
 }) {
-  const { m } = useMarketingT();
+  const { m, fail } = useMarketingT();
   const [name, setName] = useState(campaign?.name ?? "");
   const [segment, setSegment] = useState<SegmentForm>(() => segmentForm(campaign?.segment));
   const [subject, setSubject] = useState(campaign?.subject ?? "");
   const [content, setContent] = useState(campaign?.content ?? "");
-  const action = useAction();
+  const action = useAction(undefined, fail);
   const definition = segmentDefinition(segment);
   const email = segment.channel === "EMAIL";
   const set =

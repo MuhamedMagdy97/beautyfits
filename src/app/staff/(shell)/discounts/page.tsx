@@ -38,7 +38,7 @@ export default function DiscountsPage() {
 }
 
 function Discounts() {
-  const { t, m, date } = useMarketingT();
+  const { t, m, date, fail, english } = useMarketingT();
   const can = useCan();
   const [page, setPage] = useState(1);
   const [typed, setTyped] = useState("");
@@ -49,7 +49,7 @@ function Discounts() {
   if (search) query.set("search", search);
   if (status) query.set("status", status);
   const { state, reload } = useApiData<DiscountView[]>(`/api/v1/admin/discounts?${query}`);
-  const action = useAction(reload);
+  const action = useAction(reload, fail);
   const manage = can("DISCOUNT_MANAGE");
 
   return (
@@ -119,9 +119,7 @@ function Discounts() {
                     <td className="px-3 py-2" dir="ltr">
                       {d.code ?? <span className="text-ink-soft">{m.noCode}</span>}
                     </td>
-                    <td className="px-3 py-2">
-                      {d.nameEn === d.nameAr ? d.nameEn : `${d.nameAr} / ${d.nameEn}`}
-                    </td>
+                    <td className="px-3 py-2">{english ? d.nameEn : d.nameAr}</td>
                     <td className="px-3 py-2">{d.value}%</td>
                     <td className="px-3 py-2">{m.scopes[d.scope]}</td>
                     <td className="px-3 py-2 text-xs">
@@ -179,9 +177,9 @@ function DiscountEditor({
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const { m } = useMarketingT();
+  const { m, fail } = useMarketingT();
   const [form, setForm] = useState<DiscountForm>(() => discountForm(discount));
-  const action = useAction(onDone);
+  const action = useAction(onDone, fail);
   const set =
     <K extends keyof DiscountForm>(key: K) =>
     (value: DiscountForm[K]) =>
