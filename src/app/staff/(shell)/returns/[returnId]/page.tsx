@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useRef } from "react";
 import type { AdminReturnView } from "@/server/modules/returns/returns-service";
 import type { ShippingCompanyView } from "@/server/modules/shipping/shipping-service";
 import {
@@ -20,8 +21,9 @@ import {
   useCan,
 } from "../../../_components/catalog-ui";
 import { submit } from "../../../_components/ui";
-import { staffPost } from "../../../_lib/api";
+import { staffApi, staffPost } from "../../../_lib/api";
 import { field } from "../../../_lib/forms";
+import { formatPiastres } from "../../../_lib/money";
 import { returnStep } from "../../../_lib/orders";
 import { snapshotName } from "../../../_lib/purchasing";
 import { ordersError, useOrdersT } from "../../../_lib/orders-i18n";
@@ -30,8 +32,9 @@ import { InspectionForm } from "./inspection";
 /**
  * One return (TASK-054): the customer's claim and photos, lines with their
  * inspection, status history, and the staff step of its status (approve or
- * reject, carrier pickup, receive, start inspection, inspect each line).
- * Completion and the refund are TASK-040/041 and not offered here.
+ * reject, carrier pickup, receive, start inspection, inspect each line) and
+ * completion with the wallet refund (TASK-041). The assessment and R7
+ * decision (TASK-040) have no screen yet.
  */
 export default function ReturnPage() {
   return (
@@ -61,6 +64,7 @@ function Return() {
           {item.status === "PENDING_APPROVAL" ? <ReviewCard item={item} onChange={reload} /> : null}
           {item.status === "APPROVED" ? <PickupCard item={item} onChange={reload} /> : null}
           <StepCard key={item.status} item={item} onChange={reload} />
+          {item.status === "INSPECTING" ? <CompleteCard item={item} onChange={reload} /> : null}
           <Lines item={item} onChange={reload} />
           <Evidence item={item} />
           <History item={item} />
@@ -88,6 +92,7 @@ function Summary({ item }: { item: AdminReturnView }) {
     [o.rejectedAt, item.rejectedAt],
     [o.receivedAt, item.receivedAt],
     [o.cancelledAt, item.cancelledAt],
+    [o.completedAt, item.completedAt],
   ];
   return (
     <Card>
@@ -119,6 +124,9 @@ function Summary({ item }: { item: AdminReturnView }) {
               {formatDate(value!)}
             </Row>
           ))}
+        {item.refundTotal !== null ? (
+          <Row label={o.refundTotal}>{formatPiastres(item.refundTotal)}</Row>
+        ) : null}
         {item.pickup ? (
           <Row label={o.pickup}>
             {item.pickup.shippingCompany.name}
@@ -298,6 +306,40 @@ function StepCard({ item, onChange }: { item: AdminReturnView; onChange: () => v
   );
 }
 
+/**
+ * Completion (TASK-041, `COMPLETE_RETURN`): the API checks the refund is
+ * ready, computes it and credits the wallet. One Idempotency-Key per card,
+ * so a retried click after a lost answer cannot credit twice.
+ */
+function CompleteCard({ item, onChange }: { item: AdminReturnView; onChange: () => void }) {
+  const { t, c, o } = useOrdersT();
+  const can = useCan();
+  const key = useRef(crypto.randomUUID());
+  const { run, pending, notice } = useAction(onChange, (error) => ordersError(t, c, o, error));
+  if (!can("COMPLETE_RETURN")) {
+    return null;
+  }
+  return (
+    <Card title={o.completion}>
+      {notice}
+      <Button
+        disabled={pending}
+        onClick={() => {
+          if (!window.confirm(o.completeConfirm)) return;
+          void run(() =>
+            staffApi(`/api/v1/admin/returns/${item.id}/complete`, {
+              method: "POST",
+              headers: { "Idempotency-Key": key.current },
+            }),
+          );
+        }}
+      >
+        {o.completeReturn}
+      </Button>
+    </Card>
+  );
+}
+
 function Lines({ item, onChange }: { item: AdminReturnView; onChange: () => void }) {
   const { o, english } = useOrdersT();
   const can = useCan();
@@ -342,6 +384,17 @@ function Lines({ item, onChange }: { item: AdminReturnView; onChange: () => void
                   ))}
                 </ul>
                 <Photos photos={line.inspection.evidence} />
+                {line.refundAmount !== null ? (
+                  <p className="mt-1">
+                    {o.lineRefund}: {formatPiastres(line.refundAmount)}
+                    {line.deductionAmount ? (
+                      <span className="text-ink-soft">
+                        {" "}
+                        · {o.deduction}: {formatPiastres(line.deductionAmount)}
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
               </div>
             ) : inspecting ? (
               <InspectionForm line={line} onChange={onChange} />

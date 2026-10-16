@@ -453,6 +453,8 @@ Implement full/partial refunds, customer-caused 25% wallet outcome (Business Spe
 
 Post-inspection wallet refunds, partial refunds, wallet transactions and reservation release/consumption rules.
 
+**Status after TASK-041** (`docs/tasks/TASK-041-wallet-refund-completion.md`, ADR-0068): `POST /admin/returns/{id}/complete` (`COMPLETE_RETURN`, `Idempotency-Key`) moves `INSPECTING → COMPLETED` once `loadReturnRefund` is `READY`: in one transaction under the return row lock it stores the line `refund_eligible_amount` / `deduction_amount` and `refund_total` / `completed_at`, credits the wallet (`RETURN_REFUND`, reference the return; none for 0), and writes history, audit `RETURN_COMPLETED` and the outbox event `RETURN_COMPLETED`. A return is credited at most once (row lock, idempotency key, partial unique index). No stock change (restocked at inspection) and no reservation step (captured at shipping, R38.7). `return` shows `completedAt` / `refundTotal`; the staff return screen has "Complete", the storefront shows the refunded amount. `PARTIALLY_COMPLETED` stays unused (open item).
+
 ---
 
 # Phase 8 — Wishlist, Reviews & Notifications

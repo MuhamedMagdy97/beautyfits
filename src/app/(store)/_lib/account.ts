@@ -114,6 +114,9 @@ export interface ReturnRequest {
     trackingNumber: string | null;
     feePayer: string;
   } | null;
+  /** Set once the return is completed (TASK-041): the wallet refund, piastres. */
+  completedAt: string | null;
+  refundTotal: number | null;
   createdAt: string;
 }
 

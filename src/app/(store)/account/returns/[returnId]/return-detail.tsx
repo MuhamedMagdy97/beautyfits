@@ -19,15 +19,16 @@ import {
   type ReturnRequest,
 } from "../../../_lib/account";
 import { storePost } from "../../../_lib/api";
+import { formatMoney } from "../../../_lib/format";
 import { useLang, useT } from "../../../_lib/i18n";
 import { AccountNav } from "../../account-nav";
 import { StatusBadge } from "../../orders/order-list";
 import { ReturnForm } from "../return-form";
 
 /**
- * Return detail (API "TASK-037", "TASK-038" Amendments): status, the reason
- * a request was not accepted, and the pickup. Refund amounts come with
- * TASK-040/041 and are not shown here.
+ * Return detail (API "TASK-037", "TASK-038", "TASK-041" Amendments): status,
+ * the reason a request was not accepted, the pickup, and once completed the
+ * wallet refund as the API reports it (nothing is computed here).
  */
 export function ReturnDetail({ returnId }: { returnId: string }) {
   const t = useT();
@@ -117,7 +118,13 @@ function Detail({ returnId }: { returnId: string }) {
               <dd>{t.returnsPage.photoCount.replace("{n}", String(request.evidence.length))}</dd>
             </dl>
           </section>
-          {!["REJECTED", "CANCELLED"].includes(request.status) ? (
+          {request.refundTotal !== null ? (
+            <Notice tone="info">
+              {request.refundTotal > 0
+                ? t.returnsPage.refunded.replace("{amount}", formatMoney(request.refundTotal, lang))
+                : t.returnsPage.noRefund}
+            </Notice>
+          ) : !["REJECTED", "CANCELLED"].includes(request.status) ? (
             <Notice tone="info">{t.returnsPage.refundNote}</Notice>
           ) : null}
 

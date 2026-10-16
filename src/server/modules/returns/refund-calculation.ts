@@ -3,13 +3,15 @@ import { RELEASED_RETURN_STATUSES } from "@/server/modules/returns/returns";
 import {
   calculateRefund,
   finalPickupFeePayer,
+  withFixedAmounts,
   type RefundCalculation,
 } from "@/server/modules/returns/refunds";
 
 /**
- * Reads a return and calculates its refund (TASK-040, ADR-0066). TASK-041
- * calls this inside the completion transaction, after locking the return,
- * and credits the wallet with `totalRefund`.
+ * Reads a return and calculates its refund (TASK-040, ADR-0066). Completion
+ * (TASK-041, ADR-0068) calls this inside its transaction, after locking the
+ * return, credits the wallet with `totalRefund` and stores the amounts; a
+ * completed return then reports those stored amounts.
  */
 
 export interface ReturnRefund extends RefundCalculation {
@@ -44,6 +46,7 @@ export async function loadReturnRefund(db: Db, returnId: string): Promise<Return
       assessedAt: true,
       pickupFeePayer: true,
       returnShippingFee: true,
+      refundTotal: true,
       order: { select: { shippingFee: true } },
       items: {
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -53,6 +56,8 @@ export async function loadReturnRefund(db: Db, returnId: string): Promise<Return
           requestedQuantity: true,
           customerCausedResolution: true,
           resolutionBasisPoints: true,
+          refundEligibleAmount: true,
+          deductionAmount: true,
           orderItem: { select: { quantity: true, lineTotal: true } },
           inspections: { select: { result: true, quantity: true } },
         },
@@ -92,7 +97,7 @@ export async function loadReturnRefund(db: Db, returnId: string): Promise<Return
       },
     })) > 0;
 
-  const calculation = calculateRefund({
+  const computed = calculateRefund({
     responsibility: row.finalResponsibility,
     orderShippingFee: row.order.shippingFee,
     deliveryFeeTakenElsewhere: feeTaken,
@@ -111,6 +116,9 @@ export async function loadReturnRefund(db: Db, returnId: string): Promise<Return
         : null,
     })),
   });
+  // Completed (TASK-041): the amounts fixed at completion.
+  const calculation =
+    row.refundTotal === null ? computed : withFixedAmounts(computed, row.refundTotal, row.items);
   const finalPayer = finalPickupFeePayer(row.finalResponsibility);
   return {
     ...calculation,

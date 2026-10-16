@@ -11,7 +11,7 @@ import {
   type AuditAction,
   type AuditActor,
 } from "@/server/modules/audit/audit";
-import { conflict, validationError } from "@/server/modules/catalog/errors";
+import { conflict, isUniqueViolation, validationError } from "@/server/modules/catalog/errors";
 import {
   CUSTOMER_UPLOAD_PURPOSE,
   lockAttachableAsset,
@@ -28,6 +28,7 @@ import {
 } from "@/server/modules/returns/returns";
 import { loadReturnRefund, type ReturnRefund } from "@/server/modules/returns/refund-calculation";
 import { readCustomerCausedRefundBasisPoints } from "@/server/modules/settings/settings";
+import { creditWallet } from "@/server/modules/wallet/wallet-service";
 import { toJsonNumber } from "@/server/money/money";
 import {
   MAX_RETURN_EVIDENCE,
@@ -41,7 +42,7 @@ import {
   type RequestReturnPickupInput,
   type ListReturnsQuery,
 } from "@/server/modules/returns/schemas";
-import { systemClock, type Clock } from "@/server/time/time";
+import { MS_PER_DAY, systemClock, type Clock } from "@/server/time/time";
 
 /**
  * Customer return requests (TASK-037, ADR-0049; Business Spec Q5, Q14, Q17,
@@ -100,6 +101,9 @@ export interface ReturnView {
     requestedAt: string;
   } | null;
   receivedAt: string | null;
+  /** Set when `COMPLETED` (TASK-041), with the wallet refund in piastres. */
+  completedAt: string | null;
+  refundTotal: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -125,6 +129,9 @@ export interface AdminReturnView extends Omit<ReturnView, "items"> {
   items: (ReturnView["items"][number] & {
     inspection: ReturnItemInspectionView | null;
     resolution: ReturnItemResolutionView | null;
+    /** Fixed at completion (TASK-041), piastres; null before. */
+    refundAmount: number | null;
+    deductionAmount: number | null;
   })[];
   customerId: string | null;
   approvedByEmployeeId: string | null;
@@ -212,6 +219,8 @@ function toView(row: ReturnRow): ReturnView {
           }
         : null,
     receivedAt: row.receivedAt?.toISOString() ?? null,
+    completedAt: row.completedAt?.toISOString() ?? null,
+    refundTotal: money(row.refundTotal),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -257,6 +266,8 @@ function toAdminView(row: ReturnRow): AdminReturnView {
                 resolvedByEmployeeId: line.resolvedById,
               }
             : null,
+        refundAmount: money(line.refundEligibleAmount),
+        deductionAmount: money(line.deductionAmount),
       };
     }),
     customerId: row.customerId,
@@ -285,6 +296,16 @@ function toAdminView(row: ReturnRow): AdminReturnView {
 
 function returnNotFound(): AppError {
   return new AppError("NOT_FOUND", "Return not found.");
+}
+
+const COMPLETE_OPERATION = "RETURN_COMPLETE";
+const IDEMPOTENCY_TTL_MS = 7 * MS_PER_DAY;
+
+function idempotencyConflict(): AppError {
+  return new AppError(
+    "IDEMPOTENCY_CONFLICT",
+    "This Idempotency-Key was used for a different request.",
+  );
 }
 
 function customerActor(customerId: string): AuditActor {
@@ -1348,6 +1369,175 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
     return getReturn(returnId);
   }
 
+  /**
+   * `POST /admin/returns/{returnId}/complete` (`COMPLETE_RETURN`; TASK-041,
+   * ADR-0068; Q16, Q26, Q29, Q97): `INSPECTING → COMPLETED` once the refund
+   * is `READY`. In one transaction under the return row lock: the amounts
+   * are fixed on the return and its lines, the total is credited to the
+   * customer's wallet (`RETURN_REFUND`, reference the return), and the
+   * status history, audit entry and `RETURN_COMPLETED` outbox event are
+   * written. Stock is not touched: restocked units went back at inspection
+   * (ADR-0060). A retry with the same Idempotency-Key returns the return
+   * unchanged; any other second completion is refused, so the wallet is
+   * credited at most once (a unique index backs this up).
+   */
+  async function completeReturn(
+    employeeId: string,
+    returnId: string,
+    idempotencyKey: string,
+    ctx: Ctx,
+  ): Promise<AdminReturnView> {
+    const now = clock.now();
+    const scope = `EMPLOYEE:${employeeId}`;
+    const result = await runInTransaction(
+      async (tx) => {
+        const current = await lockReturn(tx, returnId);
+        if (!current) {
+          throw returnNotFound();
+        }
+        const previous = await tx.idempotencyKey.findUnique({
+          where: {
+            scope_operation_key: { scope, operation: COMPLETE_OPERATION, key: idempotencyKey },
+          },
+        });
+        if (previous) {
+          if (previous.resourceId !== returnId) {
+            throw idempotencyConflict();
+          }
+          return { replayed: true, refundTotal: null, walletTransactionId: null };
+        }
+        requireTransition(current.status, "COMPLETED");
+        const refund = (await loadReturnRefund(tx, returnId))!;
+        if (refund.status !== "READY" || refund.totalRefund === null) {
+          throw conflict("The refund is not ready: finish the inspection steps first.", {
+            reason: "REFUND_NOT_READY",
+            refundStatus: refund.status,
+          });
+        }
+        const total = refund.totalRefund;
+        // Returns are customer-only (TASK-037), and R34 keeps the account
+        // while a return is open; refuse rather than lose the credit.
+        if (current.customerId === null) {
+          throw conflict("This return has no customer wallet to refund.", {
+            reason: "RETURN_HAS_NO_CUSTOMER",
+          });
+        }
+        for (const line of refund.lines) {
+          await tx.returnItem.update({
+            where: { id: line.returnItemId },
+            data: {
+              refundEligibleAmount: line.refundAmount,
+              deductionAmount: line.deductionAmount,
+            },
+          });
+        }
+        const walletTransactionId =
+          total > BigInt(0)
+            ? await creditWallet(tx, {
+                customerId: current.customerId,
+                transactionType: "RETURN_REFUND",
+                amount: total,
+                referenceType: "RETURN",
+                referenceId: returnId,
+                now,
+              })
+            : null;
+        await tx.return.update({
+          where: { id: returnId },
+          data: {
+            status: "COMPLETED",
+            refundTotal: total,
+            completedAt: now,
+            updatedAt: now,
+            statusHistory: {
+              create: [
+                {
+                  fromStatus: current.status,
+                  toStatus: "COMPLETED",
+                  changedByType: "EMPLOYEE",
+                  changedById: employeeId,
+                  createdAt: now,
+                },
+              ],
+            },
+          },
+        });
+        await recordAudit(tx, {
+          actor: employeeActor(employeeId),
+          action: "RETURN_COMPLETED",
+          entityType: AUDIT_ENTITY_TYPES.return,
+          entityId: returnId,
+          previous: { status: current.status },
+          next: {
+            status: "COMPLETED",
+            finalResponsibility: refund.finalResponsibility,
+            productRefund: money(refund.productRefund),
+            deliveryFeeRefund: money(refund.deliveryFeeRefund),
+            refundTotal: toJsonNumber(total),
+            lines: refund.lines.map((l) => ({
+              returnItemId: l.returnItemId,
+              refundAmount: money(l.refundAmount),
+              deductionAmount: toJsonNumber(l.deductionAmount),
+            })),
+            walletTransactionId,
+          },
+          correlationId: ctx.correlationId,
+          createdAt: now,
+        });
+        // After commit, workers may tell the customer (API §31).
+        await tx.outboxEvent.create({
+          data: {
+            eventType: "RETURN_COMPLETED",
+            aggregateType: "RETURN",
+            aggregateId: returnId,
+            payload: {
+              returnId,
+              orderId: current.orderId,
+              customerId: current.customerId,
+              refundTotal: toJsonNumber(total),
+              walletTransactionId,
+              correlationId: ctx.correlationId,
+            },
+            availableAt: now,
+            createdAt: now,
+          },
+        });
+        await tx.idempotencyKey.create({
+          data: {
+            scope,
+            operation: COMPLETE_OPERATION,
+            key: idempotencyKey,
+            requestFingerprint: returnId,
+            status: "COMPLETED",
+            responseStatus: 200,
+            resourceType: "RETURN",
+            resourceId: returnId,
+            createdAt: now,
+            // ponytail: expired keys are not purged yet (as for wallet adjustments).
+            expiresAt: new Date(now.getTime() + IDEMPOTENCY_TTL_MS),
+          },
+        });
+        return { replayed: false, refundTotal: total, walletTransactionId };
+      },
+      {},
+      db,
+    ).catch((error: unknown) => {
+      // The same key used at the same time for another return.
+      if (isUniqueViolation(error, "key")) {
+        throw idempotencyConflict();
+      }
+      throw error;
+    });
+    if (!result.replayed) {
+      ctx.logger.info("return completed", {
+        returnId,
+        refundTotal: result.refundTotal === null ? null : toJsonNumber(result.refundTotal),
+        walletTransactionId: result.walletTransactionId,
+      });
+    }
+    return getReturn(returnId);
+  }
+
   /** `GET /admin/returns/{returnId}/refund` (`RETURNS_VIEW`): the refund as it stands. */
   async function getReturnRefund(returnId: string): Promise<RefundView> {
     const refund = await loadReturnRefund(db, returnId);
@@ -1358,6 +1548,7 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
   }
 
   return {
+    completeReturn,
     assessReturn,
     resolveItem,
     getReturnRefund,

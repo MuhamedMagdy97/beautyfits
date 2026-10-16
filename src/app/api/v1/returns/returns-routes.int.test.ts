@@ -4,6 +4,7 @@ import { POST as requestPickup } from "@/app/api/v1/admin/returns/[returnId]/pic
 import { POST as inspectItem } from "@/app/api/v1/admin/return-items/[returnItemId]/inspection/route";
 import { POST as resolveItem } from "@/app/api/v1/admin/return-items/[returnItemId]/resolution/route";
 import { POST as assessReturn } from "@/app/api/v1/admin/returns/[returnId]/assessment/route";
+import { POST as completeReturn } from "@/app/api/v1/admin/returns/[returnId]/complete/route";
 import { GET as getRefund } from "@/app/api/v1/admin/returns/[returnId]/refund/route";
 import { POST as receiveReturn } from "@/app/api/v1/admin/returns/[returnId]/receive/route";
 import { POST as rejectReturn } from "@/app/api/v1/admin/returns/[returnId]/reject/route";
@@ -661,6 +662,8 @@ describe("admin view", () => {
           ...item,
           inspection: null,
           resolution: null,
+          refundAmount: null,
+          deductionAmount: null,
         })),
         customerId: sara.customerId,
         approvedByEmployeeId: null,
@@ -1472,6 +1475,255 @@ describe("receiving and inspection (TASK-039)", () => {
       expect(
         (await resolve(resolver, UNKNOWN_ID, { resolution: "RETURN_TO_CUSTOMER" })).status,
       ).toBe(404);
+    });
+  });
+
+  describe("wallet refund completion (TASK-041)", () => {
+    function complete(token: string, returnId: string, key?: string) {
+      return call(completeReturn, `/admin/returns/${returnId}/complete`, {
+        method: "POST",
+        token,
+        headers: key ? { "idempotency-key": key } : {},
+        params: { returnId },
+      });
+    }
+
+    async function balance(customerId: string) {
+      return (await db.wallet.findUnique({ where: { customerId } }))?.balance ?? BigInt(0);
+    }
+
+    function refunds(returnId: string) {
+      return db.walletTransaction.findMany({
+        where: { transactionType: "RETURN_REFUND", referenceId: returnId },
+      });
+    }
+
+    /**
+     * Inspected and assessed as the carrier's fault: line A restocked
+     * (2 × 150 EGP), line B damaged (90 EGP), plus the 50 EGP delivery fee.
+     */
+    async function ready() {
+      const picked = await pickedUp("DAMAGED");
+      const { returnId, items } = picked;
+      await data(await admin(receiveReturn, "receive", await staff(["RECEIVE_RETURN"]), returnId));
+      const inspector = await staff(["INSPECT_RETURN"]);
+      await data(await admin(startInspection, "start-inspection", inspector, returnId));
+      await data(
+        await inspect(inspector, items[0].id, {
+          outcomes: [{ result: "RESTOCK", condition: "SELLABLE", quantity: 2 }],
+        }),
+      );
+      await data(
+        await inspect(inspector, items[1].id, {
+          outcomes: [{ result: "DAMAGED", condition: "DAMAGED", quantity: 1 }],
+        }),
+      );
+      const owner = await staff(["COMPLETE_RETURN", "RETURNS_VIEW"]);
+      await data(
+        await admin(assessReturn, "assessment", owner, returnId, {
+          finalResponsibility: "CARRIER",
+        }),
+      );
+      return { ...picked, inspector, owner };
+    }
+
+    it("completes once, fixing the amounts and crediting the wallet in one step", async () => {
+      const { sara, returnId, items, owner } = await ready();
+      const stockBefore = await Promise.all(
+        items.map((i) => available(i.orderItem.productVariantId)),
+      );
+
+      const done = await data(await complete(owner, returnId, "complete-key-1"));
+      expect(done).toMatchObject({
+        status: "COMPLETED",
+        refundTotal: 44000,
+        completedAt: expect.any(String),
+      });
+      expect(done.items.map((i: { refundAmount: number }) => i.refundAmount)).toEqual([
+        30000, 9000,
+      ]);
+      expect(done.items.map((i: { deductionAmount: number }) => i.deductionAmount)).toEqual([0, 0]);
+      expect(done.statusHistory.at(-1)).toMatchObject({
+        fromStatus: "INSPECTING",
+        toStatus: "COMPLETED",
+        changedByType: "EMPLOYEE",
+      });
+
+      expect(await balance(sara.customerId)).toBe(BigInt(44000));
+      const [credit, ...more] = await refunds(returnId);
+      expect(more).toEqual([]);
+      expect(credit).toMatchObject({
+        direction: "CREDIT",
+        amount: BigInt(44000),
+        referenceType: "RETURN",
+      });
+      // Restocked at inspection (ADR-0060): completion moves no stock.
+      expect(await Promise.all(items.map((i) => available(i.orderItem.productVariantId)))).toEqual(
+        stockBefore,
+      );
+
+      const audit = await db.auditLog.findFirstOrThrow({
+        where: { entityId: returnId, action: "RETURN_COMPLETED" },
+      });
+      expect(audit.newDataJson).toMatchObject({
+        status: "COMPLETED",
+        productRefund: 39000,
+        deliveryFeeRefund: 5000,
+        refundTotal: 44000,
+        walletTransactionId: credit.id,
+      });
+      const event = await db.outboxEvent.findFirstOrThrow({
+        where: { aggregateId: returnId, eventType: "RETURN_COMPLETED" },
+      });
+      expect(event.payload).toMatchObject({
+        returnId,
+        customerId: sara.customerId,
+        refundTotal: 44000,
+        walletTransactionId: credit.id,
+      });
+
+      // The refund view reports the fixed amounts; the customer sees the total.
+      const refund = await data(
+        await call(getRefund, `/admin/returns/${returnId}/refund`, {
+          token: owner,
+          params: { returnId },
+        }),
+      );
+      expect(refund).toMatchObject({
+        status: "READY",
+        productRefund: 39000,
+        deliveryFeeRefund: 5000,
+        totalRefund: 44000,
+      });
+      const mine = await data(
+        await call(getReturn, `/returns/${returnId}`, { token: sara.token, params: { returnId } }),
+      );
+      expect(mine).toMatchObject({ status: "COMPLETED", refundTotal: 44000 });
+      expect(mine.items[0].refundAmount).toBeUndefined();
+
+      // A retry with the same key replays; any other completion is refused.
+      expect((await data(await complete(owner, returnId, "complete-key-1"))).status).toBe(
+        "COMPLETED",
+      );
+      const second = await errorOf(await complete(owner, returnId, "complete-key-2"), 409);
+      expect(second).toMatchObject({
+        code: "RETURN_STATE_INVALID",
+        details: { status: "COMPLETED", required: "INSPECTING" },
+      });
+      expect(await refunds(returnId)).toHaveLength(1);
+      expect(await balance(sara.customerId)).toBe(BigInt(44000));
+      expect(
+        await db.auditLog.count({ where: { entityId: returnId, action: "RETURN_COMPLETED" } }),
+      ).toBe(1);
+      // The same key for another return is a conflict.
+      const other = await ready();
+      expect(
+        (await errorOf(await complete(owner, other.returnId, "complete-key-1"), 409)).code,
+      ).toBe("IDEMPOTENCY_CONFLICT");
+    });
+
+    it("never credits twice when completions race", async () => {
+      const { sara, returnId, owner } = await ready();
+      const results = await Promise.all([
+        complete(owner, returnId, "race-key-a"),
+        complete(owner, returnId, "race-key-b"),
+        complete(owner, returnId, "race-key-a"),
+      ]);
+      const statuses = results.map((r) => r.status);
+      expect(statuses.filter((s) => s === 200).length).toBeGreaterThanOrEqual(1);
+      expect(statuses.every((s) => s === 200 || s === 409)).toBe(true);
+      expect(await refunds(returnId)).toHaveLength(1);
+      expect(await balance(sara.customerId)).toBe(BigInt(44000));
+      // The database refuses a second refund of the same return outright.
+      await expect(
+        db.walletTransaction.create({
+          data: {
+            walletId: (
+              await db.wallet.findUniqueOrThrow({ where: { customerId: sara.customerId } })
+            ).id,
+            transactionType: "RETURN_REFUND",
+            direction: "CREDIT",
+            amount: BigInt(1),
+            referenceType: "RETURN",
+            referenceId: returnId,
+          },
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("completes a refund of nothing without a wallet entry", async () => {
+      const { sara, returnId, items, inspector } = await (async () => {
+        const picked = await pickedUp("OTHER");
+        await data(
+          await admin(receiveReturn, "receive", await staff(["RECEIVE_RETURN"]), picked.returnId),
+        );
+        const inspector = await staff(["INSPECT_RETURN"]);
+        await data(await admin(startInspection, "start-inspection", inspector, picked.returnId));
+        return { ...picked, inspector };
+      })();
+      for (const [index, quantity] of [2, 1].entries()) {
+        await data(
+          await inspect(inspector, items[index].id, {
+            outcomes: [{ result: "REJECTED", condition: "OPENED_USED", quantity }],
+          }),
+        );
+      }
+      const owner = await staff(["COMPLETE_RETURN"]);
+      await data(
+        await admin(assessReturn, "assessment", owner, returnId, {
+          finalResponsibility: "CUSTOMER",
+        }),
+      );
+      const done = await data(await complete(owner, returnId, "zero-refund-key"));
+      expect(done).toMatchObject({ status: "COMPLETED", refundTotal: 0 });
+      expect(await refunds(returnId)).toEqual([]);
+      expect(await db.wallet.findUnique({ where: { customerId: sara.customerId } })).toBeNull();
+    });
+
+    it("needs a READY refund, the INSPECTING status, a key and COMPLETE_RETURN", async () => {
+      const { returnId, items, inspector } = await pickedUp("DAMAGED").then(async (picked) => {
+        const owner = await staff(["COMPLETE_RETURN"]);
+        // Not received yet.
+        expect(
+          (await errorOf(await complete(owner, picked.returnId, "early-key-1"), 409)).details,
+        ).toEqual({ status: "PICKUP_SCHEDULED", required: "INSPECTING" });
+        await data(
+          await admin(receiveReturn, "receive", await staff(["RECEIVE_RETURN"]), picked.returnId),
+        );
+        const inspector = await staff(["INSPECT_RETURN"]);
+        await data(await admin(startInspection, "start-inspection", inspector, picked.returnId));
+        return { ...picked, inspector };
+      });
+      const owner = await staff(["COMPLETE_RETURN"]);
+      const notInspected = await errorOf(await complete(owner, returnId, "early-key-2"), 409);
+      expect(notInspected).toMatchObject({
+        code: "CONFLICT",
+        details: { reason: "REFUND_NOT_READY", refundStatus: "INSPECTION_REQUIRED" },
+      });
+      for (const [index, quantity] of [2, 1].entries()) {
+        await data(
+          await inspect(inspector, items[index].id, {
+            outcomes: [{ result: "RESTOCK", condition: "SELLABLE", quantity }],
+          }),
+        );
+      }
+      expect(
+        (await errorOf(await complete(owner, returnId, "early-key-3"), 409)).details.refundStatus,
+      ).toBe("ASSESSMENT_REQUIRED");
+      // A refused attempt keeps nothing: its key can be used again.
+      await data(
+        await admin(assessReturn, "assessment", owner, returnId, {
+          finalResponsibility: "BEAUTYFITS",
+        }),
+      );
+      const viewer = await staff(["RETURNS_VIEW", "INSPECT_RETURN"]);
+      expect((await errorOf(await complete(viewer, returnId, "perm-key-1"), 403)).code).toBe(
+        "PERMISSION_DENIED",
+      );
+      const noKey = await errorOf(await complete(owner, returnId), 400);
+      expect(noKey.details.issues[0].code).toBe("idempotency_key_required");
+      expect((await complete(owner, UNKNOWN_ID, "unknown-key-1")).status).toBe(404);
+      expect((await data(await complete(owner, returnId, "early-key-3"))).status).toBe("COMPLETED");
     });
   });
 });
