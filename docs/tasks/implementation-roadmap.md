@@ -565,6 +565,8 @@ Suppliers, purchase orders, approvals, receiving, invoices, supplier returns, ca
 
 **Status after TASK-055** (`docs/tasks/TASK-055-purchasing-shipping-dashboard.md`, ADR-0058): real routes `/staff/suppliers` (+ `/[id]` balance, ledger, payments), `/staff/purchases` (+ `/[id]` actions, receiving, receipts, invoices; `/returns` list, submit, settle) and `/staff/shipping` (orders queue, `/orders/[orderId]` carrier, handoff, tracking, delivery status, shipping cancellation, return inspection; `/carriers`; `/contact-tasks`) use the existing TASK-021..036 API only. Texts in `_lib/purchasing-i18n.ts`; status labels and conflict reasons were added to `_lib/catalog-i18n.ts`; `Tabs` is in `catalog-ui.tsx`. The `purchases` and `shipping` sections now also show to receiving and shipment staff. Open: no API returns goods receipt line ids, so supplier returns cannot be created from the dashboard; no single-supplier read and no shipment list endpoint.
 
+**TASK-055A** (`docs/tasks/TASK-055A-locations-shipping-rules.md`): `/staff/shipping/locations` (governorates and areas: rename, deactivate/reactivate, add area; R32) and `/staff/shipping/rules` (list, create, edit, activate/deactivate; R37) over the existing TASK-009/027 endpoints, as shipping tabs. Texts in `_lib/locations-i18n.ts`. Open: no `areaId` filter on the rules list; no usage warning when deactivating an area.
+
 ### TASK-056 — Wallet, Marketing & Notifications Dashboard
 **Depends on:** TASK-041 → TASK-049
 
