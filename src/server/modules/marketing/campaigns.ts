@@ -6,6 +6,7 @@ import {
   AUDIT_ENTITY_TYPES,
   employeeActor,
   recordAudit,
+  SYSTEM_ACTOR,
   type AuditAction,
 } from "@/server/modules/audit/audit";
 import { conflict } from "@/server/modules/catalog/errors";
@@ -52,6 +53,15 @@ export function assertStatus(current: CampaignStatus, required: CampaignStatus):
   }
 }
 
+/**
+ * How a SENDING campaign ends once no recipient is PENDING (TASK-049,
+ * ADR-0067): FAILED when nothing was delivered and something failed;
+ * otherwise COMPLETED (also when every recipient was skipped).
+ */
+export function campaignOutcome(counts: { delivered: number; failed: number }): CampaignStatus {
+  return counts.delivered === 0 && counts.failed > 0 ? "FAILED" : "COMPLETED";
+}
+
 export function campaignNotFound(): AppError {
   return new AppError("NOT_FOUND", "Campaign not found.");
 }
@@ -67,7 +77,8 @@ export async function lockCampaign(tx: Db, campaignId: string): Promise<Campaign
 }
 
 export interface StatusChange {
-  employeeId: string;
+  /** null: the system (the delivery job ending a campaign, TASK-049). */
+  employeeId: string | null;
   now: Date;
   correlationId: string | null;
   reason?: string | null;
@@ -91,7 +102,7 @@ export async function changeStatus(
     data: { ...data, status: to, updatedAt: change.now },
   });
   await recordAudit(tx, {
-    actor: employeeActor(change.employeeId),
+    actor: change.employeeId ? employeeActor(change.employeeId) : SYSTEM_ACTOR,
     action,
     entityType: AUDIT_ENTITY_TYPES.campaign,
     entityId: campaignId,

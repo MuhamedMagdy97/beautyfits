@@ -104,8 +104,18 @@ const en = {
   sendConfirm:
     "Send this campaign? The customers opted in right now become its recipients. This cannot be undone.",
   recipients: "Recipients",
-  deliveryPending:
-    "Recipients are fixed. Message delivery and its results are not available yet (TASK-049).",
+  recipientStatuses: {
+    PENDING: "Waiting",
+    SENT: "Sent",
+    FALLBACK_SENT: "Sent by email fallback",
+    FAILED: "Failed",
+    SKIPPED: "Skipped",
+  },
+  skipReasons: {
+    CONSENT_WITHDRAWN: "opted out",
+    FREQUENCY_LIMIT: "frequency limit",
+    NO_ADDRESS: "no address",
+  },
   lastRejection: "Rejected: {reason}",
   history: "History",
   ownSubmission: "You submitted this campaign; another Owner or Admin must approve it.",
@@ -263,7 +273,18 @@ const ar: MarketingDictionary = {
   send: "إرسال",
   sendConfirm: "إرسال هذه الحملة؟ يصبح العملاء الموافقون الآن هم المستلمين. لا يمكن التراجع.",
   recipients: "المستلمون",
-  deliveryPending: "تم تحديد المستلمين. تسليم الرسائل ونتائجه غير متاحين بعد (TASK-049).",
+  recipientStatuses: {
+    PENDING: "قيد الانتظار",
+    SENT: "أُرسلت",
+    FALLBACK_SENT: "أُرسلت بالبريد كبديل",
+    FAILED: "فشلت",
+    SKIPPED: "تم تخطيها",
+  },
+  skipReasons: {
+    CONSENT_WITHDRAWN: "ألغى الموافقة",
+    FREQUENCY_LIMIT: "حد التكرار",
+    NO_ADDRESS: "لا يوجد عنوان",
+  },
   lastRejection: "مرفوضة: {reason}",
   history: "السجل",
   ownSubmission: "أنت من أرسل الحملة للموافقة؛ يجب أن يوافق عليها مالك أو مسؤول آخر.",

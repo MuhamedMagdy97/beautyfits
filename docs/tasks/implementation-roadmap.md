@@ -515,6 +515,8 @@ Draft → Pending Approval → Approved → Sending → Completed/Failed campaig
 
 Implement frequency limits, delivery retries, consent-aware fallback and complete campaign delivery logs.
 
+**Status after TASK-049** (`docs/tasks/TASK-049-marketing-delivery.md`, ADR-0067): `npm run jobs:deliver-campaigns` delivers the `PENDING` recipients of `SENDING` campaigns after commit: consent to the channel and a deliverable address (phone / verified email) are rechecked at delivery (`SKIPPED` with `CONSENT_WITHDRAWN` / `NO_ADDRESS`), the frequency limit applies (`FREQUENCY_LIMIT`; settings `marketing.frequency_max_messages`, 0 = off until decided, and `marketing.frequency_window_days`), failed tries wait `attempt × 5 minutes` up to `marketing.delivery_max_attempts` (provisional 5), then a WhatsApp campaign falls back to email only with email marketing consent (`FALLBACK_SENT`) or the recipient is `FAILED`. Every try is a `notification_deliveries` row (`campaign_recipient_id`). Campaigns end `COMPLETED`, or `FAILED` when nothing was delivered and something failed (system audit). `GET /admin/campaigns/{id}/delivery` and the dashboard campaign page show the results. Frequency numbers, retries, the fallback subject and unsubscribe links await business decisions (task open items).
+
 ---
 
 # Phase 10 — Analytics

@@ -157,6 +157,9 @@ export const AUDIT_ACTIONS = [
   "CAMPAIGN_APPROVED",
   "CAMPAIGN_REJECTED",
   "CAMPAIGN_SENDING_STARTED",
+  // Campaign delivery (TASK-049)
+  "CAMPAIGN_COMPLETED",
+  "CAMPAIGN_FAILED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
