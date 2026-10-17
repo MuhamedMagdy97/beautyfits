@@ -84,6 +84,8 @@ From User Flows §20, DB Design §26, and API Contract §34:
 - Repeated refund request
 - Concurrent edits (e.g. order modification vs staff transition)
 
+Covered in `src/app/api/v1/concurrency.int.test.ts` (TASK-062, helper `src/test/integration/concurrently.ts`) and in each feature's own tests; the inventory is in `docs/tasks/TASK-062-concurrency-tests.md`. Duplicate webhook delivery has no endpoint to test yet.
+
 ## 7. Security Tests
 
 Derived from `docs/security/security-requirements.md`:
