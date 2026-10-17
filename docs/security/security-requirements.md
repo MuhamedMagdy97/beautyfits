@@ -155,6 +155,7 @@ Pipeline (Architecture §20): authentication + permission → type/size/dimensio
 
 - Automated daily backups plus weekly backups with longer retention; encrypted, off-environment (Q182).
 - Documented recovery plan and tested restores; a backup alone is not sufficient (Q183).
+- Implemented in TASK-064 (ADR-0072, runbook `docs/operations/backup-and-recovery.md`): AES-256-GCM encrypted backups and a verified restore drill. Off-environment storage and scheduling: TASK-066.
 
 ## 12. Open Items
 

@@ -38,7 +38,7 @@ This document defines what must be tested and when. It introduces no business ru
 | API / contract | Endpoints match `docs/api/api-contract.md`: response shapes, stable error codes, authorization per endpoint, pagination | Per feature task |
 | Concurrency & reliability | Races on stock, wallet, checkout, webhooks, refunds | TASK-062 (critical paths also covered in their own tasks) |
 | End-to-end | High-value customer/admin flows from browse → checkout → delivery → return → refund | TASK-063 |
-| Backup restore drill | Restore is verified, not assumed | TASK-064 |
+| Backup restore drill | Restore is verified, not assumed: `npm run db:restore-drill` and `restore-drill.int.test.ts` (ADR-0072) | TASK-064 |
 
 ## 4. Database Test Strategy
 

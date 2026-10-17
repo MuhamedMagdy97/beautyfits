@@ -640,6 +640,8 @@ Automate high-value customer/admin flows from browse to checkout, delivery, retu
 
 Automated backups, retention, restore drill, verification and documented recovery procedure.
 
+**Status after TASK-064** (`docs/tasks/TASK-064-backup-recovery.md`, ADR-0072): `npm run db:backup` writes AES-256-GCM encrypted `pg_dump` and `MEDIA_DIR` archives with daily/weekly tiers and retention pruning; `npm run db:restore` restores into an empty database only; `npm run db:restore-drill` restores into a scratch `_drill` database and verifies migrations, the row count of every table, wallet/inventory ledger invariants and media checksums (also run in CI). Runbook: `docs/operations/backup-and-recovery.md`. Scheduling and off-site storage wait for TASK-066 and the hosting decision; RPO/RTO and retention periods are open business decisions.
+
 ### TASK-065 — Observability & Monitoring
 **Depends on:** TASK-005 and feature completion
 
