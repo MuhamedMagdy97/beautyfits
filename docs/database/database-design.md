@@ -2110,3 +2110,10 @@ Added by TASK-049 (`docs/tasks/TASK-049-marketing-delivery.md`, ADR-0067). Migra
 - `campaign_recipients` gains `attempt_count` (int, default 0: delivery runs that claimed it), `next_attempt_at` (nullable timestamptz: retry wait or the claim lease of a running job), `skip_reason` (nullable enum `campaign_skip_reason` = `CONSENT_WITHDRAWN` | `FREQUENCY_LIMIT` | `NO_ADDRESS`). Rows are updated by the delivery job only; still never deleted.
 - `notification_deliveries` gains `campaign_recipient_id` (nullable FK → `campaign_recipients`, `RESTRICT`); unique `(campaign_recipient_id, attempt_number)`. Campaign tries are delivery rows with `template_key = 'MARKETING_CAMPAIGN'` and no `source_event_id`, `order_id` or `notification_id`.
 - Settings (§20, all `INTEGER`): `marketing.frequency_max_messages` (default 0 = no limit, pending a business decision), `marketing.frequency_window_days` (provisional default 7), `marketing.delivery_max_attempts` (provisional default 5).
+
+## v1.2 TASK-065 Amendments
+
+Added by TASK-065 (`docs/tasks/TASK-065-observability.md`, ADR-0073). Migrated in `prisma/migrations/20261018065000_job_runs`.
+
+- New enum `job_run_status` = `RUNNING` | `SUCCEEDED` | `FAILED`.
+- New table `job_runs`: `id` (uuid v7), `job_name` (text, one of the `npm run jobs:*` jobs), `status` (default `RUNNING`), `started_at` (timestamptz, default now), `finished_at` (nullable), `counts_json` (nullable jsonb: the job's summary counts), `error` (nullable text: error name and redacted message, at most 1000 characters, never a stack). Index `(job_name, started_at DESC)`. Written only by `runJob` (`src/server/observability/job-runner.ts`); read by the system status endpoint. Operational data, not business history: nothing references it, so a later retention job may prune old rows (not implemented).

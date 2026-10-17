@@ -2,6 +2,7 @@ import { AppError, isAppError } from "@/server/errors/app-error";
 import { errorResponse } from "@/server/http/response";
 import { REQUEST_ID_HEADER, resolveRequestId } from "@/server/http/request-id";
 import { logger as rootLogger, type Logger } from "@/server/logging/logger";
+import { reportError } from "@/server/observability/report-error";
 
 export interface ApiContext {
   requestId: string;
@@ -43,10 +44,10 @@ export function withApi<RouteContext = unknown>(
       if (isAppError(error)) {
         response = errorResponse(requestId, error);
       } else {
-        log.error("Unhandled error while processing request", {
-          method: request.method,
-          path,
-          err: error,
+        reportError(error, {
+          msg: "Unhandled error while processing request",
+          logger: log,
+          fields: { method: request.method, path },
         });
         response = errorResponse(
           requestId,

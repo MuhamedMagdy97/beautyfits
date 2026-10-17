@@ -790,6 +790,8 @@ Database monitoring
 
 Production debugging must be possible without exposing sensitive customer data in logs.
 
+Implementation (TASK-065, ADR-0073): JSON logs with `requestId` (ADR-0006), a vendor-neutral `reportError` port, `job_runs` records for every background job, and `GET /api/v1/admin/system-status` with alert codes. Alert rules: `docs/operations/monitoring.md`. The vendor remains open (§27).
+
 ---
 
 ## 26. Deployment Shape

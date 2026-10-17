@@ -2,20 +2,16 @@
 // Fulfils the restock (Notify Me) subscriptions of variants that are back in
 // stock and queues one message each; `jobs:dispatch-notifications` sends them.
 // Safe to run again. Scheduling comes with deployment (TASK-066).
+// Each run is recorded in job_runs (TASK-065, ADR-0073).
 import { existsSync } from "node:fs";
-import { getDb } from "@/server/db/client";
 import { getRestockService } from "@/server/modules/restock/restock-service";
+import { runJobScript } from "@/server/observability/job-runner";
 
 if (existsSync(".env")) {
   process.loadEnvFile(".env");
 }
 
-// The package is CommonJS for tsx, so no top-level await.
-getRestockService()
-  .notifyRestocked()
-  .then(({ notified }) => console.log(`Restock subscriptions notified: ${notified}`))
-  .catch((error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(() => getDb().$disconnect());
+runJobScript("notify-restocks", async () => {
+  const { notified } = await getRestockService().notifyRestocked();
+  return { notified };
+});

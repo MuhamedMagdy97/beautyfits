@@ -17,7 +17,14 @@ describe("parseEnv", () => {
       WEBSITE_URL: "http://localhost:3000",
       MEDIA_DIR: ".media",
       DASHBOARD_URL: "http://localhost:3000",
+      MONITORING_TOKEN: "",
     });
+  });
+
+  it("rejects a short monitoring token", () => {
+    expect(() => parseEnv({ DATABASE_URL: VALID_URL, MONITORING_TOKEN: "short" })).toThrow(
+      /MONITORING_TOKEN/,
+    );
   });
 
   it("accepts explicit values", () => {
