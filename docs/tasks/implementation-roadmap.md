@@ -630,6 +630,8 @@ Review authentication, authorization, rate limiting, OTP abuse, file uploads, se
 
 Stress critical races: last-stock checkout, duplicate checkout, wallet double-spend, duplicate webhook, repeated refund request and concurrent edits.
 
+**Status after TASK-062** (`docs/tasks/TASK-062-concurrency-tests.md`): `src/app/api/v1/concurrency.int.test.ts` races last-stock and duplicate checkouts, wallet debits against checkout holds, COD confirmation against expiry, concurrent cancels and revision confirmations, and repeated goods receipts on real PostgreSQL (helper `src/test/integration/concurrently.ts`); repeated refund requests were already covered by TASK-041. No bugs found. Duplicate webhook delivery waits for the shipping webhook endpoint, which does not exist yet.
+
 ### TASK-063 — End-to-End Regression Suite
 **Depends on:** dashboard + website integration
 
