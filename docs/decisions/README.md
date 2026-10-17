@@ -74,6 +74,7 @@
 | [ADR-0067](ADR-0067-marketing-delivery.md) | Campaign delivery: consent recheck, frequency limit, retries and email fallback | TASK-049 |
 | [ADR-0068](ADR-0068-wallet-refund-completion.md) | Return completion and the wallet refund, credited at most once | TASK-041 |
 | [ADR-0069](ADR-0069-security-headers-cors-route-guards.md) | Browser-security headers, no CORS, route-guard test | TASK-061 |
+| [ADR-0072](ADR-0072-backup-and-restore-drill.md) | Encrypted database and media backups, retention and the verified restore drill | TASK-064 |
 | [ADR-0073](ADR-0073-observability.md) | Vendor-neutral observability: job run records, error-reporting port, system status endpoint | TASK-065 |
 
 New ADRs use the next number, state their status, context, decision and consequences, and are listed here.

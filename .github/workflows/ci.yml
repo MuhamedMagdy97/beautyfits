@@ -41,6 +41,9 @@ jobs:
       DATABASE_URL: postgresql://beautyfits:beautyfits@localhost:5432/beautyfits?schema=public
       TEST_DATABASE_URL: postgresql://beautyfits:beautyfits@localhost:5432/beautyfits_test?schema=public
       NEXT_TELEMETRY_DISABLED: "1"
+      # Restore drill test (TASK-064, ADR-0072): pg_dump/pg_restore 17 from the
+      # same image as the service, since the runner's client tools are older.
+      BACKUP_PG_COMMAND_PREFIX: docker run --rm -i --network host -e PGPASSWORD -e PGSSLMODE postgres:17-alpine
 
     steps:
       - name: Check out

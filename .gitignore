@@ -39,6 +39,9 @@ yarn-error.log*
 # local file storage (MEDIA_DIR, ADR-0021)
 /.media/
 
+# local backups (BACKUP_DIR, ADR-0072)
+/.backups/
+
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
