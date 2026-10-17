@@ -289,17 +289,17 @@ Sources: [ADR-0054 §5 item 3](ADR-0054-settings-changes-and-admin-screens.md), 
 
 **BD-070** Backup retention (how many daily and weekly backups, Q182).
 Now: 7 daily / 4 weekly placeholders.
-Source: TASK-064 Open Items (file not yet on main)
+Source: [TASK-064 Open Items](../tasks/TASK-064-backup-recovery.md)
 
 **BD-071** Acceptable data loss and recovery time (RPO / RTO).
 Now: daily backups, up to 24 hours of loss.
-Source: TASK-064 Open Items (not yet on main)
+Source: [TASK-064 Open Items](../tasks/TASK-064-backup-recovery.md)
 
 **BD-072** How often to run the restore drill (proposed monthly and after major releases)?
-Source: TASK-064 Open Items (not yet on main)
+Source: [TASK-064 Open Items](../tasks/TASK-064-backup-recovery.md)
 
 **BD-073** Should the end-to-end test job become a required check before merging?
-Source: TASK-063 Open Items (not yet on main)
+Source: [TASK-063 Open Items](../tasks/TASK-063-e2e-regression.md)
 
 **BD-074** Who may view the system status screen?
 Now: Owner/Admin (audit-log permission); a dedicated permission is possible.
@@ -356,7 +356,7 @@ Source: [TASK-042](../tasks/TASK-042-wishlist.md)
 Not open now; revisit when production hosting is chosen.
 
 - Hosting provider, and the exact queue, object-storage, email, WhatsApp and monitoring vendors: [Architecture §27](../architecture/system-architecture.md), TASK-064/TASK-065 open items.
-- Off-site backup storage target and access: TASK-064 (not yet on main). Backups stay local.
+- Off-site backup storage target and access: [TASK-064](../tasks/TASK-064-backup-recovery.md). Backups stay local.
 - Error-tracking / monitoring vendor: [TASK-065](../tasks/TASK-065-observability.md). Errors stay log lines.
 - Production deployment (TASK-066), including the site-wide Content-Security-Policy: [TASK-061](../tasks/TASK-061-security-review.md).
 
