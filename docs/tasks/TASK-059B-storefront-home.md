@@ -55,10 +55,10 @@ Public endpoints only; no new input. Category links use API ids. No external ima
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] Images: the hero, category tiles and editorial blocks use placeholder gradients. The owner supplies BeautyFits photography (stored in `/public` or uploaded through the files API), or decides on category images in the catalog (no `image` on categories today).
-- [BUSINESS DECISION REQUIRED] "100% authentic" and "fast delivery across Egypt" (Stitch trust bar and hero) are not in the business spec; not shown. Delivery depends on active areas (`SHIPPING_UNAVAILABLE`).
-- [BUSINESS DECISION REQUIRED] Hero rating line ("4.9/5, 8,400+ verified beauty lovers"), editorial statistics ("120+ exclusive scents", "100% batch-authenticated") and testimonials ("Loved by beauty lovers") have no data source; not built.
-- [BUSINESS DECISION REQUIRED] "Beauty favorites" row: needs a definition of best seller / featured (same open item as TASK-059); only "Just in" (newest) is built.
+- Resolved (owner decision 2026-10-18): keep current behaviour — placeholder gradients until BeautyFits photography is supplied; no category images in the catalog (BD-079).
+- Resolved (owner decision 2026-10-18): keep current behaviour — "100% authentic" and "fast delivery across Egypt" are not shown (BD-080).
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — no hero rating line, editorial statistics or testimonials (BD-081).
+- Resolved (owner decision 2026-10-18): keep current behaviour — only the "Just in" (newest) row; no "Beauty favorites" row (BD-077).
 - Announcement bar, badges (NEW/SALE/RARE FIND) and the free-shipping banner remain open in TASK-058 / TASK-059.
 - Editorial blocks find their category by English slug (`perfume`/`fragrance`, `makeup`); if the owner wants to choose the categories, this needs a setting.
 - Footer "Customer care" column (order tracking, returns policy, shipping, FAQ, contact) waits for those pages (TASK-060 and content pages).

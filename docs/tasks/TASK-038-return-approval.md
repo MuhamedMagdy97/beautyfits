@@ -83,10 +83,10 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Pickup fee payer before inspection: C2 bases return shipping on the final assessed responsibility, known only after inspection (Q99), while the carrier must be told at pickup who pays. Implemented: staff record a provisional payer, `CUSTOMER` by default (User Flows §11.3), `BEAUTYFITS` allowed (e.g. a wrong item shown in the photos). Confirm, and decide how a customer who paid is settled when inspection finds BeautyFits/carrier responsibility (TASK-040).
-- [BUSINESS DECISION REQUIRED] Changing a scheduled pickup (other carrier, failed or missed pickup, customer unreachable): not possible yet; no rule exists.
-- [BUSINESS DECISION REQUIRED] Withdrawal after approval (before pickup): customers can withdraw only while `PENDING_APPROVAL` (TASK-037); should they (or staff) be able to cancel an approved return?
-- [BUSINESS DECISION REQUIRED] Customer notifications for approval, rejection and pickup: the `RETURN_APPROVED` outbox event is written (API §31), but no template or channel is defined for it, and none is listed for rejection or pickup.
+- Resolved (owner decision 2026-10-18): keep current behaviour — staff record a provisional pickup-fee payer, `CUSTOMER` by default (`BEAUTYFITS` allowed); nothing is added to or deducted from the refund when the final responsibility differs, a correction is a manual wallet adjustment (BD-004).
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — a scheduled pickup cannot be changed in the system (BD-005).
+- Resolved (owner decision 2026-10-18): keep current behaviour — customers can withdraw only while `PENDING_APPROVAL`; an approved return cannot be cancelled (BD-006).
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — the `RETURN_APPROVED` outbox event is recorded, but no customer message is sent for approval, rejection or pickup (BD-007).
 - Note: the rejection reason is shown to the customer so the new request can correct it (Q92); staff should write it for the customer.
 
 ## Status

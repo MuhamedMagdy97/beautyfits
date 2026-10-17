@@ -19,7 +19,7 @@ When the customer is responsible, a line's `DAMAGED` units are the R7 exception 
 - Paid amount of `k` units after `p` earlier returned units of the line: `round(T·(p+k)/q) − round(T·p/q)`, HALF-UP (R9), where `T` is the line total (net of the discount share, ADR-0035) and `q` the ordered quantity. The returns of one line sum to at most `T`.
 - The paid amount is split over restocked, damaged and rejected units with `allocate`. Restocked: full. Rejected: nothing. Damaged: full for BeautyFits / carrier, else R7 (`basisPointsOf`, HALF-UP; the rest is the deduction).
 - Delivery fee (C3): the order's `shipping_fee` when BeautyFits or the carrier is responsible, for the first such return assessed on the order only.
-- Pickup fee (C2): final payer `CUSTOMER` for customer-caused returns, `BEAUTYFITS` otherwise; reported with the provisional payer and `payerChanged`. No settlement is added to the total (open item).
+- Pickup fee (C2): final payer `CUSTOMER` for customer-caused returns, `BEAUTYFITS` otherwise; reported with the provisional payer and `payerChanged`. No settlement is added to the total (owner decision 2026-10-18, BD-004).
 
 ## 4. Policy rate
 
@@ -29,4 +29,4 @@ The 25% is the critical setting `returns.customer_caused_refund_basis_points` (d
 
 - TASK-041 locks the return, calls `loadReturnRefund`, requires `READY`, credits `totalRefund` to the wallet and stores `refund_eligible_amount`, `deduction_amount` and `refund_total` with the completion.
 - Amounts are not stored before completion; a later rejection of an earlier return of the same line can move an unfinished return's share by one piastre.
-- Open items (task file): who assesses, pickup fee settlement, delivery fee proration, rejected units, per-unit R7 split, corrections.
+- Who assesses, pickup fee settlement, delivery fee proration, rejected units, per-unit R7 split and corrections: current behaviour kept (owner decision 2026-10-18; task file).

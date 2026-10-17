@@ -41,7 +41,7 @@ Real routes under `/staff` replace the TASK-052 placeholders: `/staff/settings`,
 
 1. **Resolved (owner decision 2026-10-15): which other settings are critical.** Minimum margin is critical. Staff session lengths, image limit, guest cart expiry, COD reminder interval/count, COD channel and the delivery-failure contact threshold (TASK-035) stay non-critical (still Owner/Admin only, history and audit).
 2. **Resolved (owner decision 2026-10-15): a single Owner.** When the requester is an Owner and no other active Owner or Admin exists, nobody could approve, so the change applies at once and is audited with `approvalSkipped: "SOLE_OWNER"` (ADR-0018 allows this). With a second Owner or an Admin, approval is required as before.
-3. **[BUSINESS DECISION REQUIRED] Limits of the staff session settings** (ADR-0017 §5 item 3): still any whole number of minutes above zero.
+3. **Limits of the staff session settings** (ADR-0017 §5 item 3): Resolved (owner decision 2026-10-18): keep current behaviour — any whole number of minutes above zero (BD-069).
 
 ## Consequences
 

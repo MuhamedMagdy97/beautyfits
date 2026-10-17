@@ -96,8 +96,8 @@ Recorded as `[BUSINESS DECISION REQUIRED]` in the owning documents until answere
 6. When stock/wallet reservations are consumed/captured; whether reservations create inventory movements.
 7. Governorate/area as a managed list vs free text. **Resolved 2026-10-04: managed list (Business Spec R32).**
 8. Tax rate(s); EGP only.
-9. COD cash collection/reconciliation with carriers: in v1 or not.
-10. Return pickup fee when responsibility changes after inspection.
+9. COD cash collection/reconciliation with carriers: in v1 or not. **Resolved 2026-10-18: not in v1 (BD-022).**
+10. Return pickup fee when responsibility changes after inspection. **Resolved 2026-10-18: nothing added or deducted; manual wallet adjustment if needed (BD-004).**
 11. Guest marketing consent at checkout: allowed or accounts only.
 12. Confirm ledger "Recommended" rows Q141, Q149, Q150, Q182, Q183.
 

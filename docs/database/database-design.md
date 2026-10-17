@@ -2109,7 +2109,7 @@ Added by TASK-049 (`docs/tasks/TASK-049-marketing-delivery.md`, ADR-0067). Migra
 - `campaign_recipient_status` gains `SKIPPED` (not sent, see `skip_reason`) and `FALLBACK_SENT` (sent by email after the WhatsApp tries failed, Q143).
 - `campaign_recipients` gains `attempt_count` (int, default 0: delivery runs that claimed it), `next_attempt_at` (nullable timestamptz: retry wait or the claim lease of a running job), `skip_reason` (nullable enum `campaign_skip_reason` = `CONSENT_WITHDRAWN` | `FREQUENCY_LIMIT` | `NO_ADDRESS`). Rows are updated by the delivery job only; still never deleted.
 - `notification_deliveries` gains `campaign_recipient_id` (nullable FK → `campaign_recipients`, `RESTRICT`); unique `(campaign_recipient_id, attempt_number)`. Campaign tries are delivery rows with `template_key = 'MARKETING_CAMPAIGN'` and no `source_event_id`, `order_id` or `notification_id`.
-- Settings (§20, all `INTEGER`): `marketing.frequency_max_messages` (default 0 = no limit, pending a business decision), `marketing.frequency_window_days` (provisional default 7), `marketing.delivery_max_attempts` (provisional default 5).
+- Settings (§20, all `INTEGER`): `marketing.frequency_max_messages` (default 0 = no limit), `marketing.frequency_window_days` (default 7), `marketing.delivery_max_attempts` (default 5); defaults confirmed by the owner on 2026-10-18.
 
 ## v1.2 TASK-065 Amendments
 

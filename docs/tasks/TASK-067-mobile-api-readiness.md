@@ -65,7 +65,7 @@ Status: ✅ ready · ⚠️ open (see Open Items) · ℹ️ client guidance (no 
 | 21 | Localized public responses pick `ar`/`en` from `Accept-Language` (default `ar`); account language is `preferredLocale`, editable with `PATCH /me` and used for notifications/emails | API §5, R14 | ✅ | `src/server/http/locale.ts:14`; `src/server/modules/customers/schemas.ts:27`; `src/server/modules/notifications/notifications-service.ts:294` |
 | 22 | In-app notifications carry a structured deep link (`deepLink: {type, id}`), not a web URL, plus read/read-all | Q57, Q58 | ✅ | `src/server/modules/notifications/notifications-service.ts:68,100-101` |
 | 23 | WhatsApp/email messages link to website URLs (COD confirm, product page) | ADR-0043 | ℹ️ the app can claim them later as app/universal links; the website pages keep working | `src/server/modules/notifications/templates.ts:167-174` |
-| 24 | Push notifications (device registration, FCM/APNs channel) | Q55, Q56, Q61 | ⚠️ not decided: channels are WhatsApp + email only | `prisma/schema.prisma:2373` (`NotificationChannel`); BD-086 |
+| 24 | Push notifications (device registration, FCM/APNs channel) | Q55, Q56, Q61 | ⏸ deferred (owner 2026-10-18, no mobile app for now): channels are WhatsApp + email only | `prisma/schema.prisma:2373` (`NotificationChannel`); BD-086 |
 | 25 | Unsupported method on an existing route (e.g. `DELETE /me`) answers Next.js's bare `405` without the envelope | API §6.1 | ℹ️ clients only call documented methods; same for the website | verified on `next start`: `DELETE /api/v1/me` → 405, empty body |
 | 26 | Rate limits are per IP; many phones behind one carrier NAT share a counter | API §30 | ℹ️ watch after launch; thresholds are owner decisions | `src/server/modules/auth/policy.ts`; `src/server/http/client-ip.ts` |
 | 27 | No mobile-only business rule exists or is needed | Arch principles 1, 9 | ✅ | this review: every item above uses the shared endpoints |
@@ -85,9 +85,9 @@ No behaviour changed, so no new tests. The evidence column cites the existing te
 - A bad bearer token on the cart is `401`, never a silent fall back to the guest cart.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] **BD-086** Push notifications for the mobile app: wanted? For which events (same as WhatsApp transactional, plus marketing with consent?), and how do they rank against WhatsApp/email (Q61)? A yes needs a device-token endpoint, a `PUSH` channel and a provider (FCM/APNs) — deferred with the other vendor choices.
+- Deferred (owner 2026-10-18): no mobile app for now — push notifications (BD-086); channels stay WhatsApp and email plus the in-app list.
 - Follow-up task: accept an optional `Idempotency-Key` on `POST /orders/{orderId}/returns` (item 17), with a contract and test update. Not done here: it changes public API behaviour for both clients, so it gets its own task.
-- When the mobile app is built: app/universal links for `WEBSITE_URL` paths (`/orders/{id}/confirm-cod`, `/products/{slug}`), with deployment (TASK-066).
+- Deferred (owner 2026-10-18): no mobile app for now — app/universal links for `WEBSITE_URL` paths (`/orders/{id}/confirm-cod`, `/products/{slug}`), with deployment (TASK-066).
 
 ## Definition of Done
 Required checks green (lint, format, typecheck, unit, integration, build); docs updated; committed on `feature/TASK-067-mobile-api-readiness`.

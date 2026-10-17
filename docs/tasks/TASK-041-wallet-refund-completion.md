@@ -89,9 +89,9 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] `PARTIALLY_COMPLETED` (DB Design §12 status) has no documented meaning. Completion goes `INSPECTING → COMPLETED` only. Decide whether part of a return can be completed and refunded while other lines wait, or drop the status.
-- [BUSINESS DECISION REQUIRED] Q97 says "auto-refund eligible amount to Wallet after completed inspection"; API §17 and the permission catalog make completion a `COMPLETE_RETURN` staff action that creates the refund automatically. Implemented per the contract (staff click, amount never entered by hand). Confirm, or decide that the system completes on its own once the refund is `READY`.
-- [BUSINESS DECISION REQUIRED] Pickup fee settlement (carried from TASK-040, ADR-0056 §4): completion credits `totalRefund`, which does not add or deduct the pickup fee when the payer changed. Once completed the amount is final; any correction is a manual wallet adjustment (`ADJUST_WALLET`).
+- Resolved (owner decision 2026-10-18): keep current behaviour — a return completes all at once (`INSPECTING → COMPLETED`); `PARTIALLY_COMPLETED` stays unused (BD-017).
+- Resolved (owner decision 2026-10-18): keep current behaviour — the wallet refund is created when staff complete the return (`COMPLETE_RETURN`), amount never entered by hand (BD-018).
+- Resolved (owner decision 2026-10-18): keep current behaviour — completion credits `totalRefund` without adding or deducting the pickup fee; any correction is a manual wallet adjustment (`ADJUST_WALLET`) (BD-004).
 - Note: customer notification wording for `RETURN_COMPLETED` is not written (as for `RETURN_APPROVED` / `RETURN_RECEIVED`); the outbox event carries the data. §31 also lists `WALLET_REFUNDED`; it is not emitted separately, `RETURN_COMPLETED` carries `walletTransactionId`.
 - Note: guest returns cannot exist (TASK-037) and R34 blocks deactivation while a return is open; a return without a customer is refused (`RETURN_HAS_NO_CUSTOMER`), not credited.
 - Note: the roadmap's "reservation release/consumption rules" are already settled (R38.7: captured at Shipped, TASK-036); nothing is held when a return completes.

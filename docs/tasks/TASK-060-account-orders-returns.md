@@ -80,9 +80,9 @@ None.
 Lint, format, typecheck, unit and integration tests and build pass; docs updated; reviewed by the product owner.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] COD confirmation from the account: a signed-in customer can confirm only through the WhatsApp link (or by phone with staff). Should the account page let the signed-in owner confirm a `PENDING_CONFIRMATION` order directly? Not built.
-- [BUSINESS DECISION REQUIRED] Stitch elements without a rule or data source, not built: VAT invoice download, "membership ID" / customer tier ("Prestige connoisseur", "Tier protection"), wallet "Redeem" and withdrawal via the customer-care hotline, a refund-destination choice (refunds go to the wallet, Q26), "concierge support" hours.
-- [BUSINESS DECISION REQUIRED] Should customers see their own return photos? `GET /files/{id}/content` serves `RETURN_EVIDENCE` to staff only; the return shows the photo count.
+- Resolved (owner decision 2026-10-18): keep current behaviour — a pending COD order is confirmed only through the WhatsApp link (or by phone with staff), not from the account page (BD-021).
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — no VAT invoice download, membership ID/customer tier, concierge support hours (BD-082), wallet "Redeem", hotline withdrawal or refund-destination choice; refunds go to the wallet (BD-019).
+- Resolved (owner decision 2026-10-18): keep current behaviour — return photos are staff only; the return shows the photo count (BD-003).
 - Return window display ("10 days remaining" in Stitch): the website must not compute it and the order response has no `returnWindowEndsAt`; an additive API field would be needed (owner to confirm it is wanted).
 - Reviews: no list of the customer's own reviews and no edit/report screens (`PATCH /reviews/{id}`, `POST /reviews/{id}/report` exist).
 - Guest order claiming screen (TASK-010 API) is not built; checkout's guest note still says to contact customer service.

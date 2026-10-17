@@ -25,7 +25,7 @@ Corrections of mistaken ledger entries (`ADJUSTMENT`), editing or cancelling ret
 3. **Stock leaves Damaged on approval.** `APPROVED` means sent back; there is no separate shipping step, so `SHIPPED` / `RECEIVED_BY_SUPPLIER` (DB Design §11) are not created.
 4. **Settlement by method** (Q107, Q120). The amount defaults to the expected amount; a different amount needs a note. `CREDIT`: one `CREDIT` entry. `REFUND`: a `CREDIT` entry (goods returned) and a `REFUND` entry (cash received), so the balance nets to zero. `OTHER` (e.g. replacement goods): no entry, amount 0, note required.
 5. **Payments**: partial payments and overpayments are allowed; a negative balance means the supplier owes us or holds our advance.
-6. **No corrections in v1.** Entries are never changed; a correction flow (`ADJUSTMENT` with its own permission and approval) is `[BUSINESS DECISION REQUIRED]` for a later task.
+6. **No corrections in v1.** Entries are never changed; a correction flow (`ADJUSTMENT` with its own permission and approval) is not in v1 (owner decision 2026-10-18, BD-030).
 
 ## 4. Technical defaults (awaiting the product owner's confirmation)
 

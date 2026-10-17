@@ -80,10 +80,10 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Which order statuses make a customer a buyer (previous/product/brand/category buyers, inactivity, spend). Implemented: the TASK-051 revenue statuses (`CONFIRMED` to `DELIVERED`, decided by the owner for revenue on 2026-10-15); `PENDING_CONFIRMATION`, `NEW`, cancelled and expired orders excluded. Buyers follow revenue unless the owner decides otherwise. Returned items are not deducted.
-- [BUSINESS DECISION REQUIRED] "Inactive X days": activity is measured by buying orders only, and customers who never bought are not included (they are in "all opted-in"). Should sign-ins, views or never-buyers count?
-- [BUSINESS DECISION REQUIRED] "High-spending": measured as lifetime merchandise spend (order line totals after discounts, shipping excluded, returns not deducted). Should it be over a period, include shipping, or deduct returns? Threshold is given per segment.
-- [BUSINESS DECISION REQUIRED] Customers whose account is `SUSPENDED` or still `PENDING_VERIFICATION` but opted in: included today (only consent and anonymization are checked). Should they be excluded from marketing?
+- Resolved (owner decision 2026-10-18): keep current behaviour — buyers are customers with orders `CONFIRMED` to `DELIVERED` (the revenue statuses); returned items are not deducted (BD-045).
+- Resolved (owner decision 2026-10-18): keep current behaviour — inactivity counts buying orders only; never-buyers are not included (BD-046).
+- Resolved (owner decision 2026-10-18): keep current behaviour — lifetime merchandise spend (after discounts), shipping excluded, returns not deducted (BD-047).
+- Resolved (owner decision 2026-10-18): keep current behaviour — opted-in `SUSPENDED` or `PENDING_VERIFICATION` customers are included; only consent and anonymization are checked (BD-048).
 - Whether a message can actually be delivered (verified email, a phone) is checked at send time by TASK-049 (ADR-0051 §6), not by the segment.
 
 ## Status

@@ -84,13 +84,13 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 ## Open Items
 
 - Resolved: marketing consent. TASK-046 merged first; `marketingConsentChannels` (`src/server/modules/notifications/marketing-consent.ts`) now returns the channels whose latest `marketing_consents` row is an opt-in.
-- [BUSINESS DECISION REQUIRED] When the first reminder is due: implemented as 3 days after the item was added, then every 3 days (R6 gives the interval, not the start).
-- [BUSINESS DECISION REQUIRED] What "purchased" means: implemented as an order by the customer containing the variant, created after the item was added, not `CANCELLED` or `EXPIRED`.
-- [BUSINESS DECISION REQUIRED] Out-of-stock wishlist items: implemented as no reminder and not counted (Notify Me is the offer); R6 only names unavailable/archived as a stop.
-- [BUSINESS DECISION REQUIRED] Consent: reminders stop for good (`NO_MARKETING_CONSENT`) when consent is gone after at least one reminder; an item whose customer never consented just waits. Decide whether re-consenting should restart stopped reminders.
+- Resolved (owner decision 2026-10-18): keep current behaviour — the first reminder is due 3 days after the item was added, then every 3 days (BD-034).
+- Resolved (owner decision 2026-10-18): keep current behaviour — "purchased" is an order by the customer containing the variant, created after the item was added, not `CANCELLED` or `EXPIRED` (BD-035).
+- Resolved (owner decision 2026-10-18): keep current behaviour — out-of-stock wishlist items get no reminder and are not counted; Notify Me is the offer (BD-036).
+- Resolved (owner decision 2026-10-18): keep current behaviour — reminders stopped for missing consent stay stopped after re-consent (BD-037).
 - Resolved (owner decision 2026-10-15): with both channels chosen, a restock sends one message, WhatsApp first and email only as fallback (Q52, Q61).
-- [BUSINESS DECISION REQUIRED] Notify Me is accepted only while the variant cannot be bought (Q20, Q47); in stock → `409 VARIANT_IN_STOCK`. Confirm.
-- [BUSINESS DECISION REQUIRED] Message wording (ar/en) of the restock and reminder messages, and the product page link `WEBSITE_URL/products/{slug}`.
+- Resolved (owner decision 2026-10-18): keep current behaviour — Notify Me is accepted only while the variant cannot be bought; in stock → `409 VARIANT_IN_STOCK` (BD-038).
+- Resolved (owner decision 2026-10-18): keep current behaviour — the ar/en wording in `src/server/modules/notifications/templates.ts` and the product link `WEBSITE_URL/products/{slug}` (BD-039).
 - `/me/preferences` (TASK-045 open item): not added; restock channels are per subscription and marketing preferences belong to TASK-046.
 
 ## Status

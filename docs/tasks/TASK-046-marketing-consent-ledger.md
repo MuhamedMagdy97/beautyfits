@@ -83,9 +83,9 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Retention of consent history: how long rows are kept (also after deactivation). Implemented: kept indefinitely; rows hold no personal data beyond the customer id. A purge would need a deliberate exception to the append-only trigger.
-- [BUSINESS DECISION REQUIRED] Consent after an email or phone change (Q152/Q153): does the channel's consent carry over to the new address or reset to opted out? Implemented: consent belongs to the account and carries over.
-- [BUSINESS DECISION REQUIRED] Opt-in at registration: is a (never pre-ticked) marketing checkbox offered when the account is created? Implemented: no; customers opt in from their account (`PATCH /me/marketing-consents`). Adding it later only needs a new `source` value.
+- Resolved (owner decision 2026-10-18): keep current behaviour — consent history is kept indefinitely (BD-041).
+- Resolved (owner decision 2026-10-18): keep current behaviour — consent belongs to the account and carries over after an email or phone change (BD-042).
+- Resolved (owner decision 2026-10-18): keep current behaviour — no marketing checkbox at registration; customers opt in from their account (BD-043).
 - Delivery eligibility (verified email, a phone) is checked when sending (TASK-049), not when consenting (ADR-0051 §6).
 - `/me/preferences` (TASK-045 open item): not needed for marketing consent, which is `/me/marketing-consents` only (API §11). Still open for restock channels (TASK-043).
 

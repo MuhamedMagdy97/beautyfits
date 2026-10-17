@@ -71,7 +71,7 @@ Every action is authorized by the API; the screens hide actions cosmetically by 
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-- **Consent views not built:** there is no admin endpoint to read a customer's marketing consent (only `GET/PUT /me/marketing-consents`). A read-only `GET /admin/customers/{id}/marketing-consents` (and a permission for it) needs a task; [BUSINESS DECISION REQUIRED] which roles may see consent history.
+- **Consent views not built:** there is no admin endpoint to read a customer's marketing consent (only `GET/PUT /me/marketing-consents`). A read-only `GET /admin/customers/{id}/marketing-consents` (and a permission for it) needs a task. Resolved (owner decision 2026-10-18): not in v1; keep as is — no admin view of consent history (BD-044).
 - **Customer search missing:** no `GET /admin/customers` or customer read exists, so the wallet is opened by customer id or by the link `/staff/wallet?customer={id}` from the customers screen (being built in parallel).
 - **Delivery results:** TASK-049 adds per-recipient delivery status and frequency limits; the campaign screen shows only `recipientCount` until then.
 - **Discount usage detail:** only `usedCount` is available; no per-order usage list endpoint exists.

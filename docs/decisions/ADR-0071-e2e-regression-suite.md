@@ -17,7 +17,7 @@ Test Strategy §3 asks for automated end-to-end tests of the high-value customer
 5. **Codes:** the specs read customer and staff email codes from the `.eml` files in the E2E mailbox (base64 body).
 6. **Scope:** UI first. The return assessment (TASK-040) has no screen, so that one step is an API call from the signed-in staff session; read-backs (order/return status, wallet balance) use the API too.
 7. **Serial:** one worker. The lifecycle spec is a `serial` describe because each step builds on the order/return of the previous one.
-8. **CI:** a separate `e2e` job in `.github/workflows/ci.yml` (PostgreSQL 17 service, `playwright install --with-deps chromium`, build, `npm run test:e2e`). It is separate from `verify` so the required check is unchanged; the owner decides whether to require it in branch protection.
+8. **CI:** a separate `e2e` job in `.github/workflows/ci.yml` (PostgreSQL 17 service, `playwright install --with-deps chromium`, build, `npm run test:e2e`). It is separate from `verify` so the required check is unchanged; the owner decided to require it (2026-10-18, BD-073) and enables it in GitHub branch protection.
 
 ## Consequences
 

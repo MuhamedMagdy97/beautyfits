@@ -71,7 +71,7 @@ Legend for the "Source" column: **Q/R/API/UF** = already in the documents; **NEW
 | `MANAGE_RETURNS` | Arrange return pickup | API §17 |
 | `RECEIVE_RETURN` | Mark returned goods received | API §17 |
 | `INSPECT_RETURN` | Inspect returned items | API §17, Q94 |
-| `COMPLETE_RETURN` | Complete return and trigger the eligible wallet refund; record the final responsibility (provisional, ADR-0066) | API §17, Q97, Q99 |
+| `COMPLETE_RETURN` | Complete return and trigger the eligible wallet refund; record the final responsibility (owner decision 2026-10-18, ADR-0066) | API §17, Q97, Q99 |
 | `RESOLVE_CUSTOMER_CAUSED_RETURN` | Choose the R7 outcome (send back / keep + 25%) | NEW (R7) |
 | `MANAGE_MANUAL_REFUNDS` | Alternative/manual refund methods | Q77 |
 | `VIEW_WALLET_BALANCE` | View a customer's wallet | API §18 |

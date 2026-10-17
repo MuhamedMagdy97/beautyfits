@@ -28,12 +28,12 @@ See `.env.example` (section "Backups"): `BACKUP_ENCRYPTION_KEY`, `BACKUP_DIR`, `
 
 - `npm run db:backup` once a day. The run is **weekly** when no weekly backup from the last 7 days exists in `BACKUP_DIR`, otherwise **daily**; then it deletes all but the newest `BACKUP_DAILY_KEEP` daily (default 7) and `BACKUP_WEEKLY_KEEP` weekly (default 4) backups.
 - Scheduling (cron/worker), alerting on a failed run and copying `BACKUP_DIR` off-environment are part of deployment: **TASK-066**.
-- `npm run db:restore-drill` at least monthly and after every major release or schema change (proposed cadence; see §7).
-- `[BUSINESS DECISION REQUIRED]` Retention periods (Q182 requires a policy): the defaults 7 daily / 4 weekly are technical placeholders.
+- `npm run db:restore-drill` at least monthly and after every major release or schema change (owner decision 2026-10-18, BD-072).
+- Resolved (owner decision 2026-10-18): keep current behaviour — 7 daily / 4 weekly backups are kept (Q182, BD-070).
 
 ## 4. Off-environment storage
 
-`[BUSINESS DECISION REQUIRED]` The off-site target depends on the hosting provider, which is still open (Architecture §27). Requirements for the target: a different account/region than the database, write-once or versioned storage, access limited to the backup job and the Owner. Until then `BACKUP_DIR` is local and **does not satisfy Q182's off-environment rule**.
+Deferred (owner 2026-10-18): localhost only for now — the off-site target depends on the hosting provider (Architecture §27). Requirements for the target: a different account/region than the database, write-once or versioned storage, access limited to the backup job and the Owner. Until then `BACKUP_DIR` is local and **does not satisfy Q182's off-environment rule**.
 
 ## 5. Restore drill (proves restores work)
 
@@ -75,7 +75,7 @@ Use when the database or media is lost or corrupted, or to recover to an earlier
 
 ## 7. Recovery objectives
 
-`[BUSINESS DECISION REQUIRED]` RPO (maximum acceptable data loss) and RTO (maximum acceptable downtime) are not in the source documents. With daily backups the RPO is up to 24 hours; a shorter RPO needs continuous WAL archiving / point-in-time recovery, which depends on the hosting provider (TASK-066). The drill prints restore timings to size the RTO.
+Resolved (owner decision 2026-10-18): keep current behaviour — daily backups, so the RPO (maximum acceptable data loss) is up to 24 hours; no RTO target is set (BD-071). A shorter RPO needs continuous WAL archiving / point-in-time recovery, which depends on the hosting provider (TASK-066). The drill prints restore timings to size the RTO.
 
 ## 8. Key management
 

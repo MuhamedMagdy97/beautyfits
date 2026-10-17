@@ -88,9 +88,9 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 - Resolved (owner decision 2026-10-15): claim categories `DAMAGED`, `WRONG_ITEM`, `DEFECTIVE`, `EXPIRED`, `MISSING_ITEM`, `OTHER` (change of mind).
 - Resolved (owner decision 2026-10-15): `DEFECTIVE` and `EXPIRED` also need a photo; `MISSING_ITEM` does not.
-- [BUSINESS DECISION REQUIRED] Guest orders: customer return endpoints need an account, so guest orders cannot be returned through the API (R16 gives guests no order access). Should support staff create returns for guest orders, and with which permission?
-- [BUSINESS DECISION REQUIRED] Evidence limits: at most 10 photos per return and 30 customer uploads per hour are technical defaults; images must be at least 500 × 500 px like product images. Confirm, and decide whether videos are needed.
-- [BUSINESS DECISION REQUIRED] Should customers be able to view/download their own evidence photos (currently staff only) and add photos after approval?
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — guest orders cannot be returned; return endpoints need a customer account and support staff cannot create returns for guest orders (BD-001).
+- Resolved (owner decision 2026-10-18): keep current behaviour — at most 10 photos per return, 30 customer uploads per hour, at least 500 × 500 px; no video (BD-002).
+- Resolved (owner decision 2026-10-18): keep current behaviour — evidence photos are staff only; the customer sees the photo count and cannot add photos after approval (BD-003).
 - Resolved (owner decision 2026-10-15): on a change of mind (`OTHER`), free gifts (zero-price lines) cannot be requested and opened units must be rejected at inspection. Damaged, wrong, defective, expired and missing-item claims may return both.
 - Note: no `Idempotency-Key` on return creation (not required by API §17); the quantity check bounds duplicates (ADR-0049 §2).
 

@@ -63,7 +63,7 @@ npm run test:e2e
 Optional: `E2E_PORT` (default 3163), `E2E_DATABASE_URL` (default `beautyfits_e2e_test` on the docker-compose server). Failure traces: `test-results/e2e/` (`npx playwright show-trace <trace.zip>`).
 
 ## Open Items
-- Whether the CI `e2e` job becomes a required check in branch protection (owner).
+- Resolved (owner decision 2026-10-18): the CI `e2e` job becomes a required check (BD-073). The owner enables it in GitHub branch protection; code does not do this.
 - The return assessment step uses the API until a screen exists (TASK-040 open item).
 
 ## Definition of Done

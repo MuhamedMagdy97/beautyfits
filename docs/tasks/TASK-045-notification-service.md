@@ -84,9 +84,9 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Which order events notify the customer, and the wording. Implemented: order received, COD request/reminder, COD confirmed, order accepted (`CONFIRMED`), order expired. Shipping/delivery/return/refund messages come with their tasks.
-- [BUSINESS DECISION REQUIRED] Transactional retry policy: implemented as one try per channel per run, up to 5 runs at 5, 10, 15, 20 minutes (constants in `notifications-service.ts`). Q143 ("retry then email fallback") is decided for marketing only.
-- [BUSINESS DECISION REQUIRED] Email fallback for the COD link: implemented as WhatsApp only (R39 says "WhatsApp channel"; the confirmation source enum has no email value). If the owner wants an email fallback, the source/channel values must be decided first.
+- Resolved (owner decision 2026-10-18): keep current behaviour — order received, COD request/reminder, COD confirmed, order accepted (`CONFIRMED`) and order expired, with the current wording (BD-031).
+- Resolved (owner decision 2026-10-18): keep current behaviour — one try per channel per run, up to 5 runs at 5, 10, 15, 20 minutes (BD-032).
+- Resolved (owner decision 2026-10-18): keep current behaviour — the COD confirmation link is sent by WhatsApp only (BD-033).
 - `/me/preferences` (API §11, TASK-009 note): not added. Language is already `PATCH /me`; restock channels are per subscription (TASK-043). TASK-043 or TASK-046 should decide whether a separate endpoint is still needed.
 
 ## Status

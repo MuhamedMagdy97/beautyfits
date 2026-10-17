@@ -82,11 +82,11 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 ## Open Items
 
 - **Conflict reported:** DB Design §16 says "one review per successful purchase/order item"; Business Spec Q12/Q49 and User Flows §5 say one per order for the product. Implemented per the higher documents (unique order + product); DB Design amended.
-- [BUSINESS DECISION REQUIRED] What counts as a "successful purchase"? Implemented as order status `DELIVERED`. Should a later full/partial customer return (TASK-037/038) remove eligibility or hide an existing review?
-- [BUSINESS DECISION REQUIRED] Automated abuse checks: beyond verified purchase, ownership, one per order/product, rating 1–5 and non-blank text (max 2000 characters, a technical bound), which content checks apply (banned words, links, phone numbers, repeated text)? None are applied yet.
-- [BUSINESS DECISION REQUIRED] Rate-limit thresholds for review create/edit and report (Security Requirements §6 lists them; TASK-061 / owner). Not applied yet.
-- [BUSINESS DECISION REQUIRED] Reviewer display on the public list (none, first name, initials). Currently no name is shown.
-- [BUSINESS DECISION REQUIRED] Edit window/limit for reviews (none defined; edits always allowed) and whether moderators can dismiss reports without hiding (currently only hiding resolves reports).
+- Resolved (owner decision 2026-10-18): keep current behaviour — a review needs a `DELIVERED` order; a later return neither removes eligibility nor hides the review (BD-058).
+- Resolved (owner decision 2026-10-18): keep current behaviour — no content checks beyond rating 1–5 and non-blank text of at most 2000 characters (BD-059).
+- [BUSINESS DECISION REQUIRED] Rate-limit thresholds for review create/edit and report (Security Requirements §6 lists them; TASK-061 / owner). Not applied yet. Still open after the owner decision of 2026-10-18 (BD-060).
+- Resolved (owner decision 2026-10-18): keep current behaviour — no reviewer name is shown on the public list (BD-061).
+- Resolved (owner decision 2026-10-18): keep current behaviour — edits are always allowed; only hiding resolves reports (BD-062).
 
 ## Status
 

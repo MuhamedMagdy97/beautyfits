@@ -60,9 +60,9 @@ None changed. Thresholds are technical and provisional.
 - Outbox events waiting for a retry (`available_at` in the future) do not count as backlog.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] Error-tracking / monitoring vendor and hosting (Architecture §27). Until then errors are log lines only; attach the chosen SDK with `setErrorReporter`.
-- [BUSINESS DECISION REQUIRED] Who may view system status: reused `VIEW_AUDIT_LOGS` (Owner/Admin). A dedicated permission (e.g. `SYSTEM_STATUS_VIEW`) would need a permission catalog change.
-- [BUSINESS DECISION REQUIRED] Alert recipients and paging hours (who gets paged, by what channel).
+- Deferred (owner 2026-10-18): localhost only for now — error-tracking / monitoring vendor and hosting (Architecture §27). Errors stay log lines; attach the chosen SDK with `setErrorReporter`.
+- Resolved (owner decision 2026-10-18): keep current behaviour — system status is viewed with `VIEW_AUDIT_LOGS` (Owner/Admin) (BD-074).
+- Deferred (owner 2026-10-18): localhost only for now — alert recipients, channel and paging hours (BD-075).
 - Provisional thresholds (job windows, 15 min outbox backlog, 30 min stuck job, 20 % notification failure rate over 1 h with ≥ 20 attempts) to be confirmed once job schedules are set in TASK-066.
 - `job_runs` retention period (technical; not implemented).
 

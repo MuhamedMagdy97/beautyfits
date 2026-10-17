@@ -63,7 +63,7 @@ ACTIVE customer session (cookie requests pass the Origin check). Eligibility is 
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] Support-assisted linking (R31): who may link a guest order with another or missing email (permission code, e.g. a new `ORDERS_LINK_CUSTOMER`), what identity checks support must make, and whether it needs an approval. No admin endpoint is built until decided.
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — no support-assisted linking of a guest order with another or missing email; customers use the email-code claim flow (R31, BD-020).
 - Resolved (owner decision 2026-10-15): the customer is never told that orders exist under their phone with another email; every "nothing to claim" answer carries the same general hint `CONTACT_SUPPORT`.
 
 ## Status

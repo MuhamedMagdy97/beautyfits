@@ -318,7 +318,7 @@ Implement delivery inspection, short/over receipt, goods receipt records and imm
 
 Implement supplier returns, supplier credits/refunds, supplier balances, payments and financial ledger entries.
 
-**Status after TASK-024** (`docs/tasks/TASK-024-supplier-returns-ledger.md`): `supplier_returns` (`SR-000001`) of damaged goods receipt units, reviewed through a `SUPPLIER_RETURN` approval request; approval writes `SUPPLIER_RETURN` movements out of Damaged. Append-only `supplier_ledger_entries` (invoices, payments, return credits and refunds) and `supplier_payments` (`Idempotency-Key`); `GET /admin/suppliers/{id}/ledger|balance` with Q118 status per order (ADR-0029). Ledger corrections remain `[BUSINESS DECISION REQUIRED]`.
+**Status after TASK-024** (`docs/tasks/TASK-024-supplier-returns-ledger.md`): `supplier_returns` (`SR-000001`) of damaged goods receipt units, reviewed through a `SUPPLIER_RETURN` approval request; approval writes `SUPPLIER_RETURN` movements out of Damaged. Append-only `supplier_ledger_entries` (invoices, payments, return credits and refunds) and `supplier_payments` (`Idempotency-Key`); `GET /admin/suppliers/{id}/ledger|balance` with Q118 status per order (ADR-0029). Ledger corrections are not in v1 (owner decision 2026-10-18).
 
 ---
 
