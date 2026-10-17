@@ -77,7 +77,7 @@ Status: ✅ meets the requirement · 🔧 fixed in this task · ⚠️ open (see
 | 32 | Unhandled errors return a generic `INTERNAL_ERROR`; details go to the log only | API §6.1 | ✅ | `route-handler.ts:44-56` |
 | 33 | Secrets: `.env*` gitignored (only `.env.example` tracked); no keys in source | AGENTS.md | ✅ | `.gitignore:43-44`; `git ls-files` check |
 | 34 | Job scripts print raw errors with `console.error` (not through the redacting logger) | ADR-0006 | ⚠️ low; follow-up | `scripts/*.ts` (`console.error(error)`) |
-| 35 | Dependency advisories (`npm audit --omit=dev`) | ADR-0002 | ⚠️ needs approval | `next@16.3.5` is in the advisory range 16.0.0–16.3.7 (critical: next/og RCE, image-optimizer SSRF, ISR cache poisoning). The app uses neither `next/og` nor `next/image`, but the fix is 16.3.8 (same minor). The upgrade was not applied in this task, see Open Items. Prisma tooling (`mysql2`, `deepmerge-ts`), `sharp`, `source-map-js`: dev/build tooling, tracked as ADR-0002 says |
+| 35 | Dependency advisories (`npm audit --omit=dev`) | ADR-0002 | ✅ fixed | Was: `next@16.3.5` in the advisory range 16.0.0–16.3.7 (critical: next/og RCE, image-optimizer SSRF, ISR cache poisoning). The app uses neither `next/og` nor `next/image`, but the fix is 16.3.8 (same minor). Upgraded to 16.3.8 on 2026-10-17 (owner approval). Prisma tooling (`mysql2`, `deepmerge-ts`), `sharp`, `source-map-js`: dev/build tooling, tracked as ADR-0002 says |
 | 36 | Website: when a refresh is refused, the dead access cookie is not cleared | ADR-0055 ("TASK-061 may") | ⚠️ optional follow-up | `src/app/api/v1/auth/refresh/route.ts` |
 
 ## Acceptance Criteria
@@ -100,7 +100,7 @@ Status: ✅ meets the requirement · 🔧 fixed in this task · ⚠️ open (see
 - [BUSINESS DECISION REQUIRED] Rate-limit thresholds for review create/edit and review report (API §30; TASK-044, ADR-0042). Not applied.
 - [BUSINESS DECISION REQUIRED] Review content filters (banned words, links, contact details), and what happens to a matching review (reject or hold). TASK-044, ADR-0042.
 - [BUSINESS DECISION REQUIRED] CAPTCHA (Q157): which provider, and when it triggers (e.g. after N failed logins or OTP sends). Needs a provider account and keys.
-- Upgrade `next` / `eslint-config-next` 16.3.5 → 16.3.8 (security patch, same minor). The dependency change was not approved in this run and needs the owner's go-ahead. Also re-check Prisma tooling advisories before production (ADR-0002).
+- ~~Upgrade `next` / `eslint-config-next` 16.3.5 → 16.3.8~~ Done 2026-10-17 (owner approved). Still re-check Prisma tooling advisories before production (ADR-0002).
 - Site-wide Content-Security-Policy with nonces: TASK-066 (deployment).
 - Low: route the job scripts' errors through the logger (`scripts/*.ts`). Optional: clear the website auth cookies when a refresh is refused (ADR-0055).
 
