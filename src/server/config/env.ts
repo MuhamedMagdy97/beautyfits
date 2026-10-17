@@ -97,6 +97,17 @@ const envSchema = z.object({
    * employee invitations (ADR-0016). Default: the local development server.
    */
   DASHBOARD_URL: origin.default("http://localhost:3000"),
+  /**
+   * Shared secret that lets an external monitor read the system status
+   * endpoint with the `X-Monitoring-Token` header (TASK-065, ADR-0073).
+   * Empty (default): only staff with `VIEW_AUDIT_LOGS` can read it.
+   */
+  MONITORING_TOKEN: z
+    .string()
+    .default("")
+    .refine((value) => value === "" || value.length >= 32, {
+      message: "must be empty or at least 32 characters",
+    }),
 });
 
 export type Env = z.infer<typeof envSchema>;

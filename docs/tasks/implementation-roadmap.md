@@ -645,6 +645,8 @@ Automated backups, retention, restore drill, verification and documented recover
 
 Error tracking, structured logs, background job monitoring, key metrics and alerting.
 
+**Status after TASK-065** (`docs/tasks/TASK-065-observability.md`, ADR-0073): every `npm run jobs:*` script runs through `runJob`, which records a `job_runs` row and logs one JSON line; unhandled API and render errors go through a vendor-neutral `reportError` port (log-backed default, request id, redacted); `GET /api/v1/admin/system-status` (`VIEW_AUDIT_LOGS` or `X-Monitoring-Token`) reports database, migrations, outbox backlog, job runs and notification failure rate with alerts (503 when degraded); alert rules are in `docs/operations/monitoring.md`. The error-tracking/monitoring vendor and job scheduling remain open (TASK-066 and the task's Open Items).
+
 ### TASK-066 — Production Deployment
 **Depends on:** TASK-061 → TASK-065
 

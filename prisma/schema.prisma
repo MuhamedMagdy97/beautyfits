@@ -2885,3 +2885,33 @@ enum CampaignSkipReason {
 
   @@map("campaign_skip_reason")
 }
+
+// ---------------------------------------------------------------------------
+// Observability (TASK-065, ADR-0073)
+// ---------------------------------------------------------------------------
+
+enum JobRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+
+  @@map("job_run_status")
+}
+
+/// One run of a background job (`npm run jobs:*`), written by `runJob`, so
+/// the system status endpoint can report stuck, failing or missing jobs.
+/// Operational history only (no business data); never referenced by other rows.
+model JobRun {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  jobName    String       @map("job_name")
+  status     JobRunStatus @default(RUNNING)
+  startedAt  DateTime     @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt DateTime?    @map("finished_at") @db.Timestamptz(3)
+  /// The job's summary counts, e.g. { "sent": 3, "failed": 0 }.
+  counts     Json?        @map("counts_json")
+  /// Error name and redacted message of a FAILED run (never a stack trace).
+  error      String?
+
+  @@index([jobName, startedAt(sort: Desc)])
+  @@map("job_runs")
+}

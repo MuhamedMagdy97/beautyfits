@@ -814,6 +814,17 @@ Not business endpoints. Unauthenticated, and they expose no internal details.
 | GET | `/health` | Liveness (no dependency checks) | `200 { data: { status: "ok" }, meta }` |
 | GET | `/health/ready` | Readiness (database reachable within 2 s) | `200 { data: { status: "ready", checks: { database: "up" } }, meta }` or `503` with `status: "not_ready"`, `database: "down"` |
 
+#### TASK-065 Amendment — system status (ADR-0073)
+
+| Method | Endpoint | Purpose | Auth |
+|---|---|---|---|
+| GET | `/admin/system-status` | Operational status and alerts for operators and external monitors | `VIEW_AUDIT_LOGS` (Owner/Admin only), or header `X-Monitoring-Token` equal to the `MONITORING_TOKEN` setting (when set) |
+
+- `200` when `data.status = "ok"`, `503` when `"degraded"` (at least one alert) or `"down"` (database unreachable; only `status`, `checkedAt`, `database`, `alerts: []` are returned). `401`/`403` as usual without a valid session or token.
+- `data`: `{ status, checkedAt, database: "up" | "down", migrations: { applied, pending: string[] | null, failed: string[] }, outbox: { due, oldestDueAgeSeconds | null, failedRecently }, jobs: [{ name, lastRunStatus: "RUNNING" | "SUCCEEDED" | "FAILED" | null, lastStartedAt, lastFinishedAt, lastSucceededAt, lastError }], notifications: { windowMinutes, attempts, failed, failureRate | null }, alerts: [{ code, job? }] }`. `pending` is null when the migration folder is not deployed with the app.
+- Alert codes: `MIGRATIONS_PENDING`, `MIGRATION_FAILED`, `OUTBOX_BACKLOG`, `OUTBOX_FAILED_EVENTS`, `JOB_FAILED`, `JOB_STALE`, `JOB_STUCK`, `NOTIFICATION_FAILURE_RATE`. Thresholds and meanings: `docs/operations/monitoring.md`.
+- Counts and timestamps only: no customer data, recipients or connection details.
+
 ## TASK-007 Amendments (customer authentication core)
 
 Added by TASK-007 (`docs/tasks/TASK-007-customer-auth-core.md`). Business rules: Business Spec R23–R27. Technical design: ADR-0013. Verification, activation and password recovery endpoints are in "TASK-008 Amendments".
