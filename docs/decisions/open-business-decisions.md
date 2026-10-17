@@ -351,6 +351,10 @@ Source: [TASK-042](../tasks/TASK-042-wishlist.md)
 Now: one "out of stock" status.
 Source: [TASK-042](../tasks/TASK-042-wishlist.md)
 
+**BD-086** Mobile app push notifications: wanted? For which events (the transactional WhatsApp ones, marketing with consent?), and where do they rank against WhatsApp and email (Q61)?
+Now: no push; channels are WhatsApp and email, plus the in-app list.
+Source: [TASK-067](../tasks/TASK-067-mobile-api-readiness.md)
+
 ## Deferred (no production hosting for now)
 
 Not open now; revisit when production hosting is chosen.

@@ -2293,3 +2293,16 @@ Added by TASK-059D (`docs/tasks/TASK-059D-header-checkout-fixes.md`). Additive.
 | `GET /shipping/free-shipping-threshold` | Public | — | `200` `{ freeShippingThreshold, currency: "EGP" }` |
 
 - `freeShippingThreshold` is the setting `shipping.free_shipping_threshold` in piastres (R37, Q123), the same value `GET /shipping/options` and checkout use. The storefront announcement bar shows it; it is never hard-coded in the website.
+
+## TASK-067 Amendments (mobile clients)
+
+Added by TASK-067 (`docs/tasks/TASK-067-mobile-api-readiness.md`). Clarifies behaviour that already exists; no endpoint or rule changed. The mobile app uses the same endpoints as the website.
+
+- **Transport.** Send no `X-Auth-Transport` header: login and refresh return the tokens in the body (TASK-007 Amendments). Send `Authorization: Bearer <access-token>`; send the refresh token in the body of `POST /auth/refresh`. Native requests carry no `Origin`, which passes the CSRF check; an `Origin`, when sent, must be allowed.
+- **Refresh.** Refresh at most once at a time per session and reuse the new pair for queued requests. A second refresh with an already-rotated token within 10 seconds is `401 UNAUTHENTICATED` but keeps the session; later, it revokes the session (ADR-0013). Sessions end 30 days after login whatever the refreshes (R23).
+- **Guest cart.** Keep the `guestCartToken` from the first cart response and send it as `X-Guest-Cart-Token`; after login call `POST /cart/merge`.
+- **Error messages.** `error.message` is English developer text in every language. Clients show their own ar/en text keyed by `error.code` and `details.issues[].code`.
+- **URLs.** `url` values in upload and media responses are paths (`/api/v1/files/...`); resolve them against the API base URL.
+- **Uploads.** Images are JPEG, PNG or WebP; convert other camera formats (e.g. HEIC) before `POST /files/upload-init`. The bytes go in one `PUT` with the returned `headers`, not multipart.
+- **Deep links.** In-app notifications carry `deepLink: { type, id }`. WhatsApp and email messages link to website pages (`/orders/{id}/confirm-cod`, `/products/{slug}`), which stay valid for app links.
+- **Push notifications** are not part of v1 ([BUSINESS DECISION REQUIRED], BD-086).

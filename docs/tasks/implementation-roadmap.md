@@ -663,6 +663,8 @@ Production environment, secrets, migrations, health checks, deployment, rollback
 
 Verify that the API contract supports the future mobile app without duplicating business logic or introducing mobile-only rules.
 
+**Status after TASK-067** (`docs/tasks/TASK-067-mobile-api-readiness.md`): review only, no code change. Customer endpoints already serve a native client: bearer transport by default with body refresh, header-based guest cart and analytics ids, no Origin needed, JSON envelope everywhere, shared pagination, checkout idempotency, plain `PUT` uploads, `Accept-Language` + `preferredLocale`, structured notification deep links. Client guidance is in the API contract "TASK-067 Amendments". Open: push notifications (BD-086), an optional `Idempotency-Key` on return requests (follow-up), app links with TASK-066.
+
 ---
 
 # 4. Critical Execution Dependencies
