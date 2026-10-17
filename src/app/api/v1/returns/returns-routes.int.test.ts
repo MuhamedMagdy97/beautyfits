@@ -440,6 +440,40 @@ describe("requesting a return", () => {
     expect(blank.code).toBe("VALIDATION_ERROR");
     expect(await db.return.count()).toBe(0);
   });
+
+  it("returns the same return for a retry with the same Idempotency-Key (TASK-067A)", async () => {
+    const sara = await customer();
+    const { orderId, itemIds } = await order(sara.token);
+    const body = (quantity: number) => ({
+      claimType: "OTHER",
+      reason: "Changed my mind.",
+      items: [{ orderItemId: itemIds[0], quantity }],
+    });
+    const send = (key: string, payload: unknown) =>
+      call(createReturn, `/orders/${orderId}/returns`, {
+        method: "POST",
+        token: sara.token,
+        body: payload,
+        headers: { "idempotency-key": key },
+        params: { orderId },
+      });
+
+    // One of two units: without a key a retry would claim the second unit too.
+    const first = await data(await send("return-retry-1", body(1)), 201);
+    const retry = await data(await send("return-retry-1", body(1)), 201);
+    expect(retry).toEqual(first);
+    expect(await db.return.count()).toBe(1);
+    expect(await db.auditLog.count({ where: { action: "RETURN_REQUESTED" } })).toBe(1);
+
+    expect((await errorOf(await send("return-retry-1", body(2)), 409)).code).toBe(
+      "IDEMPOTENCY_CONFLICT",
+    );
+    const invalid = await errorOf(await send("short", body(1)), 400);
+    expect(invalid.details.issues[0].code).toBe("idempotency_key_invalid");
+    // A new key is a new request.
+    await data(await send("return-retry-2", body(1)), 201);
+    expect(await db.return.count()).toBe(2);
+  });
 });
 
 describe("evidence (Q100)", () => {

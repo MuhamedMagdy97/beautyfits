@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Prisma, PrismaClient, ReturnStatus } from "@/generated/prisma/client";
 import { getDb } from "@/server/db/client";
 import { runInTransaction, type Db } from "@/server/db/transaction";
@@ -298,6 +299,7 @@ function returnNotFound(): AppError {
   return new AppError("NOT_FOUND", "Return not found.");
 }
 
+const CREATE_OPERATION = "RETURN_CREATE";
 const COMPLETE_OPERATION = "RETURN_COMPLETE";
 const IDEMPOTENCY_TTL_MS = 7 * MS_PER_DAY;
 
@@ -614,21 +616,75 @@ export function createReturnsService(deps: { db: PrismaClient; clock: Clock }) {
     return created.id;
   }
 
-  /** `POST /orders/{orderId}/returns`. */
+  /**
+   * `POST /orders/{orderId}/returns`. With an `Idempotency-Key`, a retry
+   * with the same key and body returns the return already created; the
+   * same key with another body is `IDEMPOTENCY_CONFLICT` (TASK-067A).
+   */
   async function createReturn(
     customerId: string,
     orderId: string,
     input: CreateReturnInput,
     ctx: Ctx,
+    idempotencyKey: string | null = null,
   ): Promise<ReturnView> {
     const now = clock.now();
-    const id = await runInTransaction(
-      (tx) => createInTx(tx, customerId, orderId, input, null, now, ctx),
+    if (idempotencyKey === null) {
+      const id = await runInTransaction(
+        (tx) => createInTx(tx, customerId, orderId, input, null, now, ctx),
+        {},
+        db,
+      );
+      ctx.logger.info("return requested", { returnId: id, orderId });
+      return toView(await load(id));
+    }
+    const scope = `CUSTOMER:${customerId}`;
+    const print = createHash("sha256").update(JSON.stringify({ orderId, input })).digest("hex");
+    const result = await runInTransaction(
+      async (tx) => {
+        // The order row lock (also taken in createInTx) serializes retries.
+        await tx.$queryRaw`SELECT 1 FROM orders WHERE id = ${orderId}::uuid FOR UPDATE`;
+        const previous = await tx.idempotencyKey.findUnique({
+          where: {
+            scope_operation_key: { scope, operation: CREATE_OPERATION, key: idempotencyKey },
+          },
+        });
+        if (previous) {
+          if (previous.requestFingerprint !== print) {
+            throw idempotencyConflict();
+          }
+          return { id: previous.resourceId!, replayed: true };
+        }
+        const id = await createInTx(tx, customerId, orderId, input, null, now, ctx);
+        await tx.idempotencyKey.create({
+          data: {
+            scope,
+            operation: CREATE_OPERATION,
+            key: idempotencyKey,
+            requestFingerprint: print,
+            status: "COMPLETED",
+            responseStatus: 201,
+            resourceType: "RETURN",
+            resourceId: id,
+            createdAt: now,
+            expiresAt: new Date(now.getTime() + IDEMPOTENCY_TTL_MS),
+          },
+        });
+        return { id, replayed: false };
+      },
       {},
       db,
-    );
-    ctx.logger.info("return requested", { returnId: id, orderId });
-    return toView(await load(id));
+    ).catch((error: unknown) => {
+      // The same key used at the same time for another order.
+      if (isUniqueViolation(error, "key")) {
+        throw idempotencyConflict();
+      }
+      throw error;
+    });
+    if (!result.replayed) {
+      ctx.logger.info("return requested", { returnId: result.id, orderId });
+    }
+    return toView(await load(result.id));
   }
 
   /** `POST /returns/{returnId}/resubmit`: a new request after a rejection (Q92). */
