@@ -68,9 +68,9 @@ None.
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] Default listing order: "newest" is used. The Stitch shop page shows "Sort: Featured" and "Best Sellers"/"Bestseller" badges; what "featured"/"best seller" means (manual pick, sales ranking, period) is not defined.
-- [BUSINESS DECISION REQUIRED] Stitch shows badges ("NEW", "RARE FIND", "-20% SALE", "Free express ship"), a free-shipping progress bar on the bag and "Complimentary gift samples": none of these has a rule or data source; not built. (The free-shipping threshold could be shown from the quote once the owner decides where.)
-- [BUSINESS DECISION REQUIRED] Notify Me channels: both WhatsApp and email are preselected; the customer can untick one. Confirm the default.
+- Resolved (owner decision 2026-10-18): keep current behaviour — listings are sorted by newest; "featured"/"best seller" are not defined or built (BD-077).
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — no product badges, free-shipping progress bar or complimentary gift samples (BD-078).
+- Resolved (owner decision 2026-10-18): keep current behaviour — both WhatsApp and email are preselected; the customer can untick one (BD-040).
 - Writing a review: the customer order response has no order item id (`POST /orders/{orderId}/items/{orderItemId}/review` needs it). Planned with the order screens in TASK-060 (additive `id` on customer order items).
 - Account: change email, change phone, change password, deactivate account, marketing consents and notification screens are not built yet (APIs exist).
 - Catalog: price-range and in-stock filters, category navigation bar in the header, server-rendered product metadata (SEO), search index for larger catalogs.

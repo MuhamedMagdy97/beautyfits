@@ -78,9 +78,9 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Checkout abandonment time: how long after a checkout start without an order is it "abandoned"? Implemented as the constant `CHECKOUT_ABANDONMENT_MS` with a provisional 24 hours.
-- [BUSINESS DECISION REQUIRED] Analytics rate limit: provisional 1000 events per IP per hour (`ANALYTICS_IP_LIMIT`); checkout and COD links had owner-set limits (R38, R39).
-- [BUSINESS DECISION REQUIRED] Analytics retention: how long events are kept (no deletion implemented).
+- Resolved (owner decision 2026-10-18): keep current behaviour — a checkout start without an order is abandoned after 24 hours (`CHECKOUT_ABANDONMENT_MS`) (BD-063).
+- Resolved (owner decision 2026-10-18): keep current behaviour — 1000 events per IP per hour (`ANALYTICS_IP_LIMIT`) (BD-064).
+- Resolved (owner decision 2026-10-18): keep current behaviour — analytics events are kept indefinitely (BD-065).
 - To confirm (technical, ADR-0044 §4): the 30-minute product-view repeat window.
 
 ## Status

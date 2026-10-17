@@ -91,13 +91,13 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Who records the final responsibility (Q99)? It decides the refund (R7, delivery fee), so it is gated by `COMPLETE_RETURN` (Owner/Admin by default, R18) for now. Alternatives: `INSPECT_RETURN` (the inspector) or a dedicated permission.
-- [BUSINESS DECISION REQUIRED] Pickup fee settlement (C2, ADR-0056 §4): when the provisional payer at pickup differs from the final responsibility (e.g. the customer paid the carrier but the carrier damaged the item), should BeautyFits add the fee to the refund, and in the reverse case may it deduct it? The calculation reports `pickupFee.payerChanged` and the amount; nothing is added or deducted.
-- [BUSINESS DECISION REQUIRED] Delivery fee on a partial store-fault return (C3): implemented as the full original fee, once per order (first store-fault return assessed). Confirm, or prorate.
-- [BUSINESS DECISION REQUIRED] Rejected units: implemented as no refund (they are "not returnable", owner decision 2026-10-15 for opened change-of-mind units). Confirm for all claim types, and what happens to the physical unit.
-- [BUSINESS DECISION REQUIRED] R7 per unit or per line: one decision covers all customer-caused damaged units of a line. Confirm whether staff must be able to split a line (e.g. keep one unit, send one back).
-- [BUSINESS DECISION REQUIRED] Correcting an assessment or a resolution: both are final once recorded (audited). Decide whether a correction flow is needed before completion.
-- [BUSINESS DECISION REQUIRED] R7 for missing parts: units inspected `DAMAGED` with condition `MISSING_PARTS` on a customer-caused return are treated like opened/used units (R7). Confirm.
+- Resolved (owner decision 2026-10-18): keep current behaviour — the final responsibility is recorded with `COMPLETE_RETURN` (Owner/Admin by default) (BD-013).
+- Resolved (owner decision 2026-10-18): keep current behaviour — the calculation reports `pickupFee.payerChanged` and the amount; nothing is added or deducted (BD-004).
+- Resolved (owner decision 2026-10-18): keep current behaviour — the full original delivery fee, once per order (first store-fault return assessed); no proration (BD-014).
+- Resolved (owner decision 2026-10-18): keep current behaviour — rejected units get no refund for every claim type; the physical unit is not tracked by the system (BD-008).
+- Resolved (owner decision 2026-10-18): keep current behaviour — one R7 decision covers all customer-caused damaged units of a line; no line split (BD-015).
+- Resolved (owner decision 2026-10-18): keep current behaviour — assessment and resolution are final once recorded (audited); no correction flow (BD-010).
+- Resolved (owner decision 2026-10-18): units inspected `DAMAGED` with condition `MISSING_PARTS` on a customer-caused return follow R7 like opened/used units (return to the customer, or keep with the 25% refund), as the refund calculation already does (BD-016).
 - Note: DB Design §12 lists `resolution` / `RETURN_TO_CUSTOMER` on `return_items` and `return_inspections.result`. Implemented as a separate per-line decision (`return_items.customer_caused_resolution`), because a line can have several inspection outcomes (ADR-0060) and the decision comes after the assessment, not during inspection. `refund_eligible_amount` and `deduction_amount` are stored by TASK-041 at completion, when the amounts become final.
 - Note: "manual exception workflow" (roadmap) is read as the human R7 resolution (Q97); alternative/manual refund methods stay future (Q16).
 

@@ -90,11 +90,11 @@ Migration `20261017049000_marketing_delivery` (DB Design "v1.2 TASK-049 Amendmen
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Frequency limit numbers (Q144 says only "configurable"): maximum messages and window. Implemented as settings `marketing.frequency_max_messages` (default **0 = no limit**) and `marketing.frequency_window_days` (provisional 7). Until the owner sets a maximum, no limit applies.
-- [BUSINESS DECISION REQUIRED] Retry count and spacing (Q143 says "retry then email fallback"): setting `marketing.delivery_max_attempts`, provisional default 5 with `attempt × 5 minutes` waits, taken from the transactional dispatch (ADR-0043 §2).
-- [BUSINESS DECISION REQUIRED] Email fallback subject for WhatsApp campaigns (they have no subject): provisional fixed subject "BeautyFits".
-- [BUSINESS DECISION REQUIRED] Unsubscribe links (mentioned for TASK-049 by TASK-046/ADR-0051 §4, not in the API contract): should campaign messages carry a one-click unsubscribe link (a public token endpoint and consent source `CAMPAIGN_UNSUBSCRIBE`)? Not implemented; opt-out is through the account.
-- [BUSINESS DECISION REQUIRED] Do wishlist purchase reminders (R6, marketing-style) count towards the marketing frequency limit? Currently only campaign messages count.
+- Resolved (owner decision 2026-10-18): keep current behaviour — `marketing.frequency_max_messages` 0 (no limit), `marketing.frequency_window_days` 7 (BD-053).
+- Resolved (owner decision 2026-10-18): keep current behaviour — `marketing.delivery_max_attempts` 5, waiting `attempt × 5 minutes` (BD-054).
+- Resolved (owner decision 2026-10-18): keep current behaviour — the email fallback subject is "BeautyFits" (BD-055).
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — no one-click unsubscribe link; customers opt out in their account (BD-056).
+- Resolved (owner decision 2026-10-18): keep current behaviour — only campaign messages count towards the frequency limit (BD-057).
 - Email campaigns have no WhatsApp fallback: Q143 defines the fallback only for WhatsApp failures.
 - Campaign outcome: `FAILED` only when nothing was delivered and at least one recipient failed; otherwise `COMPLETED` (ADR-0067 §6). Confirm if the owner wants a different threshold.
 

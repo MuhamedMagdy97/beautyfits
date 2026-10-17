@@ -63,7 +63,7 @@ Status: ✅ meets the requirement · 🔧 fixed in this task · ⚠️ open (see
 | 18 | Public analytics per-IP limit | API §30, ADR-0044 | ✅ | `analytics-service.ts:30` (1000/h) |
 | 19 | COD secure link per-IP limit; discount-code guessing; guest cart creation | R10, ADR-0035 | ✅ | `cod-service.ts:48`; `cart-service.ts:59,66` |
 | 20 | Review create/edit and report rate limits | API §30, TASK-044 | ⚠️ [BUSINESS DECISION REQUIRED] | `docs/api/api-contract.md:2029` |
-| 21 | CAPTCHA as an extra layer when activity looks suspicious | Q157 | ⚠️ [BUSINESS DECISION REQUIRED] | — |
+| 21 | CAPTCHA as an extra layer when activity looks suspicious | Q157 | ⏸ Deferred (owner 2026-10-18): localhost only for now (BD-068) | — |
 | 22 | Per-IP keys use the socket address; `X-Forwarded-For` only from `TRUSTED_PROXIES` | ADR-0013 | ✅ | `src/server/http/client-ip.ts:125`; `server.mjs` |
 | 23 | Cookies: `__Host-`/`__Secure-` prefixes, `HttpOnly; Secure; SameSite=Lax`, refresh/device cookies scoped to the auth paths | ADR-0013, ADR-0015 | ✅ | `src/server/modules/auth/transport.ts:15-45,155-167` |
 | 24 | CSRF: cookie-authenticated state-changing requests need an allowed Origin/Referer; pre-auth endpoints check a present Origin | ADR-0013 | ✅ | `transport.ts:134`; `guard.ts:36-38`; `employee-guard.ts:37-38`; every `auth/*` and `employee-auth/*` route |
@@ -97,9 +97,9 @@ Status: ✅ meets the requirement · 🔧 fixed in this task · ⚠️ open (see
 - `X-Frame-Options` and the HSTS header from the config are also sent on API responses, which is harmless. The sandbox CSP of `files/[id]/content` is not overridden, because the config sets no CSP.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] Rate-limit thresholds for review create/edit and review report (API §30; TASK-044, ADR-0042). Not applied.
-- [BUSINESS DECISION REQUIRED] Review content filters (banned words, links, contact details), and what happens to a matching review (reject or hold). TASK-044, ADR-0042.
-- [BUSINESS DECISION REQUIRED] CAPTCHA (Q157): which provider, and when it triggers (e.g. after N failed logins or OTP sends). Needs a provider account and keys.
+- [BUSINESS DECISION REQUIRED] Rate-limit thresholds for review create/edit and review report (API §30; TASK-044, ADR-0042). Not applied. Still open after the owner decision of 2026-10-18 (BD-060): Security Requirements require these limits.
+- Resolved (owner decision 2026-10-18): keep current behaviour — no review content filters (BD-059).
+- Deferred (owner 2026-10-18): localhost only for now — CAPTCHA (Q157) needs a provider account and keys (BD-068).
 - ~~Upgrade `next` / `eslint-config-next` 16.3.5 → 16.3.8~~ Done 2026-10-17 (owner approved). Still re-check Prisma tooling advisories before production (ADR-0002).
 - Site-wide Content-Security-Policy with nonces: TASK-066 (deployment).
 - Low: route the job scripts' errors through the logger (`scripts/*.ts`). Optional: clear the website auth cookies when a refresh is refused (ADR-0055).

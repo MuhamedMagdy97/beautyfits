@@ -1923,7 +1923,7 @@ Added by TASK-040 (`docs/tasks/TASK-040-refund-rules.md`, ADR-0066). Business ru
 
 | Endpoint | Permission | Request | Success |
 |---|---|---|---|
-| `POST /admin/returns/{returnId}/assessment` | `COMPLETE_RETURN` (provisional) | `{ finalResponsibility: "CUSTOMER" \| "BEAUTYFITS" \| "CARRIER", returnShippingFee?: int (piastres, 0–10^9), notes? (1–2000) }` | `200` `adminReturn` |
+| `POST /admin/returns/{returnId}/assessment` | `COMPLETE_RETURN` | `{ finalResponsibility: "CUSTOMER" \| "BEAUTYFITS" \| "CARRIER", returnShippingFee?: int (piastres, 0–10^9), notes? (1–2000) }` | `200` `adminReturn` |
 | `POST /admin/return-items/{returnItemId}/resolution` | `RESOLVE_CUSTOMER_CAUSED_RETURN` | `{ resolution: "RETURN_TO_CUSTOMER" \| "KEEP_PARTIAL_REFUND", notes? (1–2000) }` | `200` `adminReturn` |
 | `GET /admin/returns/{returnId}/refund` | `RETURNS_VIEW` | — | `200` `refund` |
 
@@ -2248,7 +2248,7 @@ Added by TASK-049 (`docs/tasks/TASK-049-marketing-delivery.md`, ADR-0067). Busin
 - `campaignDelivery`: `{ campaignId, status, stats: { recipients, byStatus: { PENDING, SENT, FALLBACK_SENT, FAILED, SKIPPED }, skipped: { CONSENT_WITHDRAWN, FREQUENCY_LIMIT, NO_ADDRESS }, attempts: { EMAIL: { sent, failed }, WHATSAPP: { sent, failed } } }, recipients: [{ id, customerId, channel, status, skipReason, failureReason, attemptCount, nextAttemptAt, sentAt, attempts: [{ attemptNumber, channel, status, failureReason, createdAt, sentAt }] }] }`. Recipients oldest first; no phone or email is returned. `stats` always covers the whole campaign.
 - Delivery is the job `npm run jobs:deliver-campaigns` (every few minutes, scheduled by TASK-066), after the send hand-off committed. Per recipient, at delivery time: consent to the channel is read again (an opt-out after send wins → `SKIPPED`, `CONSENT_WITHDRAWN`); the address must be deliverable (WhatsApp: the profile phone; email: the verified account email; never a deactivated profile → `SKIPPED`, `NO_ADDRESS`); the frequency limit applies (→ `SKIPPED`, `FREQUENCY_LIMIT`).
 - Frequency limit (Q144): at most setting `marketing.frequency_max_messages` campaign messages per customer within the last `marketing.frequency_window_days` days; `0` (the default until decided) means no limit.
-- Retries then fallback (Q143): one try per job run; a failed try waits `attempt × 5 minutes`. After `marketing.delivery_max_attempts` tries (provisional default 5) a WhatsApp campaign is sent once by email only if the customer is opted in to email marketing and has a verified email (`FALLBACK_SENT`, v1.1 §9); otherwise the recipient is `FAILED`. Email campaigns have no fallback.
+- Retries then fallback (Q143): one try per job run; a failed try waits `attempt × 5 minutes`. After `marketing.delivery_max_attempts` tries (default 5, owner decision 2026-10-18) a WhatsApp campaign is sent once by email only if the customer is opted in to email marketing and has a verified email (`FALLBACK_SENT`, v1.1 §9); otherwise the recipient is `FAILED`. Email campaigns have no fallback.
 - Every try is a row of the delivery log (`GET /admin/notifications/deliveries`, "TASK-045 Amendments") with `templateKey = "MARKETING_CAMPAIGN"`, `orderId: null`, `notificationId: null`.
 - When no recipient is `PENDING`, the campaign becomes `FAILED` if nothing was delivered and at least one recipient failed, otherwise `COMPLETED`. Audit actions added (entity `CAMPAIGN`, actor `SYSTEM`): `CAMPAIGN_COMPLETED`, `CAMPAIGN_FAILED`, with the counts. The campaign `history` shows them.
 
@@ -2305,7 +2305,7 @@ Added by TASK-067 (`docs/tasks/TASK-067-mobile-api-readiness.md`). Clarifies beh
 - **URLs.** `url` values in upload and media responses are paths (`/api/v1/files/...`); resolve them against the API base URL.
 - **Uploads.** Images are JPEG, PNG or WebP; convert other camera formats (e.g. HEIC) before `POST /files/upload-init`. The bytes go in one `PUT` with the returned `headers`, not multipart.
 - **Deep links.** In-app notifications carry `deepLink: { type, id }`. WhatsApp and email messages link to website pages (`/orders/{id}/confirm-cod`, `/products/{slug}`), which stay valid for app links.
-- **Push notifications** are not part of v1 ([BUSINESS DECISION REQUIRED], BD-086).
+- **Push notifications** are not part of v1 (deferred by the owner on 2026-10-18: no mobile app for now; BD-086).
 
 ## TASK-067A Amendments (return request idempotency)
 

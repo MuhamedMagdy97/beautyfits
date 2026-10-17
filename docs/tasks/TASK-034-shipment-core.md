@@ -79,8 +79,8 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Delivery time: delivery is recorded at the moment staff enter it (manual MVP). The return window runs from the actual delivery date (R21); should staff be able to enter an earlier actual delivery time (back-dating), and with which limit/permission? Not implemented.
-- [BUSINESS DECISION REQUIRED] Out for Delivery step: the manual flow requires `OUT_FOR_DELIVERY` before `DELIVERED` (User Flows §8.2). If staff often learn of a delivery only afterwards, should `SHIPPED → DELIVERED` be allowed directly? Kept strict.
+- Resolved (owner decision 2026-10-18): keep current behaviour — delivery is recorded at the moment staff enter it; no back-dating (BD-023).
+- Resolved (owner decision 2026-10-18): keep current behaviour — `OUT_FOR_DELIVERY` is required before `DELIVERED`; no direct `SHIPPED → DELIVERED` (BD-024).
 - Note: shipment rows start at handoff; DB Design §9 `PENDING`/`READY` are represented by the order's `READY_FOR_SHIPMENT` (ADR-0040 §1, technical representation only).
 
 ## Status

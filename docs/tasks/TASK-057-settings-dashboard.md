@@ -69,7 +69,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 ## Open Items
 - Resolved (owner decision 2026-10-15): minimum margin is critical; the other settings stay non-critical.
 - Resolved (owner decision 2026-10-15): an Owner's critical change applies at once when no other active Owner or Admin exists, audited as `approvalSkipped: "SOLE_OWNER"`.
-- [BUSINESS DECISION REQUIRED] Minimum and maximum of the staff session settings (ADR-0017 §5 item 3).
+- Resolved (owner decision 2026-10-18): keep current behaviour — the staff session settings accept any whole number of minutes above zero (BD-069).
 - No Stitch design exists for these screens; the layout is a proposal.
 
 ## Status

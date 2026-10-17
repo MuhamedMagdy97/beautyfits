@@ -64,9 +64,9 @@ Every endpoint needs a valid `ACTIVE` customer session (`requireCustomer`; cooki
 Acceptance criteria met, docs updated, CI `verify` green, reviewed by the product owner.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] R34/R35 say account deactivation removes the active cart, but say nothing about the wishlist. It is kept for now (the account can no longer sign in to see it). Decide whether deactivation removes it.
-- [BUSINESS DECISION REQUIRED] Move-to-cart adds exactly one unit and removes the item from the wishlist ("move"). Confirm, or decide whether the customer picks the quantity and/or the item stays on the wishlist.
-- [BUSINESS DECISION REQUIRED] Q47 offers "Coming Soon / Notify Me" for out-of-stock items; the API reports one `OUT_OF_STOCK` status. Confirm no separate "Coming Soon" state is needed (e.g. for variants never received yet, `first_goods_receipt_at` null).
+- Resolved (owner decision 2026-10-18): keep current behaviour — deactivation keeps the wishlist (BD-083).
+- Resolved (owner decision 2026-10-18): keep current behaviour — move-to-cart adds one unit and removes the item from the wishlist (BD-084).
+- Resolved (owner decision 2026-10-18): keep current behaviour — one `OUT_OF_STOCK` status; no separate "Coming Soon" state (BD-085).
 
 ## Status
 - [x] Planned

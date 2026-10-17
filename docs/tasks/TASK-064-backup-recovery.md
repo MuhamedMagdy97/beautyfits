@@ -82,10 +82,10 @@ Required checks green, drill run successfully against the local database, docs u
 
 ## Open Items
 
-- `[BUSINESS DECISION REQUIRED]` Retention periods for daily and weekly backups (Q182 requires a policy). Defaults 7 daily / 4 weekly are technical placeholders.
-- `[BUSINESS DECISION REQUIRED]` RPO and RTO. Daily backups give an RPO of up to 24 hours; anything shorter needs PITR at hosting time.
-- `[BUSINESS DECISION REQUIRED]` Off-environment storage target and who may access it — depends on the hosting provider (Architecture §27). Until then backups are local and do not meet Q182's off-environment rule.
-- Drill cadence (proposed: monthly and after major releases) — to confirm with the owner.
+- Resolved (owner decision 2026-10-18): keep current behaviour — 7 daily / 4 weekly backups are kept (BD-070).
+- Resolved (owner decision 2026-10-18): keep current behaviour — daily backups, RPO up to 24 hours; no RTO target, the drill records restore timings (BD-071).
+- Deferred (owner 2026-10-18): localhost only for now — off-environment storage target and access depend on hosting; backups stay local and do not meet Q182's off-environment rule.
+- Resolved (owner decision 2026-10-18): run the restore drill monthly and after major releases (BD-072).
 - TASK-066: schedule `db:backup` daily, alert on failure, copy `BACKUP_DIR` off-environment, store the key in the secret store.
 
 ## Status

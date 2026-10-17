@@ -81,10 +81,10 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] An Owner/Admin's own campaign needs a second Owner/Admin (generic no-self-approval rule). Purchase orders approve Owner/Admin submissions at once (ADR-0027 §3); should campaigns do the same so a single Owner is not blocked?
-- [BUSINESS DECISION REQUIRED] Rejected campaigns return to `DRAFT` (provisional, as purchase orders). Confirm, or should rejection be final?
-- [BUSINESS DECISION REQUIRED] Cancelling a campaign (`CANCELLED` exists in DB §18): who may cancel, and from which statuses? No endpoint yet.
-- [BUSINESS DECISION REQUIRED] Content language: one plain-text body per campaign. Do campaigns need Arabic and English versions (by customer language), and must WhatsApp campaigns use pre-approved templates (TASK-049 / provider)?
+- Resolved (owner decision 2026-10-18): keep current behaviour — an Owner/Admin's own campaign needs a second Owner/Admin to approve; no auto-approve (BD-049).
+- Resolved (owner decision 2026-10-18): keep current behaviour — rejected campaigns return to `DRAFT` (BD-050).
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — no campaign cancel function (BD-051).
+- Resolved (owner decision 2026-10-18): keep current behaviour — one plain-text body per campaign (BD-052). Pre-approved WhatsApp templates: Deferred (owner 2026-10-18): localhost only for now (provider choice).
 - Technical defaults (not business rules): name/subject ≤ 200, content ≤ 10000 characters; email requires a subject, WhatsApp has none; send with no opted-in recipient is refused.
 
 ## Status

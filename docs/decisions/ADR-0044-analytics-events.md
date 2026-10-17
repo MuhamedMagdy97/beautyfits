@@ -28,7 +28,7 @@ A visitor is a signed-in customer (`customer_id`) or the random `X-Anonymous-Id`
 
 ## 5. Abandonment
 
-A checkout start whose cart is not `CONVERTED` after `CHECKOUT_ABANDONMENT_MS` gets one `CHECKOUT_ABANDONED` (`dedupe_key = CHECKOUT_ABANDONED:<startEventId>`); a deleted cart counts as abandoned. The cart itself is not marked (R35 keeps `ABANDONED` out of cart expiry). The threshold is a provisional 24 hours pending a business decision (TASK-050 open items).
+A checkout start whose cart is not `CONVERTED` after `CHECKOUT_ABANDONMENT_MS` gets one `CHECKOUT_ABANDONED` (`dedupe_key = CHECKOUT_ABANDONED:<startEventId>`); a deleted cart counts as abandoned. The cart itself is not marked (R35 keeps `ABANDONED` out of cart expiry). The threshold is a provisional 24 hours (owner decision 2026-10-18, TASK-050 open items).
 
 ## 6. Rate limit
 

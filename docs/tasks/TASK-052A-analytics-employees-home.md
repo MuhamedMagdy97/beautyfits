@@ -67,7 +67,7 @@ Every screen is guarded by the permission its endpoint checks; hiding is cosmeti
 Acceptance criteria met, checks green, docs updated.
 
 ## Open Items
-- [BUSINESS DECISION REQUIRED] Brand and category performance (User Flows §19) have no report endpoint; decide whether a follow-up task adds them.
+- Resolved (owner decision 2026-10-18): not in v1 — brand and category performance reports (User Flows §19) are a possible follow-up task (BD-067).
 
 ## Status
 - [x] Planned

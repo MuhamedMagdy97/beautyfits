@@ -67,7 +67,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 Decided by the product owner on 2026-10-03: ADR-0029 §3.
-- [BUSINESS DECISION REQUIRED] Correcting a mistaken payment or ledger entry (`ADJUSTMENT` entries: who, which permission, whether an approval is needed). Not available in v1.
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — no correction of supplier payments or ledger entries; entries are never changed (BD-030).
 - Record the R19 addition (supplier returns use approval requests) in `docs/decisions/business-rules-ledger.xlsx`.
 
 Technical defaults to confirm (ADR-0029 §4):

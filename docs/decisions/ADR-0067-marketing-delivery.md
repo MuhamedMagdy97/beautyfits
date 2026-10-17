@@ -24,4 +24,4 @@ TASK-048 ends at "send": a `SENDING` campaign with `PENDING` `campaign_recipient
 - At least once per try, as ADR-0043: a crash after the provider accepted a message but before the row was updated can resend it after the lease.
 - Two runs delivering to the same customer at the same moment can pass the frequency limit by one message; acceptable at MVP volumes (no per-customer lock).
 - `GET /admin/notifications/deliveries` also lists campaign attempts (no order id, no notification id).
-- Frequency numbers, retry count, fallback subject and unsubscribe links await business decisions (TASK-049 open items); all numbers are settings.
+- Frequency numbers, retry count, fallback subject and unsubscribe links: current behaviour kept (owner decision 2026-10-18, TASK-049 open items); all numbers are settings.

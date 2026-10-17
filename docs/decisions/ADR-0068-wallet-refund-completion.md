@@ -37,4 +37,4 @@ Returns are customer-only (TASK-037: guest orders cannot be returned), and R34 k
 
 - Migration `20261017041000_wallet_refund_completion`: four nullable columns, two checks, one partial unique index.
 - `return` gains `completedAt` and `refundTotal`; `adminReturn.items[]` gains `refundAmount` and `deductionAmount`. The staff return screen offers "Complete" while `INSPECTING`; the storefront shows the refunded total.
-- `PARTIALLY_COMPLETED` stays unused; open items (task file): its meaning, auto vs staff completion (Q97), pickup fee settlement (ADR-0066), customer notification wording.
+- `PARTIALLY_COMPLETED` stays unused; that, staff completion (Q97) and no pickup fee settlement (ADR-0066) are kept by the owner decision of 2026-10-18 (task file).

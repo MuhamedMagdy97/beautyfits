@@ -81,12 +81,12 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] Damaged and Rejected units: they are recorded but enter no inventory bucket. Should damaged returned units go into the Damaged / non-sellable quantity (Q109), and what happens physically to rejected units (sent back to the customer? at whose cost?) — R7 lets customer-caused items be returned to the customer, so the stock effect depends on TASK-040's resolution.
-- [BUSINESS DECISION REQUIRED] Fewer units arrive than were requested (missing units): the outcomes must cover the requested quantity exactly; there is no "not received" outcome. Decide how missing units are recorded and refunded.
-- [BUSINESS DECISION REQUIRED] Correcting an inspection mistake: an inspection is final (append-only, and restocked units are already sellable). Decide whether a correction flow (e.g. an inventory adjustment plus a superseding inspection) is needed.
-- [BUSINESS DECISION REQUIRED] Inspection notes: User Flows §11.4 says "required/encouraged"; implemented as optional per outcome. Confirm, or require them (e.g. for Damaged / Rejected).
-- [BUSINESS DECISION REQUIRED] Customer visibility: customers see the status and `receivedAt` only, not the per-item outcomes, notes or staff photos. Confirm what customers should see once the return is resolved.
-- [BUSINESS DECISION REQUIRED] Customer notification for "received": the `RETURN_RECEIVED` outbox event is written (API §31) but no template or channel is defined.
+- Resolved (owner decision 2026-10-18): keep current behaviour — damaged and rejected units are recorded but enter no inventory bucket; what happens physically to rejected units stays outside the system (BD-008).
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — no "not received" outcome; every requested unit must get an inspection outcome (BD-009).
+- Resolved (owner decision 2026-10-18): keep current behaviour — an inspection is final once saved (audited); no correction flow (BD-010).
+- Resolved (owner decision 2026-10-18): keep current behaviour — inspection notes are optional per outcome (BD-011).
+- Resolved (owner decision 2026-10-18): keep current behaviour — customers see the return status and `receivedAt` only (BD-012).
+- Resolved (owner decision 2026-10-18): not in v1; keep as is — the `RETURN_RECEIVED` outbox event is recorded, but no customer message is sent (BD-007).
 - Note (doc conflict): DB Design "Return completion must atomically … add sellable quantities to inventory when restocked" places the restock at completion, while Business Spec Q36 (higher) says stock is added once inspection confirms sellable condition. Implemented per Q36 at item inspection; the DB Design TASK-039 amendment records this. Completion (TASK-041) no longer restocks.
 - Note: `condition` (DB Design §12) is recorded with each outcome; the only rule enforced between them is `RESTOCK ⇒ SELLABLE` (Q36).
 

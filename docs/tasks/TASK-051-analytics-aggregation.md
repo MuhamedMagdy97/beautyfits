@@ -85,7 +85,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 - Resolved (owner decision 2026-10-15): revenue orders are `CONFIRMED`, `PREPARING`, `READY_FOR_SHIPMENT`, `SHIPPED` and `DELIVERED`, dated by order creation (`REVENUE_ORDER_STATUSES`). `PENDING_CONFIRMATION`, `NEW`, `CANCELLED` and `EXPIRED` do not count.
 - Resolved (owner decision 2026-10-15): revenue and AOV exclude the shipping fee; shipping fees are reported separately.
-- [BUSINESS DECISION REQUIRED] How returns/refunds reduce revenue, COGS and profit once the returns domain exists (Q150 lists returns under "later").
+- Resolved (owner decision 2026-10-18): keep current behaviour — returns and refunds do not reduce revenue, COGS or profit in reports (BD-066).
 - To confirm (technical, ADR-0052 §4): `7D`/`30D`/`90D` include today; custom range limit 366 days.
 
 ## Status

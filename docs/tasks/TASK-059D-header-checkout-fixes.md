@@ -60,7 +60,7 @@ None (dev seed data only).
 
 ## Open Items
 
-- [BUSINESS DECISION REQUIRED] "Best Sellers" and "Offers" links in the Stitch header are not built. "Best seller" (manual pick or sales ranking, over what period) and "Offers" (active discounts? which products?) are not defined (also TASK-059 open items).
+- Resolved (owner decision 2026-10-18): keep current behaviour — no "Best Sellers" or "Offers" header links (BD-077).
 
 ## Status
 - [x] Planned
