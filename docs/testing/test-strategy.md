@@ -37,7 +37,7 @@ This document defines what must be tested and when. It introduces no business ru
 | Integration (with PostgreSQL) | Transactions, constraints, ledgers, idempotency, concurrency, migrations from a clean database | TASK-003 / TASK-006, then per feature task |
 | API / contract | Endpoints match `docs/api/api-contract.md`: response shapes, stable error codes, authorization per endpoint, pagination | Per feature task |
 | Concurrency & reliability | Races on stock, wallet, checkout, webhooks, refunds | TASK-062 (critical paths also covered in their own tasks) |
-| End-to-end | High-value customer/admin flows from browse → checkout → delivery → return → refund | TASK-063 |
+| End-to-end | High-value customer/admin flows from browse → checkout → delivery → return → refund (Playwright, `npm run test:e2e`) | TASK-063 |
 | Backup restore drill | Restore is verified, not assumed: `npm run db:restore-drill` and `restore-drill.int.test.ts` (ADR-0072) | TASK-064 |
 
 ## 4. Database Test Strategy
@@ -121,3 +121,8 @@ Decided in TASK-006 (ADR-0012):
 - Formatter: Prettier (`npm run format`, `npm run format:check`); Markdown documents are not formatted yet.
 - CI: GitHub Actions workflow `CI`, job `verify`, on every pull request and push to `main`; Node.js version from `.nvmrc`; PostgreSQL 17 service container for integration tests.
 - Merge gate: failed checks block merging via branch protection/ruleset on `main` (requires GitHub Pro/Team for private repositories); otherwise no pull request is merged while CI is red.
+
+Decided in TASK-063 (ADR-0071):
+- End-to-end: Playwright (Chromium), specs in `e2e/`, `npm run test:e2e` after `npm run build`; one-time `npx playwright install chromium`.
+- The suite starts the production server on port 3163 (`E2E_PORT`) against `beautyfits_e2e_test` (`E2E_DATABASE_URL`, name must end in `_test`), recreated from migrations and seeded with the existing seeds on every run; mail, WhatsApp and media go to temp folders, and email codes are read from the `.eml` files.
+- CI: separate job `e2e` (PostgreSQL 17 service, build, suite). Whether it is a required check is the owner's decision.

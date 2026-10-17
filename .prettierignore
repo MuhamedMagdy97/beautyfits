@@ -22,3 +22,7 @@ design-reference/
 
 # Local environment files.
 .env*
+
+# Playwright E2E results (TASK-063).
+test-results/
+playwright-report/

@@ -637,6 +637,8 @@ Stress critical races: last-stock checkout, duplicate checkout, wallet double-sp
 
 Automate high-value customer/admin flows from browse to checkout, delivery, return and refund.
 
+**Status after TASK-063** (`docs/tasks/TASK-063-e2e-regression.md`, ADR-0071): Playwright suite (`npm run test:e2e`, `e2e/`) against the production build on port 3163 and a dedicated `beautyfits_e2e_test` database recreated and seeded (bootstrap Owner, sample catalog and areas, one carrier) on every run. Covers guest browse → bag → COD checkout → confirmation, and one customer order from registration (emailed code) through sign-in, order list/detail, staff sign-in (emailed code), confirmation → delivered, return request, approve/pickup/receive/inspect, assessment (API, no screen yet), completion and the wallet credit. Runs in the separate CI job `e2e`.
+
 ### TASK-064 — Backup & Disaster Recovery Validation
 **Depends on:** production-like environment
 
