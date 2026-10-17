@@ -4,6 +4,7 @@ import { runInTransaction, type TransactionClient } from "@/server/db/transactio
 import { AppError } from "@/server/errors/app-error";
 import type { Pagination } from "@/server/http/response";
 import {
+  isSoleOwner,
   requestApproval,
   type ApprovalHandler,
   type PersonRef,
@@ -195,25 +196,6 @@ export const criticalSettingApprovalHandler: ApprovalHandler = {
     });
   },
 };
-
-/** True when the employee is an Owner and no other active Owner/Admin could approve. */
-async function isSoleOwner(tx: TransactionClient, employeeId: string): Promise<boolean> {
-  const requester = await tx.employee.findUnique({
-    where: { id: employeeId },
-    select: { employeeLevel: true },
-  });
-  if (requester?.employeeLevel !== "OWNER") {
-    return false;
-  }
-  const approvers = await tx.employee.count({
-    where: {
-      id: { not: employeeId },
-      status: "ACTIVE",
-      employeeLevel: { in: ["OWNER", "ADMIN"] },
-    },
-  });
-  return approvers === 0;
-}
 
 const person = { select: { id: true, displayName: true } } as const;
 

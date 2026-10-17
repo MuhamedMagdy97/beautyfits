@@ -81,7 +81,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 
 ## Open Items
 
-- Resolved (owner decision 2026-10-18): keep current behaviour — an Owner/Admin's own campaign needs a second Owner/Admin to approve; no auto-approve (BD-049).
+- Resolved (owner decision 2026-10-18, BD-049): a sole Owner's campaign (no other active Owner/Admin) is approved on submit, as purchase orders are; otherwise a second Owner/Admin approves.
 - Resolved (owner decision 2026-10-18): keep current behaviour — rejected campaigns return to `DRAFT` (BD-050).
 - Resolved (owner decision 2026-10-18): not in v1; keep as is — no campaign cancel function (BD-051).
 - Resolved (owner decision 2026-10-18): keep current behaviour — one plain-text body per campaign (BD-052). Pre-approved WhatsApp templates: Deferred (owner 2026-10-18): localhost only for now (provider choice).

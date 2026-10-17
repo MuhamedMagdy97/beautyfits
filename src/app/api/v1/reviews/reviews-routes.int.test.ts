@@ -13,6 +13,7 @@ import type { OrderStatus } from "@/generated/prisma/client";
 import { getDb } from "@/server/db/client";
 import { createSession } from "@/server/modules/auth/sessions";
 import type { PermissionCode } from "@/server/modules/rbac/catalog";
+import { REVIEW_REPORT_LIMIT, REVIEW_WRITE_LIMIT } from "@/server/modules/reviews/reviews-service";
 import { MS_PER_DAY, MS_PER_HOUR } from "@/server/time/time";
 import { resetDatabase } from "@/test/integration/database";
 
@@ -406,6 +407,42 @@ describe("editing and reporting", () => {
 
     await db.review.update({ where: { id: created.id }, data: { status: "HIDDEN" } });
     expect((await errorOf(await send(sara.token), 404)).code).toBe("NOT_FOUND");
+  });
+
+  it("limits review writes and reports per customer per hour (BD-060)", async () => {
+    const { variantIds } = await product();
+    const sara = await customer();
+    const other = await customer();
+    const placed = await order([variantIds[0]], "DELIVERED", sara.token);
+    const created = await data(await review(sara.token, placed.orderId, placed.itemIds[0]), 201);
+    const edit = () =>
+      call(editReview, `/reviews/${created.id}`, {
+        method: "PATCH",
+        token: sara.token,
+        body: { rating: 4 },
+        params: { reviewId: created.id },
+      });
+    const send = (token: string) =>
+      call(report, `/reviews/${created.id}/report`, {
+        method: "POST",
+        token,
+        params: { reviewId: created.id },
+      });
+
+    // The create counted as the first write.
+    for (let i = 1; i < REVIEW_WRITE_LIMIT.limit; i += 1) {
+      await data(await edit());
+    }
+    const writeError = await errorOf(await edit(), 429);
+    expect(writeError.code).toBe("RATE_LIMITED");
+    expect(writeError.details.retryAfterSeconds).toBeGreaterThan(0);
+
+    for (let i = 0; i < REVIEW_REPORT_LIMIT.limit; i += 1) {
+      await data(await send(other.token));
+    }
+    expect((await errorOf(await send(other.token), 429)).code).toBe("RATE_LIMITED");
+    // Limits are per customer and per kind: Sara's writes are blocked, not her reports.
+    expect(await data(await send(sara.token))).toEqual({ reviewId: created.id });
   });
 });
 

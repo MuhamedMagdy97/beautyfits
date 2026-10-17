@@ -11,6 +11,7 @@ import type { Logger } from "@/server/logging/logger";
 import {
   findPendingApproval,
   getApprovalService,
+  isSoleOwner,
   requestApproval,
 } from "@/server/modules/approvals/approvals";
 import { AUDIT_ENTITY_TYPES, employeeActor, recordAudit } from "@/server/modules/audit/audit";
@@ -329,6 +330,25 @@ export function createCampaignsService(deps: { db: PrismaClient; clock: Clock })
         },
         { submittedAt: now },
       );
+      if (await isSoleOwner(tx, actor.employeeId)) {
+        // BD-049 (owner decision 2026-10-18): nobody else could approve, so a
+        // sole Owner's campaign is approved on submit, as purchase orders are.
+        await changeStatus(
+          tx,
+          campaignId,
+          "PENDING_APPROVAL",
+          "APPROVED",
+          "CAMPAIGN_APPROVED",
+          {
+            employeeId: actor.employeeId,
+            now,
+            correlationId: ctx.correlationId,
+            reason: "Approved on submit (sole Owner).",
+          },
+          { approvedByEmployeeId: actor.employeeId, approvedAt: now },
+        );
+        return loadView(tx, campaignId);
+      }
       await requestApproval(
         tx,
         {
