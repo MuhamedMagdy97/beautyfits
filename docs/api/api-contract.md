@@ -796,7 +796,7 @@ Added by TASK-002A. Permission codes in this contract come only from `docs/secur
 | GET | `/admin/notifications/deliveries` | WhatsApp/email delivery attempts and failures | `NOTIFICATION_LOG_VIEW` |
 
 ### Idempotency (completes §9)
-`Idempotency-Key` is required on: `POST /checkout`, `POST /admin/returns/{id}/complete`, `POST /admin/returns/{id}/manual-refund`, `POST /admin/customers/{id}/wallet/adjust`, `POST /admin/suppliers/{id}/payments`. Webhooks use the provider's event id as the key. Stored in `idempotency_keys` (DB v1.2 amendments).
+`Idempotency-Key` is required on: `POST /checkout`, `POST /admin/returns/{id}/complete`, `POST /admin/returns/{id}/manual-refund`, `POST /admin/customers/{id}/wallet/adjust`, `POST /admin/suppliers/{id}/payments`. It is optional on `POST /orders/{orderId}/returns` (TASK-067A Amendments). Webhooks use the provider's event id as the key. Stored in `idempotency_keys` (DB v1.2 amendments).
 
 ## TASK-002 Foundation Amendments
 
@@ -2306,3 +2306,19 @@ Added by TASK-067 (`docs/tasks/TASK-067-mobile-api-readiness.md`). Clarifies beh
 - **Uploads.** Images are JPEG, PNG or WebP; convert other camera formats (e.g. HEIC) before `POST /files/upload-init`. The bytes go in one `PUT` with the returned `headers`, not multipart.
 - **Deep links.** In-app notifications carry `deepLink: { type, id }`. WhatsApp and email messages link to website pages (`/orders/{id}/confirm-cod`, `/products/{slug}`), which stay valid for app links.
 - **Push notifications** are not part of v1 ([BUSINESS DECISION REQUIRED], BD-086).
+
+## TASK-067A Amendments (return request idempotency)
+
+Added by TASK-067A (`docs/tasks/TASK-067A-return-request-idempotency.md`). Additive: a request without the header behaves as before.
+
+| Endpoint | Auth | Request | Success |
+|---|---|---|---|
+| `POST /orders/{orderId}/returns` | Customer + optional `Idempotency-Key` (8–200 of `A-Z a-z 0-9 . _ : -`) | unchanged | `201` `return`; the same key and body returns the same return |
+
+- Website and mobile clients should send one key per return request and reuse it on retries, so a retried request for part of an item's quantity does not create a second return.
+- Keys are per customer, kept 7 days in `idempotency_keys` and written in the same transaction as the return.
+
+| Situation | Response |
+|---|---|
+| Malformed `Idempotency-Key` | `400 VALIDATION_ERROR`, issue code `idempotency_key_invalid` |
+| Same `Idempotency-Key` with another order or body | `409 IDEMPOTENCY_CONFLICT` |

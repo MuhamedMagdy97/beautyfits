@@ -106,6 +106,11 @@ export function requireIdempotencyKey(request: Request): string {
   return key;
 }
 
+/** An optional `Idempotency-Key`: `null` when absent, validated like the required one when sent. */
+export function optionalIdempotencyKey(request: Request): string | null {
+  return request.headers.has("idempotency-key") ? requireIdempotencyKey(request) : null;
+}
+
 /**
  * Validates URL query parameters. Repeated keys become arrays; schemas should
  * use z.coerce for numeric values such as page/pageSize.
