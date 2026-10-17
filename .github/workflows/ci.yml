@@ -75,3 +75,53 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # End-to-end regression suite (TASK-063, ADR-0071). A separate job so a
+  # browser problem never hides the `verify` result; it is a required check
+  # only once the owner adds it to branch protection.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: beautyfits
+          POSTGRES_PASSWORD: beautyfits
+          POSTGRES_DB: beautyfits
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U beautyfits -d beautyfits"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      # Build-time only; the suite runs against its own beautyfits_e2e_test database.
+      DATABASE_URL: postgresql://beautyfits:beautyfits@localhost:5432/beautyfits?schema=public
+      E2E_DATABASE_URL: postgresql://beautyfits:beautyfits@localhost:5432/beautyfits_e2e_test?schema=public
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js (.nvmrc)
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: End-to-end tests
+        run: npm run test:e2e
