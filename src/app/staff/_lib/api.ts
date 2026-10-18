@@ -80,11 +80,14 @@ export function staffPost<T>(path: string, body?: unknown): Promise<T> {
   });
 }
 
-/** Full-page move to sign-in, remembering where the employee was. */
-export function redirectToLogin(reason: "expired" | "signed-out"): void {
+/**
+ * Full-page move to sign-in, remembering where the employee was. `null` is a
+ * page opened without a session: it may never have had one, so no "expired".
+ */
+export function redirectToLogin(reason: "expired" | "signed-out" | null): void {
   const next = window.location.pathname + window.location.search;
-  const query = new URLSearchParams({ reason });
-  if (reason === "expired") {
+  const query = new URLSearchParams(reason ? { reason } : {});
+  if (reason !== "signed-out") {
     query.set("next", next);
   }
   window.location.replace(`/staff/login?${query.toString()}`);

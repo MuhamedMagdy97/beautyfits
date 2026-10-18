@@ -59,7 +59,7 @@ export function StaffSessionProvider({
           return;
         }
         if (error instanceof StaffApiError && error.code === "UNAUTHENTICATED") {
-          redirectToLogin("expired");
+          redirectToLogin(null);
         } else {
           setState({ status: "error", error });
         }
