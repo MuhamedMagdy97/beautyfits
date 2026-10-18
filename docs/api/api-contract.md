@@ -2031,6 +2031,7 @@ Added by TASK-044 (`docs/tasks/TASK-044-verified-reviews.md`, ADR-0042). Busines
 
 - `rating`: integer 1–5. `body`: trimmed, 1–2000 characters. Reasons: trimmed, at most 1000 characters (blank means none for the optional ones).
 - Eligibility: the order belongs to the signed-in customer and is `DELIVERED` (the "successful purchase"; delivery arrives with TASK-034). One review per order and product: two variants of one product in one order give one review. A later delivered order may review the product again (Q12, Q49).
+- Throttling (BD-060, owner 2026-10-18): per customer per hour, 20 review writes (create and edit share one counter) and 20 reports; over the limit `429 RATE_LIMITED` with `details.retryAfterSeconds` for 15 minutes.
 - `myReview`: `{ id, orderId, orderItemId, productId, variantId, rating, body, status, createdAt, updatedAt }`.
 - `publicReview`: `{ id, rating, body, variantName, verifiedPurchase: true, createdAt, updatedAt }`. `variantName` is the order-time variant name in the request locale (or `null`). The reviewer is never named (see the task's open items). `averageRating` is rounded to one decimal, `null` without reviews.
 - `adminReview`: `myReview` plus `{ customerId, orderNumber, sku, productName, variantName, moderationReason, openReportCount, reports: [{ id, customerId, reason, createdAt, resolvedAt }], moderationHistory: [{ fromStatus, toStatus, employeeId, reason, createdAt }] }` (names are the order-time `{ ar, en }` snapshots).
@@ -2215,7 +2216,7 @@ Added by TASK-048 (`docs/tasks/TASK-048-campaigns.md`, ADR-0061). Business rules
 | `GET /admin/campaigns/{id}` | `MARKETING_VIEW` | — | `200` `campaign` |
 | `POST /admin/campaigns` | `MARKETING_CREATE` | `{ name, segment, subject?, content }` | `201` `campaign` (`DRAFT`) |
 | `PATCH /admin/campaigns/{id}` | `MARKETING_EDIT` | any of `{ name, segment, subject, content }`; `subject: null` clears | `200` `campaign` |
-| `POST /admin/campaigns/{id}/submit` | `MARKETING_CREATE` | optional `{ reason? }` | `200` `campaign` (`PENDING_APPROVAL`) with a `MARKETING_CAMPAIGN` approval request |
+| `POST /admin/campaigns/{id}/submit` | `MARKETING_CREATE` | optional `{ reason? }` | `200` `campaign` (`PENDING_APPROVAL`) with a `MARKETING_CAMPAIGN` approval request; a sole Owner (no other active Owner/Admin) gets `APPROVED` directly, with no request (BD-049) |
 | `POST /admin/campaigns/{id}/approve` | `MARKETING_APPROVE` (Owner/Admin only) | optional `{ reason? }` | `200` `campaign` (`APPROVED`) |
 | `POST /admin/campaigns/{id}/reject` | `MARKETING_APPROVE` (Owner/Admin only) | `{ reason }` (required) | `200` `campaign` (back to `DRAFT`) |
 | `POST /admin/campaigns/{id}/send` | `MARKETING_SEND` | — | `200` `campaign` (`SENDING`) |

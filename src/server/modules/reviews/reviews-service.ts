@@ -17,7 +17,13 @@ import type {
   ListReviewsQuery,
   UpdateReviewInput,
 } from "@/server/modules/reviews/schemas";
-import { systemClock, type Clock } from "@/server/time/time";
+import {
+  getBlockedUntil,
+  recordHit,
+  secondsUntil,
+  type RateLimitPolicy,
+} from "@/server/rate-limit/rate-limit";
+import { MS_PER_HOUR, MS_PER_MINUTE, systemClock, type Clock } from "@/server/time/time";
 
 /**
  * Verified reviews (TASK-044, Business Spec Q3, Q11, Q12, Q49, Q50,
@@ -33,6 +39,22 @@ import { systemClock, type Clock } from "@/server/time/time";
  *   history row and an audit entry, nothing is deleted (Q174).
  * - Public listings are product-level (C6) and never name the customer.
  */
+
+/**
+ * Review writes (create and edit share one counter) and reports one customer
+ * may make per hour (BD-060, owner decision 2026-10-18: sensible defaults;
+ * security requirements §10). Over the limit: `RATE_LIMITED` for 15 minutes.
+ */
+export const REVIEW_WRITE_LIMIT: RateLimitPolicy = {
+  limit: 20,
+  windowMs: MS_PER_HOUR,
+  blockMs: 15 * MS_PER_MINUTE,
+};
+export const REVIEW_REPORT_LIMIT: RateLimitPolicy = {
+  limit: 20,
+  windowMs: MS_PER_HOUR,
+  blockMs: 15 * MS_PER_MINUTE,
+};
 
 /** The order status that makes a purchase "successful" (Q12; TASK-034 reaches it). */
 export const REVIEWABLE_ORDER_STATUS = "DELIVERED" as const;
@@ -175,6 +197,17 @@ const ORDER_ITEM = { orderItem: { select: { productVariantId: true } } } as cons
 export function createReviewsService(deps: { db: PrismaClient; clock: Clock }) {
   const { db, clock } = deps;
 
+  /** Refuses while the key is blocked, then counts this attempt. */
+  async function throttle(key: string, policy: RateLimitPolicy, now: Date): Promise<void> {
+    const blockedUntil = await getBlockedUntil(db, key, now);
+    if (blockedUntil) {
+      throw new AppError("RATE_LIMITED", "Too many review actions. Try again later.", {
+        details: { retryAfterSeconds: secondsUntil(blockedUntil, now) },
+      });
+    }
+    await recordHit(db, key, policy, now);
+  }
+
   /** `POST /orders/{orderId}/items/{orderItemId}/review`. */
   async function createReview(
     customerId: string,
@@ -184,6 +217,7 @@ export function createReviewsService(deps: { db: PrismaClient; clock: Clock }) {
     ctx: Ctx,
   ): Promise<MyReviewView> {
     const now = clock.now();
+    await throttle(`review-write:customer:${customerId}`, REVIEW_WRITE_LIMIT, now);
     // Another customer's order, a guest order or a foreign item: 404, so ids reveal nothing.
     const item = await db.orderItem.findFirst({
       where: { id: orderItemId, orderId, order: { customerId } },
@@ -254,6 +288,7 @@ export function createReviewsService(deps: { db: PrismaClient; clock: Clock }) {
     ctx: Ctx,
   ): Promise<MyReviewView> {
     const now = clock.now();
+    await throttle(`review-write:customer:${customerId}`, REVIEW_WRITE_LIMIT, now);
     const review = await runInTransaction(
       async (tx) => {
         const current = await lockReview(tx, reviewId);
@@ -292,6 +327,7 @@ export function createReviewsService(deps: { db: PrismaClient; clock: Clock }) {
     ctx: Ctx,
   ): Promise<{ reviewId: string }> {
     const now = clock.now();
+    await throttle(`review-report:customer:${customerId}`, REVIEW_REPORT_LIMIT, now);
     await runInTransaction(
       async (tx) => {
         const review = await tx.review.findUnique({

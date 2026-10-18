@@ -84,7 +84,7 @@ Acceptance criteria met, docs updated, CI `verify` green, reviewed by the produc
 - **Conflict reported:** DB Design §16 says "one review per successful purchase/order item"; Business Spec Q12/Q49 and User Flows §5 say one per order for the product. Implemented per the higher documents (unique order + product); DB Design amended.
 - Resolved (owner decision 2026-10-18): keep current behaviour — a review needs a `DELIVERED` order; a later return neither removes eligibility nor hides the review (BD-058).
 - Resolved (owner decision 2026-10-18): keep current behaviour — no content checks beyond rating 1–5 and non-blank text of at most 2000 characters (BD-059).
-- [BUSINESS DECISION REQUIRED] Rate-limit thresholds for review create/edit and report (Security Requirements §6 lists them; TASK-061 / owner). Not applied yet. Still open after the owner decision of 2026-10-18 (BD-060).
+- Resolved (owner decision 2026-10-18, BD-060): 20 review writes (create/edit) and 20 reports per customer per hour; `429 RATE_LIMITED` for 15 minutes.
 - Resolved (owner decision 2026-10-18): keep current behaviour — no reviewer name is shown on the public list (BD-061).
 - Resolved (owner decision 2026-10-18): keep current behaviour — edits are always allowed; only hiding resolves reports (BD-062).
 

@@ -2,7 +2,7 @@
 
 Compiled 2026-10-17 from every `[BUSINESS DECISION REQUIRED]` marker and "Open Items" section in the docs (tasks, ADRs, product, architecture, API and database documents), plus the not-yet-merged TASK-062, TASK-063 and TASK-064 files.
 
-**Status (2026-10-18):** the owner has decided every item. Each item keeps its ID and gets a **Decision:** line. One item stays open (BD-060, review rate limits).
+**Status (2026-10-18):** the owner has decided every item. Each item keeps its ID and gets a **Decision:** line. No item is open.
 
 ## Decided 2026-10-18
 
@@ -12,7 +12,7 @@ Owner instruction in chat: "do the recommended", i.e. keep the current provision
 - **Accepted proposals:** BD-016 (missing parts follow R7, as coded), BD-067 (brand/category reports not in v1, possible follow-up task), BD-072 (restore drill monthly and after major releases), BD-073 (e2e becomes a required check; the owner enables it in GitHub branch protection).
 - **No mobile app for now.** Mobile-only items are deferred: BD-086 push notifications, app/universal links (TASK-067).
 - **No production hosting for now** (confirmed again). Items that need hosting, a vendor or a production setup are deferred: BD-068 CAPTCHA provider, BD-075 alert recipients/channels, WhatsApp pre-approved templates (BD-052), plus the list under "Deferred" below.
-- **Still open:** BD-060 (review rate limits): keeping "none" contradicts Security Requirements §6; it needs the owner's numbers and code.
+- **Second answer the same day** (owner: "use sensible defaults"): BD-060 review rate limits set to 20 writes and 20 reports per customer per hour; BD-049 a sole Owner's campaign is approved on submit. Both implemented.
 
 ## Decided 2026-10-17
 
@@ -260,7 +260,7 @@ Source: [TASK-047](../tasks/TASK-047-customer-segmentation.md)
 
 **BD-049** A campaign by an Owner/Admin needs a second Owner/Admin to approve. Auto-approve for a sole Owner, as purchase orders do?
 Source: [TASK-048](../tasks/TASK-048-campaigns.md)
-**Decision:** Resolved (owner decision 2026-10-18): keep current behaviour — a second Owner/Admin must approve; no auto-approve.
+**Decision:** Resolved (owner decision 2026-10-18): a sole Owner (no other active Owner/Admin) gets the campaign approved on submit, audited as `CAMPAIGN_APPROVED`; otherwise a second Owner/Admin approves as before.
 
 **BD-050** Rejected campaigns return to draft (now) or are final?
 Source: [TASK-048](../tasks/TASK-048-campaigns.md)
@@ -314,7 +314,7 @@ Sources: [TASK-044](../tasks/TASK-044-verified-reviews.md), [TASK-061](../tasks/
 **BD-060** Rate-limit numbers for writing/editing/reporting reviews.
 Now: none applied.
 Sources: [TASK-044](../tasks/TASK-044-verified-reviews.md), [TASK-061](../tasks/TASK-061-security-review.md), API Contract §30
-**Decision:** **Still open.** Keeping "no limit" would contradict Security Requirements §6 ("Rate-limit ... review/report") and AGENTS.md; meeting the requirement needs code, so the owner must give numbers.
+**Decision:** Resolved (owner decision 2026-10-18, "sensible defaults"): per customer per hour, 20 review writes (create and edit share one counter) and 20 reports; over the limit `429 RATE_LIMITED` for 15 minutes with `retryAfterSeconds`.
 
 **BD-061** How is the reviewer shown publicly (none, first name, initials)?
 Now: no name.

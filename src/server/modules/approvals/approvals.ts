@@ -138,6 +138,25 @@ export async function findPendingApproval(
   });
 }
 
+/** True when the employee is an Owner and no other active Owner/Admin could approve. */
+export async function isSoleOwner(tx: TransactionClient, employeeId: string): Promise<boolean> {
+  const requester = await tx.employee.findUnique({
+    where: { id: employeeId },
+    select: { employeeLevel: true },
+  });
+  if (requester?.employeeLevel !== "OWNER") {
+    return false;
+  }
+  const approvers = await tx.employee.count({
+    where: {
+      id: { not: employeeId },
+      status: "ACTIVE",
+      employeeLevel: { in: ["OWNER", "ADMIN"] },
+    },
+  });
+  return approvers === 0;
+}
+
 /**
  * Opens an approval request. Call it inside the transaction that puts the
  * entity into its pending state. Only one request per type and entity can be

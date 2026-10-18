@@ -324,6 +324,34 @@ describe("approval", () => {
     await call(submit, "POST", at(created.id, "/submit"), { token: owner, id: created.id });
   });
 
+  it("approves a sole Owner's campaign on submit; a manager's still waits (BD-049)", async () => {
+    await db.employee.updateMany({
+      where: { employeeLevel: "ADMIN" },
+      data: { status: "DEACTIVATED" },
+    });
+    const created = (
+      await call(create, "POST", BASE, { token: owner, body: emailDraft, status: 201 })
+    ).data;
+    const submitted = await call(submit, "POST", at(created.id, "/submit"), {
+      token: owner,
+      id: created.id,
+    });
+    expect(submitted.data).toMatchObject({ status: "APPROVED" });
+    expect(submitted.data.approvedAt).not.toBeNull();
+    expect(await db.approvalRequest.count({ where: { entityId: created.id } })).toBe(0);
+    expect(
+      await db.auditLog.count({ where: { entityId: created.id, action: "CAMPAIGN_APPROVED" } }),
+    ).toBe(1);
+
+    // Only the sole Owner is exempt: a manager's campaign still needs approval.
+    const other = await draft();
+    const pending = await call(submit, "POST", at(other.id, "/submit"), {
+      token: marketer,
+      id: other.id,
+    });
+    expect(pending.data).toMatchObject({ status: "PENDING_APPROVAL" });
+  });
+
   it("gives the same outcome through the approval queue", async () => {
     const created = await draft();
     await call(submit, "POST", at(created.id, "/submit"), { token: marketer, id: created.id });
