@@ -71,7 +71,7 @@ export default function OverviewPage() {
   return (
     <section>
       <h1 className="font-[family-name:var(--font-display)] text-3xl text-ink">
-        {t.welcome}, {session.employee.displayName}
+        {t.welcome.replace("{name}", session.employee.displayName)}
       </h1>
       <p className="mt-2 mb-6 text-ink-soft">
         {sections.length > 0 ? t.overviewIntro : t.noSections}
